@@ -1,0 +1,631 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Panel de Pedidos</title>
+  <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+  <style>
+    :root{
+      --bg:#1E1E2F; --bg-2:#2C2C3C; --text:#F5F5F5; --muted:#b8c1d1;
+      --brand:#2C6FB7; --brand-700:#1F4F8C; --brand-300:#6FB1E6;
+      --ok:#2ECC71; --warn:#F1C40F; --danger:#E74C3C;
+      --ring: 0 0 0 .25rem rgba(44,111,183,.25);
+    }
+    [data-theme="light"]{
+      --bg:#F6F7FB; --bg-2:#FFFFFF; --text:#0E2B4D; --muted:#3b4354;
+      --brand:#2C6FB7; --brand-700:#1F4F8C; --brand-300:#6FB1E6;
+      --ok:#0f9d58; --warn:#f29900; --danger:#d93025;
+    }
+    html,body{height:100%}
+    body{background:var(--bg);color:var(--text);}
+    .navbar-custom{background:var(--bg-2);border-bottom:2px solid var(--brand-700);position:sticky;top:0;z-index:1030}
+    .brand-dot{width:.6rem;height:.6rem;border-radius:50%;display:inline-block;background:var(--brand);box-shadow:0 0 12px var(--brand)}
+    .chip{border:1px solid rgba(0,0,0,.08);background:transparent;color:var(--text);padding:.35rem .6rem;border-radius:999px;display:inline-flex;gap:.35rem;align-items:center;cursor:pointer}
+    .chip.active{background:rgba(44,111,183,.12);border-color:var(--brand)}
+    .card-dark{background:var(--bg-2);border:1px solid rgba(0,0,0,.12);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+    .card-header{border-bottom:1px solid rgba(0,0,0,.08);color:var(--brand-700);font-weight:600}
+    .th-sortable{cursor:pointer;user-select:none}
+    .th-sortable i{opacity:.8}
+    .table-dark{
+      --bs-table-bg:transparent; --bs-table-striped-color:#000 !important; --bs-table-color:#000 !important;
+      --bs-table-striped-bg:rgba(44,111,183,.06); --bs-table-hover-bg:rgba(44,111,183,.12);
+      color:#000 !important;
+    }
+    .status{padding:.25rem .55rem;border-radius:999px;font-size:.75rem;font-weight:600}
+    .status.Pendiente{background:rgba(241,196,15,.12);color:var(--warn);border:1px solid rgba(241,196,15,.35)}
+    .status.Despachado{background:rgba(44,111,183,.12);color:var(--brand-700);border:1px solid rgba(44,111,183,.35)}
+    .status.Entregado{background:rgba(46,204,113,.12);color:var(--ok);border:1px solid rgba(46,204,113,.35)}
+    .status.Cancelado{background:rgba(231,76,60,.12);color:var(--danger);border:1px solid rgba(231,76,60,.35)}
+    .top-search .input-group{border:1.5px solid var(--brand-700);border-radius:10px;overflow:hidden;background:#fff}
+    .top-search .input-group-text{background:#fff;color:var(--brand-700);border:0}
+    .search-input{background:#fff;border:0;color:#0E2B4D}
+    .search-input::placeholder{color:#5b7aa0}
+    .search-input:focus{box-shadow:var(--ring);}
+    .kbd{border:1px solid rgba(0,0,0,.12);border-bottom-width:2px;padding:.05rem .35rem;border-radius:6px;opacity:.8}
+    .btn-ghost{background:transparent;border:1px solid rgba(0,0,0,.12);color:var(--text)}
+    .btn-ghost:hover{border-color:var(--brand-700);background:rgba(44,111,183,.08)}
+    .btn-primary{background:var(--brand-700);border-color:var(--brand-700)}
+    .btn-primary:hover{background:var(--brand);border-color:var(--brand)}
+    .chart-wrap{height:320px}
+    .link-danger{color:var(--danger)!important;font-weight:600}
+    .clock{font-variant-numeric:tabular-nums;letter-spacing:.02em}
+    .dropdown-menu{background:var(--bg-2);color:var(--text);border:1px solid rgba(0,0,0,.1)}
+    .dropdown-item{color:var(--text)}
+    .dropdown-item:hover{background:rgba(44,111,183,.12)}
+    .offcanvas{background:var(--bg-2);color:var(--text)}
+    .form-control,.form-select{background:transparent;border:1px solid rgba(0,0,0,.12);color:var(--text)}
+    .form-control:focus,.form-select:focus{box-shadow:var(--ring);border-color:var(--brand)}
+    .toast{background:var(--bg-2);border:1px solid rgba(0,0,0,.12);color:var(--text)}
+    /* Tabs dentro de la tarjeta de Pedidos */
+    .nav-tabs .nav-link{color:var(--text)}
+    .nav-tabs .nav-link.active{border-color:var(--brand-700) var(--brand-700) transparent;color:var(--brand-700)}
+    .legend-list li{display:flex;justify-content:space-between;gap:8px}
+  </style>
+</head>
+<body>
+  <!-- NAVBAR / TOPBAR -->
+  <nav class="navbar navbar-expand-lg navbar-custom">
+    <div class="container-fluid py-2">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+        <span class="brand-dot"></span><span class="fw-bold">Panel de Pedidos</span>
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topbar">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="topbar">
+        <!-- Search -->
+        <form class="ms-lg-3 my-2 my-lg-0 flex-grow-1 top-search" role="search" onsubmit="return false;">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input id="q" class="form-control search-input" type="search" placeholder="Buscar pedido, cliente, método…" aria-label="Buscar" />
+            <span class="input-group-text d-none d-md-inline">↵</span>
+          </div>
+        </form>
+
+        <!-- (Chips removidos de la navbar; ahora viven en el tab "Pedidos") -->
+
+        <ul class="navbar-nav ms-auto align-items-center gap-2">
+          <li class="nav-item d-none d-lg-block"><span class="clock small text-muted"></span></li>
+          <li class="nav-item">
+            <button id="btnTheme" class="btn btn-ghost" title="Alternar tema (t)"><i class="bi bi-moon-stars"></i></button>
+          </li>
+          <li class="nav-item dropdown">
+            <button class="btn btn-ghost position-relative" data-bs-toggle="dropdown" title="Notificaciones">
+              <i class="bi bi-bell"></i>
+              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">3</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow">
+              <li><h6 class="dropdown-header">Notificaciones</h6></li>
+              <li><a class="dropdown-item" href="#">Nuevo pedido #1024</a></li>
+              <li><a class="dropdown-item" href="#">Stock bajo: Producto C</a></li>
+              <li><a class="dropdown-item" href="#">Cliente Valeria canceló #1012</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="#" id="markRead">Marcar como leídas</a></li>
+            </ul>
+          </li>
+          <li class="nav-item">
+            <button class="btn btn-primary" data-bs-toggle="offcanvas" data-bs-target="#offcanvasFilters"><i class="bi bi-funnel"></i> Filtros</button>
+          </li>
+          <li class="nav-item dropdown">
+            <button class="btn btn-ghost d-flex align-items-center gap-2" data-bs-toggle="dropdown">
+              <img src="https://ui-avatars.com/api/?name=T+123&background=0D8ABC&color=fff" class="rounded-circle" width="28" height="28" alt="avatar"/>
+              <span class="d-none d-md-inline">Trabajador123</span><i class="bi bi-caret-down-fill small"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow">
+              <li><a class="dropdown-item" href="#">Mi perfil</a></li>
+              <li><a class="dropdown-item" href="#">Preferencias</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item link-danger" href="#">Cerrar sesión</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container-fluid py-3">
+    <!-- TOOLBAR -->
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+      <button id="btnRefresh" class="btn btn-ghost"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+      <button id="btnExport" class="btn btn-ghost"><i class="bi bi-file-earmark-spreadsheet"></i> Exportar CSV</button>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <input id="fromDate" type="date" class="form-control form-control-sm"/>
+        <span class="text-muted">→</span>
+        <input id="toDate" type="date" class="form-control form-control-sm"/>
+        <button class="btn btn-primary btn-sm" id="btnDateApply">Aplicar</button>
+        <button class="btn btn-ghost btn-sm" id="btnDateClear">Limpiar</button>
+        <span class="small text-muted d-none d-md-inline">
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <!-- IZQUIERDA: Pedidos (con tabs internos) -->
+      <div class="col-12 col-lg-8">
+        <div class="card card-dark">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Pedidos</span>
+            <span class="small text-muted" id="tableStats">0 pedidos</span>
+          </div>
+
+          <!-- Tabs -->
+          <ul class="nav nav-tabs px-3 pt-2" id="ordersTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="tab-pedidos-tab" data-bs-toggle="tab" data-bs-target="#tab-pedidos" type="button" role="tab">Pedidos</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="tab-rangos-tab" data-bs-toggle="tab" data-bs-target="#tab-rangos" type="button" role="tab">Rangos de pedidos por día (7d)</button>
+            </li>
+          </ul>
+
+          <div class="card-body tab-content">
+            <!-- TAB: Pedidos -->
+            <div class="tab-pane fade show active" id="tab-pedidos" role="tabpanel" aria-labelledby="tab-pedidos-tab">
+              <!-- Chips de estado dentro del tab -->
+              <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                <button class="chip" data-filter="status:Pendiente">Pendientes</button>
+                <button class="chip" data-filter="status:Despachado">Despachados</button>
+                <button class="chip" data-filter="status:Entregado">Entregados</button>
+                <button class="chip" data-filter="status:Cancelado">Cancelados</button>
+              </div>
+
+              <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle" id="ordersTable">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Cliente</th>
+                      <th>Estado</th>
+                      <th>Total</th>
+                      <th>Método</th>
+                      <th class="th-sortable" data-sort="fecha">Fecha <i class="bi bi-arrow-down-short"></i></th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mt-2">
+                <div class="small text-muted" id="selectionInfo">0 seleccionados</div>
+                <div class="btn-group">
+                  <button class="btn btn-ghost btn-sm" id="prevPage">Anterior</button>
+                  <button class="btn btn-ghost btn-sm" id="nextPage">Siguiente</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB: Rangos por día (ahora vista mensual con selector) -->
+            <div class="tab-pane fade" id="tab-rangos" role="tabpanel" aria-labelledby="tab-rangos-tab">
+              <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                <label class="small text-muted me-2">Mes:</label>
+                <input type="month" id="monthPicker" class="form-control form-control-sm" style="max-width: 200px;">
+                <span class="small text-muted ms-auto">Por defecto: mes actual</span>
+              </div>
+              <div class="chart-wrap"><canvas id="ordersMonthChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DERECHA: Resumen + Productos -->
+      <div class="col-12 col-lg-4 d-flex flex-column gap-3">
+        <div class="card card-dark">
+          <div class="card-header">Resumen</div>
+          <div class="card-body d-flex flex-wrap gap-3">
+            <div class="flex-fill"><div class="text-muted small">Hoy</div><div class="h4 mb-0" id="kpiHoy">—</div></div>
+            <div class="flex-fill"><div class="text-muted small">Pendientes</div><div class="h4 mb-0" id="kpiPend">—</div></div>
+            <div class="flex-fill"><div class="text-muted small">Ingresos (7d)</div><div class="h4 mb-0" id="kpiIngresos">—</div></div>
+          </div>
+        </div>
+
+        <!-- Productos más vendidos (Top 5 Pie + lista) -->
+        <div class="card card-dark">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Productos más vendidos</span>
+            <span class="small text-muted">Top 5 (según filtros)</span>
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap"><canvas id="productsPie"></canvas></div>
+            <hr class="my-3">
+            <ul id="productsList" class="list-unstyled legend-list small mb-0"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- OFFCANVAS FILTROS AVANZADOS -->
+  <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasFilters" aria-labelledby="offcanvasFiltersLabel">
+    <div class="offcanvas-header">
+      <h5 id="offcanvasFiltersLabel">Filtros avanzados</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <div class="mb-3">
+        <label class="form-label">Estado</label>
+        <select id="fEstado" class="form-select">
+          <option value="">Todos</option>
+          <option>Pendiente</option><option>Despachado</option><option>Entregado</option><option>Cancelado</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Método de pago</label>
+        <select id="fMetodo" class="form-select">
+          <option value="">Todos</option>
+          <option>Tarjeta</option><option>Efectivo</option><option>Transferencia</option><option>App</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Monto mínimo</label>
+        <input id="fMin" type="number" class="form-control" placeholder="0"/>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary" id="applyAdvanced">Aplicar</button>
+        <button class="btn btn-ghost" id="clearAdvanced">Limpiar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETALLE PEDIDO -->
+  <div class="modal fade" id="orderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content card-dark">
+        <div class="modal-header">
+          <h5 class="modal-title">Pedido <span id="mId">#—</span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12 col-lg-6">
+              <div class="mb-2 small text-muted">Cliente</div>
+              <div class="h6" id="mCliente">—</div>
+              <div class="small text-muted">Método: <span id="mMetodo">—</span></div>
+              <div class="small text-muted">Fecha: <span id="mFecha">—</span></div>
+            </div>
+            <div class="col-12 col-lg-6">
+              <div class="mb-2 small text-muted">Estado</div>
+              <div><span id="mEstado" class="status">—</span></div>
+              <div class="mt-2 small">Cambiar a:
+                <div class="btn-group btn-group-sm ms-2" role="group">
+                  <button class="btn btn-ghost" data-newstate="Pendiente">Pendiente</button>
+                  <button class="btn btn-ghost" data-newstate="Despachado">Despachado</button>
+                  <button class="btn btn-ghost" data-newstate="Entregado">Entregado</button>
+                  <button class="btn btn-ghost" data-newstate="Cancelado">Cancelado</button>
+                </div>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="mb-2 small text-muted">Items</div>
+              <ul id="mItems" class="list-group list-group-flush"></ul>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer d-flex justify-content-between">
+          <div class="h5 mb-0">Total: <span id="mTotal">$—</span></div>
+          <button class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST AREA -->
+  <div class="position-fixed bottom-0 end-0 p-3" style="z-index:1080">
+    <div id="toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="toast-header bg-transparent border-0">
+        <strong class="me-auto">Acción</strong>
+        <small class="text-muted">ahora</small>
+        <button type="button" class="btn-close ms-2 mb-1" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+      <div class="toast-body">Hecho.</div>
+    </div>
+  </div>
+
+  <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+  <script src="{% static 'chart.js' %}"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+  <script>
+  // THEME PERSISTENCE
+  (function(){
+    const saved = localStorage.getItem('theme');
+    if(saved){ document.documentElement.setAttribute('data-theme', saved); }
+  })();
+
+  const $ = sel => document.querySelector(sel);
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+  // CLOCK
+  function tickClock(){
+    const el = document.querySelector('.clock');
+    if(!el) return; const d = new Date();
+    el.textContent = d.toLocaleString('es-CL',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }
+  setInterval(tickClock, 1000); tickClock();
+
+  // SAMPLE DATA
+  const NAMES = ['Valeria','Benjamín','Lucía','Matías','Amanda','Vicente','Carla','Javier','Sofía','Diego'];
+  const METHODS = ['Tarjeta','Efectivo','Transferencia','App'];
+  const PRODUCTS = ['Producto A','Producto B','Producto C','Producto D','Producto E','Producto F','Producto G','Producto H'];
+  const rand=(min,max)=>Math.floor(Math.random()*(max-min+1))+min;
+  const pick=arr=>arr[rand(0,arr.length-1)];
+  const peso=x=>x.toLocaleString('es-CL',{style:'currency',currency:'CLP'});
+
+  let orders = Array.from({length: 86}).map((_,i)=>{
+    const estado = pick(['Pendiente','Despachado','Entregado','Cancelado']);
+    const d = new Date(); d.setDate(d.getDate()-rand(0,6)); d.setHours(rand(9,21), rand(0,59));
+    const items = Array.from({length: rand(1,4)}).map(()=>({ name: pick(PRODUCTS), qty: rand(1,3), price: rand(2500,12000) }));
+    const total = items.reduce((s,it)=>s+it.qty*it.price,0);
+    return { id: 1000+i, cliente: pick(NAMES), estado, total, metodo: pick(METHODS), fecha: d, items }
+  });
+
+  // STATE
+  let page=0, pageSize=10, query='', chips=new Set(), adv={estado:'',metodo:'',min:''}, dateFrom=null, dateTo=null, sortBy='fecha', sortDir='desc';
+
+  // FILTERING
+  function matches(o, opts={useDate:true}){
+    if(query){
+      const q=query.toLowerCase();
+      const txt = `${o.id} ${o.cliente} ${o.metodo} ${o.estado}`.toLowerCase();
+      if(!txt.includes(q)) return false;
+    }
+    if(chips.size && !chips.has(o.estado)) return false;
+    if(adv.estado && o.estado!==adv.estado) return false;
+    if(adv.metodo && o.metodo!==adv.metodo) return false;
+    if(adv.min && o.total < Number(adv.min)) return false;
+    if(opts.useDate){
+      if(dateFrom && o.fecha < dateFrom) return false;
+      if(dateTo && o.fecha > dateTo) return false;
+    }
+    return true;
+  }
+
+  const formatDate=d=>d.toLocaleString('es-CL',{dateStyle:'medium', timeStyle:'short'});
+
+  function renderTable(){
+    const body = $('#ordersTable tbody');
+    const filtered = orders.filter(o=>matches(o));
+    filtered.sort((a,b)=> sortDir==='asc' ? a.fecha-b.fecha : b.fecha-a.fecha);
+    const start = page*pageSize; const slice = filtered.slice(start, start+pageSize);
+    body.innerHTML = slice.map(o=>`
+      <tr data-id="${o.id}">
+        <td>#${o.id}</td>
+        <td>${o.cliente}</td>
+        <td><span class="status ${o.estado}">${o.estado}</span></td>
+        <td>${peso(o.total)}</td>
+        <td>${o.metodo}</td>
+        <td>${formatDate(o.fecha)}</td>
+        <td class="text-end"><button class="btn btn-sm btn-ghost" data-action="view">Detalles</button></td>
+      </tr>`).join('');
+    $('#tableStats').textContent = `${filtered.length} pedidos`;
+    $('#selectionInfo').textContent = `${slice.length} en página / ${filtered.length} totales`;
+
+    // KPIs
+    const today = new Date(); today.setHours(0,0,0,0);
+    const hoyOrders = filtered.filter(o=>{const f=new Date(o.fecha); f.setHours(0,0,0,0); return f.getTime()===today.getTime()});
+    $('#kpiHoy').textContent = hoyOrders.length;
+    $('#kpiPend').textContent = filtered.filter(o=>o.estado==='Pendiente').length;
+    const last7 = filtered.filter(o=> (new Date()) - o.fecha <= 7*86400000 ).reduce((s,o)=>s+o.total,0);
+    $('#kpiIngresos').textContent = peso(last7);
+  }
+
+  // EXPORT CSV
+  function exportCSV(){
+    const rows = [['ID','Cliente','Estado','Total','Método','Fecha']];
+    orders.filter(o=>matches(o)).forEach(o=>rows.push([o.id,o.cliente,o.estado,o.total, o.metodo, formatDate(o.fecha)]));
+    const csv = rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'}); const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='pedidos.csv'; a.click(); URL.revokeObjectURL(url);
+  }
+
+  // MODAL + UI
+  let orderModal, toast;
+  document.addEventListener('DOMContentLoaded', ()=>{
+    orderModal = new bootstrap.Modal('#orderModal');
+    toast = new bootstrap.Toast('#toast');
+    bindUI(); renderTable(); renderCharts();
+  });
+
+  function bindUI(){
+    $('#q').addEventListener('input', e=>{query=e.target.value; page=0; renderTable(); updateCharts();});
+
+    $$('.chip').forEach(ch=>{
+      ch.addEventListener('click',()=>{
+        const val = ch.dataset.filter.split(':')[1];
+        if(ch.classList.toggle('active')) chips.add(val); else chips.delete(val);
+        page=0; renderTable(); updateCharts();
+      });
+    });
+
+    $$('#ordersTable thead th.th-sortable').forEach(th=>{
+      th.addEventListener('click', ()=>{
+        const key = th.dataset.sort; if(sortBy===key){ sortDir = (sortDir==='asc'?'desc':'asc'); } else { sortBy=key; sortDir='desc'; }
+        $$('#ordersTable thead th.th-sortable i').forEach(i=> i.className='bi');
+        const icon = th.querySelector('i'); if(icon){ icon.className = 'bi ' + (sortDir==='asc'?'bi-arrow-up-short':'bi-arrow-down-short'); }
+        page=0; renderTable(); updateCharts();
+      });
+    });
+
+    $('#prevPage').onclick = ()=>{ if(page>0){page--; renderTable()} };
+    $('#nextPage').onclick = ()=>{ const max = Math.ceil(orders.filter(o=>matches(o)).length/pageSize)-1; if(page<max){page++; renderTable()} };
+
+    $('#ordersTable').addEventListener('click', e=>{
+      const btn = e.target.closest('button[data-action="view"]');
+      if(!btn) return; const tr = btn.closest('tr'); const id = Number(tr.dataset.id);
+      const o = orders.find(x=>x.id===id); openOrder(o);
+    });
+
+    $('#btnTheme').onclick = ()=>{
+      const cur = document.documentElement.getAttribute('data-theme');
+      const next = cur==='light'?'dark':'light';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      updateCharts();
+    };
+
+    $('#markRead').onclick = ()=> showToast('Notificaciones marcadas como leídas');
+
+    $('#btnDateApply').onclick = ()=>{
+      dateFrom = $('#fromDate').value ? new Date($('#fromDate').value+'T00:00:00') : null;
+      dateTo = $('#toDate').value ? new Date($('#toDate').value+'T23:59:59') : null;
+      page=0; renderTable(); updateCharts();
+    };
+    $('#btnDateClear').onclick = ()=>{ $('#fromDate').value=''; $('#toDate').value=''; dateFrom=null; dateTo=null; renderTable(); updateCharts(); };
+
+    $('#applyAdvanced').onclick = ()=>{ adv={estado:$('#fEstado').value,metodo:$('#fMetodo').value,min:$('#fMin').value}; renderTable(); updateCharts(); showToast('Filtros aplicados'); };
+    $('#clearAdvanced').onclick = ()=>{ adv={estado:'',metodo:'',min:''}; $('#fEstado').value=''; $('#fMetodo').value=''; $('#fMin').value=''; renderTable(); updateCharts(); };
+
+    $('#btnExport').onclick = exportCSV;
+    $('#btnRefresh').onclick = ()=>{ shuffleData(); renderTable(); updateCharts(); showToast('Datos actualizados'); };
+
+    // Month picker (default: current month)
+    const mp = $('#monthPicker');
+    const today = new Date();
+    mp.value = today.toISOString().slice(0,7);
+    mp.addEventListener('change', updateCharts);
+
+    document.addEventListener('shown.bs.tab', (e)=>{
+      // Recalcular charts cuando cambio de tab
+      updateCharts();
+    });
+
+    document.addEventListener('keydown', (e)=>{
+      if(e.key==='/' && document.activeElement !== $('#q')){ e.preventDefault(); $('#q').focus(); }
+      if(e.key==='?'){ alert('Atajos:\n/ enfoca búsqueda\n t alterna tema'); }
+      if(e.key==='t'){ $('#btnTheme').click(); }
+    });
+  }
+
+  function showToast(msg){ $('#toast .toast-body').textContent = msg; toast.show(); }
+
+  function openOrder(o){
+    $('#mId').textContent = '#'+o.id;
+    $('#mCliente').textContent = o.cliente;
+    $('#mMetodo').textContent = o.metodo;
+    $('#mFecha').textContent = formatDate(o.fecha);
+    const est = $('#mEstado'); est.textContent = o.estado; est.className = 'status '+o.estado;
+    $('#mTotal').textContent = peso(o.total);
+    const ul = $('#mItems');
+    ul.innerHTML = o.items.map(it=>`
+      <li class="list-group-item bg-transparent border-secondary d-flex justify-content-between">
+        <span>${it.qty}× ${it.name}</span><span>${peso(it.qty*it.price)}</span>
+      </li>`).join('');
+    $$('#orderModal [data-newstate]').forEach(b=>{
+      b.onclick = ()=>{ o.estado = b.dataset.newstate; renderTable(); updateCharts(); const est = $('#mEstado'); est.textContent = o.estado; est.className = 'status '+o.estado; showToast('Estado actualizado'); };
+    });
+    orderModal.show();
+  }
+
+  function shuffleData(){
+    const add = rand(1,3);
+    for(let i=0;i<add;i++){
+      const items = Array.from({length: rand(1,3)}).map(()=>({name:pick(PRODUCTS),qty:rand(1,2),price:rand(2500,12000)}));
+      orders.unshift({
+        id: (orders[0]?.id||1000)+1,
+        cliente: pick(NAMES), estado: 'Pendiente',
+        total: items.reduce((s, it)=>s+it.qty*it.price,0), metodo: pick(METHODS), fecha: new Date(), items
+      });
+    }
+    orders.forEach(o=>{ if(Math.random()<.05) o.estado = pick(['Pendiente','Despachado','Entregado']); });
+  }
+
+  // ===== CHARTS =====
+  let monthChart, productsPie;
+  function chartColors(){
+    const theme = document.documentElement.getAttribute('data-theme');
+    const text = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || (theme==='light'?'#0E2B4D':'#F5F5F5');
+    return {grid:'rgba(31,79,140,0.12)', text};
+  }
+
+  // Vista mensual: cuenta pedidos por día del mes seleccionado (ignora dateFrom/dateTo para no “capar” el mes)
+  function ordersByMonth(){
+    const mp = $('#monthPicker').value; // "YYYY-MM"
+    const [y,m] = mp.split('-').map(Number);
+    const first = new Date(y, m-1, 1, 0,0,0,0);
+    const last  = new Date(y, m, 0, 23,59,59,999); // último día del mes
+
+    const daysInMonth = last.getDate();
+    const labels = Array.from({length:daysInMonth}, (_,i)=> String(i+1));
+    const data = Array.from({length:daysInMonth}, ()=>0);
+
+    orders.forEach(o=>{
+      if(!matches(o, {useDate:false})) return; // respeta filtros/estado/búsqueda, ignora rango global
+      if(o.fecha>=first && o.fecha<=last){
+        const d = o.fecha.getDate();
+        data[d-1] += 1;
+      }
+    });
+    return {labels, data};
+  }
+
+  // Productos Top 5 (pie). Usa filtros globales (incluye rango dateFrom/dateTo si set)
+  function productsTop5(){
+    const counts = {};
+    orders.filter(o=>matches(o)).forEach(o=>o.items.forEach(it=>{
+      counts[it.name] = (counts[it.name]||0) + it.qty;
+    }));
+    const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    return {
+      labels: entries.map(e=>e[0]),
+      data: entries.map(e=>e[1])
+    };
+  }
+
+  function renderCharts(){
+    const {text, grid} = chartColors();
+
+    // Monthly chart (en el tab Rangos)
+    const oc = document.getElementById('ordersMonthChart');
+    const om = ordersByMonth();
+    monthChart = new Chart(oc, {
+      type:'line',
+      data:{labels:om.labels, datasets:[{
+        label:'Pedidos por día (mes)', data:om.data,
+        borderColor:getComputedStyle(document.documentElement).getPropertyValue('--brand-700').trim()||'#1F4F8C',
+        backgroundColor:'rgba(44,111,183,0.18)', tension:.35, fill:true
+      }]},
+      options:{responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:text}}},
+        scales:{x:{grid:{color:grid},ticks:{color:text}}, y:{grid:{color:grid},ticks:{color:text,precision:0}}}
+      },
+    });
+
+    // Productos Pie (Top 5)
+    const pc = document.getElementById('productsPie');
+    const p = productsTop5();
+    productsPie = new Chart(pc, {
+      type:'pie',
+      data:{labels:p.labels, datasets:[{data:p.data}]},
+      options:{responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}, tooltip:{callbacks:{label:(ctx)=>`${ctx.label}: ${ctx.parsed}`}}}
+      }
+    });
+    renderProductsList(p);
+  }
+
+  function updateCharts(){
+    const {text, grid} = chartColors();
+
+    // Update monthly
+    const om = ordersByMonth();
+    monthChart.data.labels = om.labels;
+    monthChart.data.datasets[0].data = om.data;
+    monthChart.options.scales.x.ticks.color=text;
+    monthChart.options.scales.y.ticks.color=text;
+    monthChart.update();
+
+    // Update products pie
+    const p = productsTop5();
+    productsPie.data.labels = p.labels;
+    productsPie.data.datasets[0].data = p.data;
+    productsPie.update();
+    renderProductsList(p);
+  }
+
+  function renderProductsList(p){
+    const ul = $('#productsList');
+    ul.innerHTML = p.labels.map((name, i)=>`<li><span>${i+1}. ${name}</span><strong>${p.data[i]}</strong></li>`).join('');
+  }
+  </script>
+</body>
+</html>

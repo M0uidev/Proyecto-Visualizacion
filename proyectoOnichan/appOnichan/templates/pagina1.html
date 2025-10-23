@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+
+{% block title %}Tienda - Vista Cliente{% endblock %}
+
+{% block content %}
+  <main class="container py-4">
+    <!-- HERO -->
+    <section class="hero p-4 p-md-5 mb-4">
+      <div class="row align-items-center g-4">
+        <div class="col-12 col-md-7">
+          <h1 class="fw-bold mb-2">Todo en un solo lugar</h1>
+          <p class="lead mb-3">Electrónica, ropa, juguetes, hogar y más. Envío rápido y pagos seguros.</p>
+          <div class="d-flex gap-2">
+            <a href="#productos" class="btn btn-primary btn-lg"><i class="bi bi-lightning-charge"></i> Comprar ahora</a>
+            <a href="#promos" class="btn btn-ghost btn-lg"><i class="bi bi-stars"></i> Ver ofertas</a>
+          </div>
+          <div class="mt-3 small text-muted">
+            <i class="bi bi-truck"></i> Envíos 24–72h · <i class="bi bi-shield-check"></i> Garantía de compra
+          </div>
+        </div>
+        <div class="col-12 col-md-5">
+          <img alt="Retail" class="w-100 rounded-3"
+               src="https://source.unsplash.com/800x500/?shopping,store,retail">
+        </div>
+      </div>
+    </section>
+
+    <!-- BUSCADOR + CATEGORÍAS + FILTROS LIGHT -->
+    <section class="mb-3">
+      <div class="row g-2 align-items-center">
+        <div class="col-12 col-md-6 search-wrap">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input id="search" type="search" class="form-control" placeholder="Buscar (laptop, polera, lego, TV…)">
+            <span class="input-group-text d-none d-md-inline">↵</span>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <select id="sort" class="form-select">
+            <option value="featured">Destacados</option>
+            <option value="price-asc">Precio: menor a mayor</option>
+            <option value="price-desc">Precio: mayor a menor</option>
+            <option value="name-asc">Nombre A–Z</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-3 text-end">
+          <span class="small text-muted" id="countLabel">0 productos</span>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2 mt-3" id="categories"><!-- pills via JS --></div>
+
+      <!-- Filtros rápidos -->
+      <div class="d-flex flex-wrap gap-2 mt-2" id="quickFilters">
+        <span class="filter-chip" data-qf="envio">Envío gratis</span>
+        <span class="filter-chip" data-qf="oferta">En oferta</span>
+        <span class="filter-chip" data-qf="stock">En stock</span>
+      </div>
+    </section>
+
+    <!-- PRODUCTOS -->
+    <section id="productos" class="mb-4">
+      <div class="row g-3" id="grid"><!-- cards via JS --></div>
+    </section>
+
+    <!-- OFERTAS -->
+    <section id="promos" class="mb-5">
+      <div class="card-dark p-3">
+        <div class="d-flex align-items-center justify-content-between">
+          <h5 class="mb-0">Ofertas de la semana</h5>
+          <span class="badge badge-soft px-3 py-2"><i class="bi bi-ticket-perforated"></i> CUPÓN: MEGASALE10</span>
+        </div>
+        <p class="text-muted mb-0 mt-2">10% adicional en productos seleccionados. Ingresa el cupón al pagar.</p>
+      </div>
+    </section>
+
+    <!-- CONTACTO -->
+    <section id="contacto" class="mb-5">
+      <div class="card-dark p-4">
+        <h5 class="mb-3">¿Necesitas ayuda?</h5>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Nombre</label>
+            <input class="form-control" placeholder="Tu nombre">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input class="form-control" placeholder="tucorreo@ejemplo.com">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Mensaje</label>
+            <textarea class="form-control" rows="3" placeholder="Escríbenos…"></textarea>
+          </div>
+          <div class="col-12">
+            <button class="btn btn-primary">Enviar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer py-3">
+    <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div class="small text-muted">© <span id="y"></span> MultiTienda — Todos los derechos reservados.</div>
+      <div class="small">
+        <a class="text-muted me-3" href="#">Términos</a>
+        <a class="text-muted" href="#">Privacidad</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- OFFCANVAS CARRITO -->
+  <div class="offcanvas offcanvas-end" tabindex="-1" id="cart">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title"><i class="bi bi-bag"></i> Tu carrito</h5>
+      <button class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body d-flex flex-column">
+      <ul id="cartList" class="list-group list-group-flush mb-3"></ul>
+      <div class="mt-auto">
+        <div class="d-flex justify-content-between mb-2">
+          <span class="fw-semibold">Subtotal</span>
+          <span id="subtotal" class="fw-bold">$0</span>
+        </div>
+        <div class="input-group mb-2">
+          <span class="input-group-text"><i class="bi bi-ticket-perforated"></i></span>
+          <input id="coupon" class="form-control" placeholder="Ingresa tu cupón">
+          <button id="applyCoupon" class="btn btn-ghost">Aplicar</button>
+        </div>
+        <button id="checkout" class="btn btn-primary w-100"><i class="bi bi-credit-card"></i> Pagar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETALLE PRODUCTO -->
+  <div class="modal fade" id="productModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content card-dark">
+        <div class="modal-header">
+          <h5 class="modal-title" id="pmName">Producto</h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <img id="pmImg" class="w-100 rounded-3" alt="">
+            </div>
+            <div class="col-md-6">
+              <div class="mb-2">
+                <span class="h4 price" id="pmPrice"></span>
+                <span class="strike" id="pmOld"></span>
+              </div>
+              <p class="text-muted" id="pmDesc"></p>
+              <div class="mb-2 small"><i class="bi bi-box-seam"></i> <span id="pmStock"></span></div>
+              <div class="mb-3 small"><i class="bi bi-truck"></i> <span id="pmShip"></span></div>
+              <div class="d-flex align-items-center gap-2 mb-3">
+                <label class="small">Cantidad</label>
+                <div class="input-group" style="max-width:140px;">
+                  <button class="btn btn-ghost" id="pmMinus"><i class="bi bi-dash"></i></button>
+                  <input id="pmQty" type="number" class="form-control text-center" min="1" value="1">
+                  <button class="btn btn-ghost" id="pmPlus"><i class="bi bi-plus"></i></button>
+                </div>
+              </div>
+              <button class="btn btn-primary" id="pmAdd"><i class="bi bi-bag-plus"></i> Agregar al carrito</button>
+              <div class="mt-3 small">
+                <span class="badge badge-soft me-1" id="pmCat"></span>
+                <span class="badge badge-soft" id="pmTag"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer small text-muted">
+          Devoluciones 10 días · Garantía legal 6 meses
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="position-fixed bottom-0 end-0 p-3" style="z-index:1080">
+    <div id="toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="toast-header bg-transparent border-0">
+        <strong class="me-auto">MultiTienda</strong>
+        <small class="text-muted">ahora</small>
+        <button type="button" class="btn-close ms-2 mb-1" data-bs-dismiss="toast"></button>
+      </div>
+      <div class="toast-body">Acción realizada.</div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // === Estado / utils ===
+  (function(){ const s=localStorage.getItem('theme'); if(s){ document.documentElement.setAttribute('data-theme', s); }})();
+  const $  = (s)=>document.querySelector(s);
+  const $$ = (s)=>Array.from(document.querySelectorAll(s));
+  const toast = ()=> new bootstrap.Toast(document.getElementById('toast')); // FIX
+  const CLP = n => n.toLocaleString('es-CL',{style:'currency',currency:'CLP'});
+
+  // Catálogo multi-categoría con links reales (campo `url`)
+  const PRODUCTS = [ /* ... (tu mismo catálogo, sin cambios) ... */ ];
+  // (PEGAR aquí exactamente tu arreglo PRODUCTS)
+
+  const CATEGORIES = ['Todas','Electrónica','Ropa','Juguetes','Hogar','Deportes','Belleza','Supermercado'];
+
+  // === Estado UI ===
+  let query='', cat='Todas', sort='featured';
+  let filters = { envio:false, oferta:false, stock:false };
+  let cart = JSON.parse(localStorage.getItem('cart')||'[]'); // [{id,qty}]
+
+  function renderCategories(){
+    const wrap = $('#categories');
+    wrap.innerHTML = CATEGORIES.map(c=>`
+      <button class="category-pill ${c===cat?'active':''}" data-cat="${c}">${c}</button>
+    `).join('');
+    $$('#categories .category-pill').forEach(b=>{
+      b.onclick = ()=>{ cat=b.dataset.cat; renderGrid(); };
+    });
+  }
+
+  function bindQuickFilters(){
+    $$('#quickFilters .filter-chip').forEach(ch=>{
+      ch.onclick = ()=>{
+        const key = ch.dataset.qf;
+        filters[key] = !filters[key];
+        ch.classList.toggle('active');
+        renderGrid();
+      };
+    });
+  }
+
+  function filtered(){
+    let arr = PRODUCTS.filter(p=>{
+      const okCat = (cat==='Todas' || p.cat===cat);
+      const q = query;
+      const okQuery = !q || (p.name.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q) || p.tag.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q));
+      const okEnvio = !filters.envio || p.freeShip===true;
+      const okOferta = !filters.oferta || p.onSale===true;
+      const okStock = !filters.stock || p.stock>0;
+      return okCat && okQuery && okEnvio && okOferta && okStock;
+    });
+    switch(sort){
+      case 'price-asc':  arr.sort((a,b)=>a.price-b.price); break;
+      case 'price-desc': arr.sort((a,b)=>b.price-a.price); break;
+      case 'name-asc':   arr.sort((a,b)=>a.name.localeCompare(b.name)); break;
+      default: break;
+    }
+    return arr;
+  }
+
+  function renderGrid(){
+    const data = filtered();
+    $('#countLabel').textContent = `${data.length} producto${data.length!==1?'s':''}`;
+    $('#grid').innerHTML = data.map(p=>`
+      <div class="col-6 col-md-4 col-xl-3">
+        <div class="card-dark product-card h-100 d-flex flex-column">
+          <img loading="lazy" src="${p.img}" alt="${p.name}">
+          <div class="p-3 d-flex flex-column gap-2 flex-grow-1">
+            <div class="d-flex align-items-start justify-content-between">
+              <h6 class="mb-0">${p.name}</h6>
+              <span class="badge badge-soft">${p.cat}</span>
+            </div>
+            <div class="small text-muted">${p.desc.slice(0,80)}${p.desc.length>80?'…':''}</div>
+            <div class="d-flex align-items-center gap-2 small">
+              ${p.freeShip?'<span class="badge bg-success-subtle text-success-emphasis border">Envío gratis</span>':''}
+              ${p.onSale?'<span class="badge bg-danger-subtle text-danger-emphasis border">Oferta</span>':''}
+              ${p.stock>0?'<span class="badge bg-secondary-subtle text-secondary-emphasis border">Stock: '+p.stock+'</span>':'<span class="badge bg-dark">Agotado</span>'}
+            </div>
+            <div class="mt-auto d-flex align-items-center justify-content-between">
+              <div class="price">${CLP(p.price)} ${p.old?`<span class="strike">${CLP(p.old)}</span>`:''}</div>
+              <div class="btn-group">
+                <button class="btn btn-ghost btn-sm" data-view="${p.id}" title="Ver"><i class="bi bi-eye"></i></button>
+                <button class="btn btn-primary btn-sm" data-add="${p.id}" ${p.stock===0?'disabled':''}><i class="bi bi-bag-plus"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    $$('[data-add]').forEach(b=> b.onclick = ()=> addToCart(b.dataset.add, 1));
+    $$('[data-view]').forEach(b=> b.onclick = ()=> openProduct(b.dataset.view));
+  }
+
+  function openProduct(id){
+    const p = PRODUCTS.find(x=>x.id===id);
+    if(!p) return;
+    $('#pmName').textContent = p.name;
+    $('#pmImg').src = p.img; $('#pmImg').alt = p.name;
+    $('#pmPrice').textContent = CLP(p.price);
+    $('#pmOld').textContent = p.old? CLP(p.old): '';
+    $('#pmDesc').textContent = p.desc;
+    $('#pmCat').textContent = p.cat;
+    $('#pmTag').textContent = p.tag;
+    $('#pmStock').textContent = p.stock>0 ? `${p.stock} en stock` : 'Sin stock';
+    $('#pmShip').textContent = p.ship || 'Envío 24–72h';
+    $('#pmQty').value = 1;
+    $('#pmMinus').onclick = ()=>{ const q=+$('#pmQty').value; if(q>1) $('#pmQty').value=q-1; };
+    $('#pmPlus').onclick  = ()=>{ const q=+$('#pmQty').value; $('#pmQty').value=q+1; };
+    $('#pmAdd').onclick   = ()=>{ addToCart(p.id, +$('#pmQty').value); modal.hide(); };
+
+    const modal = new bootstrap.Modal(document.getElementById('productModal')); // FIX
+    modal.show();
+  }
+
+  function addToCart(id, qty=1){
+    const p = PRODUCTS.find(x=>x.id===id);
+    if(!p || p.stock===0) { notify('Sin stock'); return; }
+    const idx = cart.findIndex(i=>i.id===id);
+    if(idx>=0) cart[idx].qty += qty; else cart.push({id, qty});
+    persistCart(); renderCart(); notify('Agregado al carrito');
+  }
+  function removeFromCart(id){
+    cart = cart.filter(i=>i.id!==id); persistCart(); renderCart();
+  }
+  function setQty(id, q){
+    const it = cart.find(i=>i.id===id); if(!it) return;
+    it.qty = Math.max(1, q|0); persistCart(); renderCart();
+  }
+  function calcSubtotal(){
+    return cart.reduce((s,i)=>{ const p = PRODUCTS.find(x=>x.id===i.id); return s + (p?p.price:0)*i.qty; }, 0);
+  }
+  function renderCart(){
+    $('#cartBadge').textContent = cart.reduce((s,i)=>s+i.qty,0);
+    const ul = $('#cartList');
+    if(cart.length===0){
+      ul.innerHTML = `<li class="list-group-item bg-transparent text-muted">Tu carrito está vacío.</li>`;
+      $('#subtotal').textContent=CLP(0); return;
+    }
+    ul.innerHTML = cart.map(i=>{
+      const p = PRODUCTS.find(x=>x.id===i.id);
+      return `
+        <li class="list-group-item bg-transparent d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center gap-2">
+            <img src="${p.img}" alt="${p.name}" style="width:56px;height:40px;object-fit:cover;border-radius:8px;">
+            <div>
+              <div class="fw-semibold">${p.name}</div>
+              <div class="small text-muted">${CLP(p.price)} c/u</div>
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <div class="input-group input-group-sm" style="width:110px;">
+              <button class="btn btn-ghost" data-qminus="${i.id}"><i class="bi bi-dash"></i></button>
+              <input class="form-control text-center" value="${i.qty}" data-qval="${i.id}">
+              <button class="btn btn-ghost" data-qplus="${i.id}"><i class="bi bi-plus"></i></button>
+            </div>
+            <button class="btn btn-ghost" title="Eliminar" data-del="${i.id}"><i class="bi bi-trash"></i></button>
+          </div>
+        </li>
+      `;
+    }).join('');
+    $('#subtotal').textContent = CLP(calcSubtotal());
+
+    $$('[data-del]').forEach(b=> b.onclick = ()=> removeFromCart(b.dataset.del));
+    $$('[data-qminus]').forEach(b=> b.onclick = ()=>{ const id=b.dataset.qminus; const it=cart.find(x=>x.id===id); if(it && it.qty>1){ it.qty--; } persistCart(); renderCart(); });
+    $$('[data-qplus]').forEach(b=> b.onclick = ()=>{ const id=b.dataset.qplus; const it=cart.find(x=>x.id===id); if(it){ it.qty++; } persistCart(); renderCart(); });
+    $$('[data-qval]').forEach(inp=> inp.onchange = ()=> setQty(inp.dataset.qval, +inp.value));
+  }
+  function persistCart(){ localStorage.setItem('cart', JSON.stringify(cart)); }
+
+  $('#applyCoupon').onclick = ()=>{
+    const code = $('#coupon').value.trim().toUpperCase();
+    if(code==='MEGASALE10'){
+      const sub = calcSubtotal();
+      const desc = Math.round(sub*0.10);
+      $('#subtotal').textContent = CLP(Math.max(0, sub - desc));
+      notify('Cupón aplicado: -10%');
+    }else{
+      notify('Cupón inválido');
+    }
+  };
+
+  $('#search').addEventListener('input', e=>{ query = e.target.value.toLowerCase(); renderGrid(); });
+  $('#sort').addEventListener('change', e=>{ sort = e.target.value; renderGrid(); });
+  document.addEventListener('keydown', e=>{
+    if(e.key==='/' && document.activeElement!==$('#search')){ e.preventDefault(); $('#search').focus(); }
+    if(e.key==='t'){ toggleTheme(); }
+  });
+  $('#btnTheme').onclick = toggleTheme;
+  function toggleTheme(){
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur==='light'?'dark':'light';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+  }
+
+  $('#checkout').onclick = ()=>{
+    if(cart.length===0){ notify('Tu carrito está vacío'); return; }
+    notify('Redirigiendo a pago… (demo)');
+  };
+
+  function notify(msg){
+    $('#toast .toast-body').textContent = msg;
+    toast().show();
+  }
+
+  (function init(){
+    $('#y').textContent = new Date().getFullYear();
+    renderCategories();
+    bindQuickFilters();
+    renderGrid();
+    renderCart();
+  })();
+</script>
+{% endblock %}
