@@ -4,9 +4,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>{% block title %}Tienda — Vista Cliente{% endblock %}</title>
+  <title>MultiTienda</title>
   <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
   <style>
     :root{
       --bg:#1E1E2F; --bg-2:#2C2C3C; --text:#F5F5F5; --muted:#b8c1d1;
@@ -20,67 +19,106 @@
       --ok:#0f9d58; --warn:#f29900; --danger:#d93025;
     }
     html,body{height:100%}
-    body{background:var(--bg);color:var(--text)}
+    body{background:var(--bg);color:var(--text);}
     .navbar-custom{background:var(--bg-2);border-bottom:2px solid var(--brand-700);position:sticky;top:0;z-index:1030}
     .brand-dot{width:.6rem;height:.6rem;border-radius:50%;display:inline-block;background:var(--brand);box-shadow:0 0 12px var(--brand)}
+    .chip{border:1px solid rgba(0,0,0,.08);background:transparent;color:var(--text);padding:.35rem .6rem;border-radius:999px;display:inline-flex;gap:.35rem;align-items:center;cursor:pointer}
+    .chip.active{background:rgba(44,111,183,.12);border-color:var(--brand)}
+    .card-dark{background:var(--bg-2);border:1px solid rgba(0,0,0,.12);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+    .card-header{border-bottom:1px solid rgba(0,0,0,.08);color:var(--brand-700);font-weight:600}
+    .th-sortable{cursor:pointer;user-select:none}
+    .th-sortable i{opacity:.8}
+    .table-dark{
+      --bs-table-bg:transparent; --bs-table-striped-color:#000 !important; --bs-table-color:#000 !important;
+      --bs-table-striped-bg:rgba(44,111,183,.06); --bs-table-hover-bg:rgba(44,111,183,.12);
+      color:#000 !important;
+    }
+    .status{padding:.25rem .55rem;border-radius:999px;font-size:.75rem;font-weight:600}
+    .status.Pendiente{background:rgba(241,196,15,.12);color:var(--warn);border:1px solid rgba(241,196,15,.35)}
+    .status.Despachado{background:rgba(44,111,183,.12);color:var(--brand-700);border:1px solid rgba(44,111,183,.35)}
+    .status.Entregado{background:rgba(46,204,113,.12);color:var(--ok);border:1px solid rgba(46,204,113,.35)}
+    .status.Cancelado{background:rgba(231,76,60,.12);color:var(--danger);border:1px solid rgba(231,76,60,.35)}
+    .top-search .input-group{border:1.5px solid var(--brand-700);border-radius:10px;overflow:hidden;background:#fff}
+    .top-search .input-group-text{background:#fff;color:var(--brand-700);border:0}
+    .search-input{background:#fff;border:0;color:#0E2B4D}
+    .search-input::placeholder{color:#5b7aa0}
+    .search-input:focus{box-shadow:var(--ring);}
+    .kbd{border:1px solid rgba(0,0,0,.12);border-bottom-width:2px;padding:.05rem .35rem;border-radius:6px;opacity:.8}
     .btn-ghost{background:transparent;border:1px solid rgba(0,0,0,.12);color:var(--text)}
     .btn-ghost:hover{border-color:var(--brand-700);background:rgba(44,111,183,.08)}
     .btn-primary{background:var(--brand-700);border-color:var(--brand-700)}
     .btn-primary:hover{background:var(--brand);border-color:var(--brand)}
-    .card-dark{background:var(--bg-2);border:1px solid rgba(0,0,0,.12);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
-    .hero{background:linear-gradient(135deg, rgba(31,79,140,.12), rgba(111,177,230,.10)), var(--bg-2);border:1px solid rgba(0,0,0,.08); border-radius:16px;}
-    .category-pill{border:1px solid rgba(0,0,0,.12);border-radius:999px;padding:.4rem .8rem;background:transparent;color:var(--text);cursor:pointer}
-    .category-pill.active{background:rgba(44,111,183,.12);border-color:var(--brand)}
-    .product-card{overflow:hidden}
-    .product-card img{width:100%;height:200px;object-fit:cover;display:block}
-    .price{font-weight:700}
-    .strike{opacity:.7;text-decoration:line-through;margin-left:.35rem;font-weight:500}
-    .rating i{color:#f2c94c}
-    .badge-soft{background:rgba(44,111,183,.12);color:var(--brand-700);border:1px solid rgba(44,111,183,.35)}
-    .search-wrap .input-group{border:1.5px solid var(--brand-700);border-radius:10px;overflow:hidden;background:#fff}
-    .search-wrap .input-group-text{background:#fff;color:var(--brand-700);border:0}
-    .search-wrap input{background:#fff;border:0;color:#0E2B4D}
-    .search-wrap input::placeholder{color:#5b7aa0}
-    .search-wrap input:focus{box-shadow:var(--ring);}
-    .footer{border-top:1px solid rgba(0,0,0,.12)}
-    .toast{background:var(--bg-2);border:1px solid rgba(0,0,0,.12);color:var(--text)}
+    .chart-wrap{height:320px}
+    .link-danger{color:var(--danger)!important;font-weight:600}
+    .clock{font-variant-numeric:tabular-nums;letter-spacing:.02em}
+    .dropdown-menu{background:var(--bg-2);color:var(--text);border:1px solid rgba(0,0,0,.1)}
+    .dropdown-item{color:var(--text)}
+    .dropdown-item:hover{background:rgba(44,111,183,.12)}
+    .offcanvas{background:var(--bg-2);color:var(--text)}
     .form-control,.form-select{background:transparent;border:1px solid rgba(0,0,0,.12);color:var(--text)}
     .form-control:focus,.form-select:focus{box-shadow:var(--ring);border-color:var(--brand)}
-    .filter-chip{font-size:.85rem;border:1px dashed var(--brand-700);border-radius:999px;padding:.25rem .6rem}
+    .toast{background:var(--bg-2);border:1px solid rgba(0,0,0,.12);color:var(--text)}
+    /* Tabs dentro de la tarjeta de Pedidos */
+    .nav-tabs .nav-link{color:var(--text)}
+    .nav-tabs .nav-link.active{border-color:var(--brand-700) var(--brand-700) transparent;color:var(--brand-700)}
+    .legend-list li{display:flex;justify-content:space-between;gap:8px}
   </style>
-  {% block head_extra %}{% endblock %}
 </head>
 <body>
-  <!-- NAVBAR -->
   <nav class="navbar navbar-expand-lg navbar-custom">
-    <div class="container py-2">
+    <div class="container-fluid py-2">
       <a class="navbar-brand d-flex align-items-center gap-2" href="#">
-        <span class="brand-dot"></span>
-        <span class="fw-bold">MultiTienda</span>
+        <span class="brand-dot"></span><span class="fw-bold">MultiTienda</span>
       </a>
-      <button class="navbar-toggler border-0 text-muted" data-bs-toggle="collapse" data-bs-target="#nav" aria-label="Toggle navigation">
-        <i class="bi bi-list" style="font-size:1.5rem;"></i>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topbar">
+        <span class="navbar-toggler-icon"></span>
       </button>
-      <div id="nav" class="collapse navbar-collapse">
-        <ul class="navbar-nav me-auto">
-          <li class="nav-item"><a href="#productos" class="nav-link">Productos</a></li>
-          <li class="nav-item"><a href="#promos" class="nav-link">Ofertas</a></li>
-          <li class="nav-item"><a href="#contacto" class="nav-link">Contacto</a></li>
+      <div class="collapse navbar-collapse" id="topbar">
+
+
+        <ul class="navbar-nav ms-auto align-items-center gap-2">
+          <li class="nav-item d-none d-lg-block"><span class="clock small text-muted"></span></li>
+          <li class="nav-item">
+            <button id="btnTheme" class="btn btn-ghost" title="Alternar tema (t)"><i class="bi bi-moon-stars"></i></button>
+          </li>
+          <li class="nav-item dropdown">
+            
+            <ul class="dropdown-menu dropdown-menu-end shadow">
+              <li><a class="dropdown-item" href="#">Nuevo pedido #1024</a></li>
+              <li><a class="dropdown-item" href="#">Stock bajo: Producto C</a></li>
+              <li><a class="dropdown-item" href="#">Cliente Valeria canceló #1012</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="#" id="markRead">Marcar como leídas</a></li>
+            </ul>
+          </li>
+          <li class="nav-item">
+            <button class="btn btn-primary" data-bs-toggle="offcanvas" data-bs-target="#offcanvasFilters"><i class="bi bi-funnel"></i> Filtros</button>
+          </li>
+          <li class="nav-item dropdown">
+            <button class="btn btn-ghost d-flex align-items-center gap-2" data-bs-toggle="dropdown">
+              <img src="https://ui-avatars.com/api/?name=T+123&background=0D8ABC&color=fff" class="rounded-circle" width="28" height="28" alt="avatar"/>
+              <span class="d-none d-md-inline">Trabajador123</span><i class="bi bi-caret-down-fill small"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow">
+              <li><a class="dropdown-item" href="#">Mi perfil</a></li>
+              <li><a class="dropdown-item" href="#">Preferencias</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item link-danger" href="#">Cerrar sesión</a></li>
+            </ul>
+          </li>
         </ul>
-        <div class="d-flex align-items-center gap-2 ms-auto">
-          <button id="btnTheme" class="btn btn-ghost" title="Tema (t)"><i class="bi bi-moon-stars"></i></button>
-          <button class="btn btn-primary position-relative" data-bs-toggle="offcanvas" data-bs-target="#cart">
-            <i class="bi bi-bag"></i>
-            <span id="cartBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">0</span>
-          </button>
-        </div>
       </div>
     </div>
   </nav>
+  
 
-  {% block content %}{% endblock %}
+  {% block content %}
+  
+  {% endblock %}
 
   <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+  <script src="{% static 'chart.js' %}"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
   {% block scripts %}{% endblock %}
 </body>
 </html>
