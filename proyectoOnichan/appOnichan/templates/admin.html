@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Panel Administrador</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.33.0.min.js"></script>
+    <style>
+        body[data-theme="dark"], html[data-theme="dark"] body {
+            background-color: #121212;
+            color: #f8f9fa;
+        }
+        .card[data-theme="dark"], html[data-theme="dark"] .card {
+            background-color: #1c1c1c;
+            color: #f8f9fa;
+        }
+        .chart-container {
+            min-height: 320px;
+        }
+        .table-responsive::-webkit-scrollbar {
+            height: 6px;
+        }
+        .table-responsive::-webkit-scrollbar-thumb {
+            background-color: rgba(13, 110, 253, 0.4);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-body-tertiary" data-theme="light">
+<nav class="navbar navbar-expand-lg bg-body-secondary shadow-sm">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="#">Onichan Analytics</a>
+        <div class="d-flex align-items-center gap-3">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="themeToggle">
+                <label class="form-check-label" for="themeToggle">Modo oscuro</label>
+            </div>
+            <div class="btn-group" role="group">
+                <a class="btn btn-primary" href="{% url 'admin-dashboard' %}">Admin</a>
+                <a class="btn btn-outline-primary" href="{% url 'worker-dashboard' %}">Worker</a>
+            </div>
+        </div>
+    </div>
+</nav>
+<main class="container py-4">
+    <section class="mb-4">
+        <div class="row g-3 align-items-center">
+            <div class="col-lg-4">
+                <h1 class="h3 mb-1">Panel de Ventas</h1>
+                <p class="text-muted mb-0">Rango: {{ filters.date_range }}</p>
+            </div>
+            <div class="col-lg-4">
+                <label for="dateRange" class="form-label">Rango de fechas</label>
+                <input type="text" id="dateRange" class="form-control" value="{{ filters.date_range }}" readonly>
+            </div>
+            <div class="col-lg-4">
+                <label for="citySelect" class="form-label">Ciudad/Tienda</label>
+                <select class="form-select" id="citySelect">
+                    {% for city in filters.cities %}
+                    <option {% if city == filters.selected_city %}selected{% endif %}>{{ city }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-4">
+        <div class="row g-3">
+            {% for card in kpis %}
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <p class="text-uppercase text-muted fw-semibold small mb-2">{{ card.label }}</p>
+                        <h2 class="h3 fw-bold mb-1">{{ card.value }}</h2>
+                        <span class="badge bg-success-subtle text-success">{{ card.delta }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="mb-4">
+        <div class="row g-4">
+            <div class="col-12 col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                        <h2 class="h6 mb-0">Ventas por día</h2>
+                        <span class="text-muted small">Actualizable</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="sales-daily-chart" class="chart-container" data-chart='{{ sales_daily|escapejs }}'></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0">
+                        <h2 class="h6 mb-0">Top 5 categorías</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="top-categories-chart" class="chart-container" data-chart='{{ top_categories|escapejs }}'></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-transparent border-0">
+                        <h2 class="h6 mb-0">Distribución de Purchase</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="purchase-distribution-chart" class="chart-container" data-chart='{{ purchase_distribution|escapejs }}'></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-5">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                <h2 class="h6 mb-0">Órdenes recientes</h2>
+                <a href="#" class="btn btn-sm btn-outline-secondary">Ver todas</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Cliente</th>
+                                <th>Producto</th>
+                                <th>Total</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in recent_orders %}
+                            <tr>
+                                <td class="fw-semibold">{{ order.id }}</td>
+                                <td>{{ order.customer }}</td>
+                                <td>{{ order.product }}</td>
+                                <td>{{ order.total }}</td>
+                                <td>{{ order.date }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+<footer class="bg-body-secondary py-3 border-top">
+    <div class="container d-flex flex-column flex-lg-row justify-content-between gap-2 small text-muted">
+        <span>Última actualización: {{ filters.date_range }}</span>
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="includeOutliers" checked>
+            <label class="form-check-label" for="includeOutliers">Incluir outliers</label>
+        </div>
+    </div>
+</footer>
+<script>
+    const themeToggle = document.getElementById('themeToggle');
+    const htmlEl = document.documentElement;
+    const bodyEl = document.body;
+    themeToggle.addEventListener('change', (event) => {
+        const theme = event.target.checked ? 'dark' : 'light';
+        htmlEl.setAttribute('data-theme', theme);
+        bodyEl.setAttribute('data-theme', theme);
+    });
+
+    const salesChartData = JSON.parse(document.getElementById('sales-daily-chart').dataset.chart);
+    const chartConfig = {responsive: true};
+
+    Plotly.newPlot('sales-daily-chart', [
+        {
+            x: salesChartData.dates,
+            y: salesChartData.sales,
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: {color: '#0d6efd', width: 3},
+            marker: {size: 8}
+        }
+    ], {
+        margin: {t: 10, r: 10, b: 40, l: 50},
+        xaxis: {title: 'Fecha'},
+        yaxis: {title: 'Ventas ($)'},
+        hovermode: 'x unified'
+    }, chartConfig);
+
+    const topCategoriesData = JSON.parse(document.getElementById('top-categories-chart').dataset.chart);
+    Plotly.newPlot('top-categories-chart', [
+        {
+            x: topCategoriesData.categories,
+            y: topCategoriesData.sales,
+            type: 'bar',
+            marker: {color: '#6610f2'}
+        }
+    ], {
+        margin: {t: 10, r: 10, b: 60, l: 50},
+        yaxis: {title: 'Ventas ($)'},
+        xaxis: {title: 'Categoría'}
+    }, chartConfig);
+
+    const purchaseData = JSON.parse(document.getElementById('purchase-distribution-chart').dataset.chart);
+    const buildPurchaseData = (values) => ([
+        {
+            x: values,
+            type: 'histogram',
+            name: 'Histograma',
+            marker: {color: '#20c997'},
+            opacity: 0.75,
+        },
+        {
+            y: values,
+            type: 'box',
+            name: 'Boxplot',
+            marker: {color: '#0dcaf0'},
+            xaxis: 'x2',
+            yaxis: 'y2'
+        }
+    ]);
+    const purchaseLayout = {
+        grid: {rows: 1, columns: 2, pattern: 'independent'},
+        margin: {t: 10, r: 10, b: 40, l: 50},
+        showlegend: false
+    };
+
+    Plotly.newPlot('purchase-distribution-chart', buildPurchaseData(purchaseData.values), purchaseLayout, chartConfig);
+
+    document.getElementById('includeOutliers').addEventListener('change', (event) => {
+        const values = [...purchaseData.values];
+        if (!event.target.checked) {
+            values.sort((a, b) => a - b);
+            const q1Index = Math.floor(values.length * 0.25);
+            const q3Index = Math.floor(values.length * 0.75);
+            const q1 = values[q1Index];
+            const q3 = values[q3Index];
+            const iqr = q3 - q1;
+            const lower = q1 - 1.5 * iqr;
+            const upper = q3 + 1.5 * iqr;
+            const filtered = values.filter(v => v >= lower && v <= upper);
+            Plotly.react('purchase-distribution-chart', buildPurchaseData(filtered), purchaseLayout, chartConfig);
+            return;
+        }
+        Plotly.react('purchase-distribution-chart', buildPurchaseData(purchaseData.values), purchaseLayout, chartConfig);
+    });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
