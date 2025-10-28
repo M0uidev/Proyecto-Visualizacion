@@ -26,7 +26,9 @@
             <small class="muted">Haz clic para profundizar</small>
           </div>
           <div class="card-body">
-            <div id="worker_stats_radar" data-chart='{{ stats_chart|escapejs }}' style="height: 360px;"></div>
+            <div class="ratio ratio-1x1">
+              <canvas id="workerStatsRadar" data-chart='{{ stats_chart|escapejs }}'></canvas>
+            </div>
           </div>
         </div>
       </div>
@@ -94,7 +96,9 @@
             <small class="muted">Click para ver turno</small>
           </div>
           <div class="card-body">
-            <div id="worker_attendance_chart" data-chart='{{ attendance|escapejs }}' style="height: 260px;"></div>
+            <div class="ratio ratio-16x9">
+              <canvas id="workerAttendanceChart" data-chart='{{ attendance|escapejs }}'></canvas>
+            </div>
           </div>
         </div>
       </div>
@@ -136,7 +140,9 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div id="drillChart" style="height:360px;"></div>
+        <div class="ratio ratio-16x9">
+          <canvas id="drillChartCanvas"></canvas>
+        </div>
         <div class="table-responsive mt-3">
           <table class="table table-sm" id="drillTable"></table>
         </div>
@@ -144,137 +150,5 @@
     </div>
   </div>
 </div>
-<script>
-function openDrill(title){
-  document.getElementById('drillTitle').textContent = title || 'Detalle';
-  const m = new bootstrap.Modal(document.getElementById('drillModal'));
-  m.show();
-}
-
-async function fetchJSON(url){
-  const r = await fetch(url, {headers:{'Accept':'application/json'}});
-  if(!r.ok) throw new Error('HTTP '+r.status);
-  return await r.json();
-}
-
-function renderTable(elId, rows){
-  const t = document.getElementById(elId);
-  if(!rows || !rows.length){ t.innerHTML = '<tbody><tr><td class="text-muted">Sin datos</td></tr></tbody>'; return; }
-  const thead = '<thead class="text-muted"><tr>'+Object.keys(rows[0]).map(k=>`<th>${k}</th>`).join('')+'</tr></thead>';
-  const tbody = '<tbody>'+rows.map(r=>'<tr>'+Object.values(r).map(v=>`<td>${v}</td>`).join('')+'</tr>').join('')+'</tbody>';
-  t.innerHTML = thead+tbody;
-}
-
-const elSales = document.getElementById('chart_sales_by_day');
-if(elSales){
-  elSales.on('plotly_click', async (e) => {
-    try{
-      const x = e.points?.[0]?.x;
-      const storeSelect = document.getElementById('storeSelect');
-      const storeValue = storeSelect?.value || 'A';
-      const storeLabel = storeSelect?.selectedOptions?.[0]?.textContent?.trim() || 'Tienda A';
-      openDrill('Órdenes del '+x+' · '+storeLabel);
-      const data = await fetchJSON(`/api/drill/orders?date=${encodeURIComponent(x)}&store=${storeValue}`);
-      Plotly.react('drillChart', data.traces || [], data.layout || {}, {displayModeBar:false, responsive:true});
-      renderTable('drillTable', data.rows || []);
-    }catch(err){ console.error(err); }
-  });
-}
-</script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const currency = new Intl.NumberFormat('es-CL', {style: 'currency', currency: 'CLP', maximumFractionDigits: 0});
-  const workerWrapper = document.getElementById('workerDashboard');
-  const workerId = workerWrapper?.dataset.workerId || '';
-  const chartConfig = {displayModeBar: false, responsive: true, locale: 'es'};
-
-  const radarContainer = document.getElementById('worker_stats_radar');
-  if (radarContainer) {
-    const radarData = JSON.parse(radarContainer.dataset.chart);
-    const radarTrace = {
-      type: 'scatterpolar',
-      r: radarData.values,
-      theta: radarData.labels,
-      fill: 'toself',
-      line: {color: '#a855f7', width: 2},
-      marker: {color: '#f59e0b'},
-      customdata: radarData.values.map(value => `${value}%`),
-      hovertemplate: '<b>%{theta}</b><br>Índice: %{customdata}<extra></extra>'
-    };
-    const radarLayout = {
-      margin: {t: 24, r: 16, b: 24, l: 16},
-      hovermode: 'closest',
-      polar: {
-        bgcolor: 'transparent',
-        radialaxis: {
-          visible: true,
-          range: [0, 100],
-          tickmode: 'array',
-          tickvals: [0, 25, 50, 75, 100],
-          tickfont: {color: '#94a3b8'}
-        },
-        angularaxis: {
-          tickfont: {color: '#94a3b8'}
-        }
-      },
-      showlegend: false
-    };
-    Plotly.newPlot(radarContainer, [radarTrace], radarLayout, chartConfig);
-
-    radarContainer.on('plotly_click', async (e) => {
-      try {
-        const metric = e.points?.[0]?.theta;
-        if (!metric) return;
-        openDrill(`Tendencia de ${metric}`);
-        const data = await fetchJSON(`/api/drill/metric?name=${encodeURIComponent(metric)}&worker_id=${encodeURIComponent(workerId)}`);
-        Plotly.react('drillChart', data.traces || [], data.layout || {}, {displayModeBar:false, responsive:true});
-        renderTable('drillTable', data.rows || []);
-      } catch (err) {
-        console.error(err);
-      }
-    });
-  }
-
-  const attendanceContainer = document.getElementById('worker_attendance_chart');
-  if (attendanceContainer) {
-    const attendanceData = JSON.parse(attendanceContainer.dataset.chart);
-    const attendanceTrace = {
-      x: attendanceData.labels,
-      y: attendanceData.values,
-      type: 'bar',
-      marker: {color: '#38bdf8'},
-      customdata: attendanceData.values.map(value => `${Math.round(value * 100)}%`),
-      hovertemplate: '%{x}<br>Asistencia: %{customdata}<extra></extra>'
-    };
-    const attendanceLayout = {
-      margin: {t: 24, r: 16, b: 48, l: 60},
-      hovermode: 'closest',
-      yaxis: {
-        title: 'Asistencia',
-        range: [0, 1.1],
-        tickformat: ',.0%',
-        gridcolor: 'rgba(148, 163, 184, 0.2)'
-      },
-      xaxis: {
-        tickangle: -25
-      }
-    };
-    Plotly.newPlot(attendanceContainer, [attendanceTrace], attendanceLayout, chartConfig);
-
-    attendanceContainer.on('plotly_click', async (e) => {
-      try {
-        const pointIndex = e.points?.[0]?.pointNumber ?? 0;
-        const date = attendanceData.dates?.[pointIndex] || attendanceData.labels?.[pointIndex];
-        if (!date) return;
-        openDrill(`Detalle de turno · ${date}`);
-        const data = await fetchJSON(`/api/drill/shift?date=${encodeURIComponent(date)}&worker_id=${encodeURIComponent(workerId)}`);
-        Plotly.react('drillChart', data.traces || [], data.layout || {}, {displayModeBar:false, responsive:true});
-        renderTable('drillTable', data.rows || []);
-      } catch (err) {
-        console.error(err);
-      }
-    });
-  }
-});
-</script>
+<script src="{% static 'js/worker_dashboard.js' %}"></script>
 {% endblock %}

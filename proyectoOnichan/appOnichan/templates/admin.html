@@ -51,7 +51,9 @@
             <small class="muted">Interactividad habilitada</small>
           </div>
           <div class="card-body">
-            <div id="chart_sales_by_day" data-chart='{{ sales_daily|escapejs }}' style="height: 340px;"></div>
+            <div class="ratio ratio-16x9">
+              <canvas id="chartSalesByDay" data-chart='{{ sales_daily|escapejs }}'></canvas>
+            </div>
           </div>
         </div>
       </div>
@@ -62,7 +64,9 @@
             <small class="muted">Click para detalle</small>
           </div>
           <div class="card-body">
-            <div id="chart_top_categories" data-chart='{{ top_categories|escapejs }}' style="height: 340px;"></div>
+            <div class="ratio ratio-16x9">
+              <canvas id="chartTopCategories" data-chart='{{ top_categories|escapejs }}'></canvas>
+            </div>
           </div>
         </div>
       </div>
@@ -73,7 +77,9 @@
             <small class="muted">Incluye boxplot</small>
           </div>
           <div class="card-body">
-            <div id="chart_purchase_distribution" data-chart='{{ purchase_distribution|escapejs }}' style="height: 360px;"></div>
+            <div class="ratio ratio-16x9">
+              <canvas id="chartPurchaseDistribution" data-chart='{{ purchase_distribution|escapejs }}'></canvas>
+            </div>
           </div>
         </div>
       </div>
@@ -130,7 +136,9 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div id="drillChart" style="height:360px;"></div>
+        <div class="ratio ratio-16x9">
+          <canvas id="drillChartCanvas"></canvas>
+        </div>
         <div class="table-responsive mt-3">
           <table class="table table-sm" id="drillTable"></table>
         </div>
@@ -138,201 +146,5 @@
     </div>
   </div>
 </div>
-<script>
-function openDrill(title){
-  document.getElementById('drillTitle').textContent = title || 'Detalle';
-  const m = new bootstrap.Modal(document.getElementById('drillModal'));
-  m.show();
-}
-
-async function fetchJSON(url){
-  const r = await fetch(url, {headers:{'Accept':'application/json'}});
-  if(!r.ok) throw new Error('HTTP '+r.status);
-  return await r.json();
-}
-
-function renderTable(elId, rows){
-  const t = document.getElementById(elId);
-  if(!rows || !rows.length){ t.innerHTML = '<tbody><tr><td class="text-muted">Sin datos</td></tr></tbody>'; return; }
-  const thead = '<thead class="text-muted"><tr>'+Object.keys(rows[0]).map(k=>`<th>${k}</th>`).join('')+'</tr></thead>';
-  const tbody = '<tbody>'+rows.map(r=>'<tr>'+Object.values(r).map(v=>`<td>${v}</td>`).join('')+'</tr>').join('')+'</tbody>';
-  t.innerHTML = thead+tbody;
-}
-
-const elSales = document.getElementById('chart_sales_by_day');
-if(elSales){
-  elSales.on('plotly_click', async (e) => {
-    try{
-      const x = e.points?.[0]?.x;
-      const storeSelect = document.getElementById('storeSelect');
-      const storeValue = storeSelect?.value || 'A';
-      const storeLabel = storeSelect?.selectedOptions?.[0]?.textContent?.trim() || 'Tienda A';
-      openDrill('Órdenes del '+x+' · '+storeLabel);
-      const data = await fetchJSON(`/api/drill/orders?date=${encodeURIComponent(x)}&store=${storeValue}`);
-      Plotly.react('drillChart', data.traces || [], data.layout || {}, {displayModeBar:false, responsive:true});
-      renderTable('drillTable', data.rows || []);
-    }catch(err){ console.error(err); }
-  });
-}
-</script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const currency = new Intl.NumberFormat('es-CL', {style: 'currency', currency: 'CLP', maximumFractionDigits: 0});
-  const chartConfig = {displayModeBar: false, responsive: true, locale: 'es'};
-
-  const salesContainer = document.getElementById('chart_sales_by_day');
-  if (salesContainer) {
-    const salesData = JSON.parse(salesContainer.dataset.chart);
-    const salesTrace = {
-      x: salesData.dates,
-      y: salesData.sales,
-      type: 'scatter',
-      mode: 'lines+markers',
-      line: {color: '#2563eb', width: 3},
-      marker: {size: 8, color: '#38bdf8'},
-      customdata: salesData.sales.map(value => currency.format(value)),
-      hovertemplate: '<b>%{x}</b><br>Ventas: %{customdata}<extra></extra>'
-    };
-    const salesLayout = {
-      margin: {t: 24, r: 16, b: 48, l: 60},
-      hovermode: 'x unified',
-      xaxis: {
-        title: 'Fecha',
-        showgrid: false,
-        tickangle: -30
-      },
-      yaxis: {
-        title: 'Ventas (CLP)',
-        tickprefix: '$',
-        separatethousands: true,
-        gridcolor: 'rgba(148, 163, 184, 0.2)'
-      }
-    };
-    Plotly.newPlot(salesContainer, [salesTrace], salesLayout, chartConfig);
-  }
-
-  const categoriesContainer = document.getElementById('chart_top_categories');
-  if (categoriesContainer) {
-    const categoriesData = JSON.parse(categoriesContainer.dataset.chart);
-    const categoryTrace = {
-      y: categoriesData.categories,
-      x: categoriesData.sales,
-      orientation: 'h',
-      type: 'bar',
-      marker: {color: '#10b981', line: {width: 1, color: '#0f766e'}},
-      customdata: categoriesData.sales.map(value => currency.format(value)),
-      hovertemplate: '<b>%{y}</b><br>Ventas: %{customdata}<extra></extra>'
-    };
-    const categoryLayout = {
-      margin: {t: 24, r: 16, b: 48, l: 100},
-      hovermode: 'closest',
-      xaxis: {
-        title: 'Ventas (CLP)',
-        tickprefix: '$',
-        separatethousands: true,
-        gridcolor: 'rgba(148, 163, 184, 0.2)'
-      },
-      yaxis: {
-        automargin: true
-      }
-    };
-    Plotly.newPlot(categoriesContainer, [categoryTrace], categoryLayout, chartConfig);
-
-    categoriesContainer.on('plotly_click', async (e) => {
-      try {
-        const category = e.points?.[0]?.y;
-        const storeSelect = document.getElementById('storeSelect');
-        const storeValue = storeSelect?.value || 'A';
-        const storeLabel = storeSelect?.selectedOptions?.[0]?.textContent?.trim() || 'Tienda A';
-        if (!category) return;
-        openDrill(`Detalle de ${category} · ${storeLabel}`);
-        const data = await fetchJSON(`/api/drill/category?name=${encodeURIComponent(category)}&store=${storeValue}`);
-        Plotly.react('drillChart', data.traces || [], data.layout || {}, {displayModeBar:false, responsive:true});
-        renderTable('drillTable', data.rows || []);
-      } catch (err) {
-        console.error(err);
-      }
-    });
-  }
-
-  const purchaseContainer = document.getElementById('chart_purchase_distribution');
-  if (purchaseContainer) {
-    const purchaseData = JSON.parse(purchaseContainer.dataset.chart);
-    const hasBins = Array.isArray(purchaseData.bins) && purchaseData.bins.length > 0;
-    const histTrace = {
-      x: purchaseData.values,
-      type: 'histogram',
-      xbins: hasBins ? {
-        start: purchaseData.bins[0].start,
-        end: purchaseData.bins[purchaseData.bins.length - 1].end,
-        size: Math.max(1, purchaseData.bins[0].size || 1)
-      } : undefined,
-      marker: {color: '#f97316', opacity: 0.75},
-      name: 'Histograma',
-      hovertemplate: 'Monto: %{x}<extra></extra>'
-    };
-    const boxTrace = {
-      y: purchaseData.values,
-      type: 'box',
-      name: 'Boxplot',
-      marker: {color: '#8b5cf6'},
-      hovertemplate: 'Monto: %{y}<extra></extra>'
-    };
-    const purchaseLayout = {
-      grid: {rows: 1, columns: 2, pattern: 'independent', xgap: 0.25},
-      margin: {t: 24, r: 16, b: 48, l: 60},
-      hovermode: 'closest',
-      xaxis: {
-        title: 'Monto (CLP)',
-        tickprefix: '$',
-        separatethousands: true,
-        gridcolor: 'rgba(148, 163, 184, 0.2)'
-      },
-      yaxis: {
-        title: 'Frecuencia',
-        gridcolor: 'rgba(148, 163, 184, 0.2)'
-      },
-      xaxis2: {showgrid: false, showticklabels: false},
-      yaxis2: {
-        title: 'Monto (CLP)',
-        tickprefix: '$',
-        separatethousands: true
-      },
-      showlegend: false
-    };
-    Plotly.newPlot(purchaseContainer, [histTrace, boxTrace], purchaseLayout, chartConfig);
-
-    purchaseContainer.on('plotly_click', async (e) => {
-      try {
-        const binIndex = e.points?.[0]?.pointNumber ?? 0;
-        const storeSelect = document.getElementById('storeSelect');
-        const storeValue = storeSelect?.value || 'A';
-        const storeLabel = storeSelect?.selectedOptions?.[0]?.textContent?.trim() || 'Tienda A';
-        let binLabel = '';
-        if (hasBins && purchaseData.bins[binIndex]) {
-          const bin = purchaseData.bins[binIndex];
-          binLabel = `${currency.format(bin.start)} - ${currency.format(bin.end)}`;
-        } else {
-          const value = e.points?.[0]?.x;
-          binLabel = currency.format(value || 0);
-        }
-        openDrill(`Tickets entre ${binLabel} · ${storeLabel}`);
-        const params = new URLSearchParams();
-        if (hasBins && purchaseData.bins[binIndex]) {
-          params.set('bin_start', purchaseData.bins[binIndex].start);
-          params.set('bin_end', purchaseData.bins[binIndex].end);
-        } else if (e.points?.[0]?.x) {
-          params.set('bin_start', e.points[0].x);
-        }
-        params.set('store', storeValue);
-        const data = await fetchJSON(`/api/drill/purchase_bin?${params.toString()}`);
-        Plotly.react('drillChart', data.traces || [], data.layout || {}, {displayModeBar:false, responsive:true});
-        renderTable('drillTable', data.rows || []);
-      } catch (err) {
-        console.error(err);
-      }
-    });
-  }
-});
-</script>
+<script src="{% static 'js/admin_dashboard.js' %}"></script>
 {% endblock %}

@@ -87,14 +87,20 @@ def admin_dashboard(request):
     ]
     bin_size = 20_000
     min_value = 20_000
-    bins = [
-        {
-            "start": min_value + index * bin_size,
-            "end": min_value + (index + 1) * bin_size,
-            "size": bin_size,
-        }
-        for index in range(5)
-    ]
+    bins = []
+    for index in range(5):
+        start = min_value + index * bin_size
+        end = min_value + (index + 1) * bin_size
+        count = sum(1 for value in purchase_values if start <= value < end)
+        bins.append(
+            {
+                "start": start,
+                "end": end,
+                "size": bin_size,
+                "count": count,
+                "label": f"{format_clp(start)} - {format_clp(end)}",
+            }
+        )
 
     recent_orders = [
         {"id": "A-2081", "customer": "Valentina Ríos", "product": "Notebook 14\"", "total": format_clp(489_900), "date": "14-07-2024"},
@@ -117,7 +123,13 @@ def admin_dashboard(request):
         "kpis": kpis,
         "sales_daily": json.dumps({"dates": dates, "sales": sales_values}),
         "top_categories": json.dumps(top_categories),
-        "purchase_distribution": json.dumps({"values": purchase_values, "bins": bins}),
+        "purchase_distribution": json.dumps(
+            {
+                "labels": [bin_item["label"] for bin_item in bins],
+                "counts": [bin_item["count"] for bin_item in bins],
+                "bins": bins,
+            }
+        ),
         "recent_orders": recent_orders,
     }
     return render(request, "admin.html", context)
@@ -200,26 +212,27 @@ def drill_orders(request):
         for index, amount in enumerate(sample_amounts)
     ]
 
-    data = {
-        "traces": [
-            {
-                "type": "bar",
-                "x": [row["ID"] for row in rows],
-                "y": sample_amounts,
-                "marker": {"color": "#2563eb"},
-                "text": [row["Total"] for row in rows],
-                "hovertemplate": "Total: %{text}<extra></extra>",
-            }
-        ],
-        "layout": {
-            "title": f"Órdenes · {store_label}",
-            "margin": {"t": 32, "r": 16, "b": 48, "l": 60},
-            "yaxis": {"title": "Monto (CLP)", "tickprefix": "$", "separatethousands": True},
-            "xaxis": {"title": "Órdenes"},
+    chart = {
+        "type": "bar",
+        "data": {
+            "labels": [row["ID"] for row in rows],
+            "datasets": [
+                {
+                    "label": f"Órdenes · {store_label}",
+                    "data": sample_amounts,
+                    "backgroundColor": "#2563eb",
+                    "borderRadius": 8,
+                    "maxBarThickness": 48,
+                }
+            ],
         },
-        "rows": rows,
+        "options": {
+            "scales": {
+                "y": {"beginAtZero": True},
+            },
+        },
     }
-    return JsonResponse(data)
+    return JsonResponse({"chart": chart, "rows": rows})
 
 
 @require_GET
@@ -261,27 +274,26 @@ def drill_category(request):
         for name, amount in details
     ]
 
-    data = {
-        "traces": [
-            {
-                "type": "bar",
-                "x": [amount for _, amount in details],
-                "y": [name for name, _ in details],
-                "orientation": "h",
-                "marker": {"color": "#10b981"},
-                "text": [format_clp(amount) for _, amount in details],
-                "hovertemplate": "%{y}<br>Total: %{text}<extra></extra>",
-            }
-        ],
-        "layout": {
-            "title": f"Detalle de {category} · {store_label}",
-            "margin": {"t": 32, "r": 16, "b": 48, "l": 120},
-            "xaxis": {"title": "Monto (CLP)", "tickprefix": "$", "separatethousands": True},
-            "yaxis": {"automargin": True},
+    chart = {
+        "type": "bar",
+        "data": {
+            "labels": [name for name, _ in details],
+            "datasets": [
+                {
+                    "label": f"Detalle · {store_label}",
+                    "data": [amount for _, amount in details],
+                    "backgroundColor": "#10b981",
+                    "borderRadius": 8,
+                    "maxBarThickness": 42,
+                }
+            ],
         },
-        "rows": rows,
+        "options": {
+            "indexAxis": "y",
+            "scales": {"x": {"beginAtZero": True}},
+        },
     }
-    return JsonResponse(data)
+    return JsonResponse({"chart": chart, "rows": rows})
 
 
 @require_GET
@@ -298,34 +310,37 @@ def drill_purchase_bin(request):
         end = start + 20_000
 
     tickets = [start + randint(1_500, 18_000) for _ in range(6)]
+    ordered_amounts = sorted(tickets, reverse=True)
     rows = [
         {
             "Ticket": f"{store}-{index+1}",
             "Monto": format_clp(amount),
             "Fecha": (timezone.now() - timedelta(days=index)).strftime("%d-%m-%Y"),
         }
-        for index, amount in enumerate(sorted(tickets, reverse=True))
+        for index, amount in enumerate(ordered_amounts)
     ]
 
-    data = {
-        "traces": [
-            {
-                "type": "histogram",
-                "x": tickets,
-                "marker": {"color": "#f97316", "opacity": 0.75},
-                "hovertemplate": "Monto: %{x}<extra></extra>",
-                "xbins": {"start": start, "end": end, "size": max(1, (end - start) // 6)},
-            }
-        ],
-        "layout": {
-            "title": f"Tickets entre {format_clp(start)} y {format_clp(end)} · {store_label}",
-            "margin": {"t": 32, "r": 16, "b": 48, "l": 60},
-            "xaxis": {"title": "Monto (CLP)", "tickprefix": "$", "separatethousands": True},
-            "yaxis": {"title": "Frecuencia"},
+    chart = {
+        "type": "bar",
+        "data": {
+            "labels": [row["Ticket"] for row in rows],
+            "datasets": [
+                {
+                    "label": f"Tickets · {store_label}",
+                    "data": ordered_amounts,
+                    "backgroundColor": "#f97316",
+                    "borderRadius": 8,
+                    "maxBarThickness": 48,
+                }
+            ],
         },
-        "rows": rows,
+        "options": {
+            "scales": {
+                "y": {"beginAtZero": True},
+            },
+        },
     }
-    return JsonResponse(data)
+    return JsonResponse({"chart": chart, "rows": rows})
 
 
 @require_GET
@@ -347,27 +362,26 @@ def drill_metric(request):
         for date, value in list(zip(dates, values))[-7:]
     ]
 
-    data = {
-        "traces": [
-            {
-                "type": "scatter",
-                "x": dates,
-                "y": values,
-                "mode": "lines+markers",
-                "line": {"color": "#8b5cf6"},
-                "marker": {"size": 6},
-                "hovertemplate": "%{x}<br>Valor: %{y}%<extra></extra>",
-            }
-        ],
-        "layout": {
-            "title": f"{metric} · últimos 30 días",
-            "margin": {"t": 32, "r": 16, "b": 48, "l": 60},
-            "yaxis": {"title": "Índice", "range": [50, 105]},
-            "xaxis": {"title": "Fecha"},
+    chart = {
+        "type": "line",
+        "data": {
+            "labels": dates,
+            "datasets": [
+                {
+                    "label": f"{metric}",
+                    "data": values,
+                    "borderColor": "#8b5cf6",
+                    "backgroundColor": "rgba(139, 92, 246, 0.16)",
+                    "tension": 0.35,
+                    "fill": True,
+                }
+            ],
         },
-        "rows": rows,
+        "options": {
+            "scales": {"y": {"suggestedMin": 50, "suggestedMax": 105}},
+        },
     }
-    return JsonResponse(data)
+    return JsonResponse({"chart": chart, "rows": rows})
 
 
 @require_GET
@@ -378,22 +392,20 @@ def drill_shift(request):
         {"Fecha": date, "Entrada": "17:10", "Salida": "17:40", "Observación": "Cierre de incidencias"},
     ]
 
-    data = {
-        "traces": [
-            {
-                "type": "bar",
-                "x": ["Horas trabajadas"],
-                "y": [7.5],
-                "text": ["7,5 h"],
-                "marker": {"color": "#2563eb"},
-                "hovertemplate": "Duración: %{text}<extra></extra>",
-            }
-        ],
-        "layout": {
-            "title": f"Turno · {date}",
-            "margin": {"t": 32, "r": 16, "b": 48, "l": 60},
-            "yaxis": {"title": "Horas", "range": [0, 9]},
+    chart = {
+        "type": "bar",
+        "data": {
+            "labels": ["Horas trabajadas"],
+            "datasets": [
+                {
+                    "label": f"Turno · {date}",
+                    "data": [7.5],
+                    "backgroundColor": "#2563eb",
+                    "borderRadius": 8,
+                    "maxBarThickness": 72,
+                }
+            ],
         },
-        "rows": rows,
+        "options": {"scales": {"y": {"suggestedMax": 9, "beginAtZero": True}}},
     }
-    return JsonResponse(data)
+    return JsonResponse({"chart": chart, "rows": rows})
