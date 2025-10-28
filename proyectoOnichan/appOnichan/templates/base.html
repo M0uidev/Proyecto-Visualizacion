@@ -3,122 +3,144 @@
 <html lang="es" data-theme="light">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MultiTienda</title>
-  <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Panel MultiTienda{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-2.33.0.min.js"></script>
   <style>
-    :root{
-      --bg:#1E1E2F; --bg-2:#2C2C3C; --text:#F5F5F5; --muted:#b8c1d1;
-      --brand:#2C6FB7; --brand-700:#1F4F8C; --brand-300:#6FB1E6;
-      --ok:#2ECC71; --warn:#F1C40F; --danger:#E74C3C;
-      --ring: 0 0 0 .25rem rgba(44,111,183,.25);
+    :root {
+      --bg-surface: #0f172a;
+      --bg-card: #13213c;
+      --text-primary: #f8fafc;
+      --text-muted: rgba(248, 250, 252, 0.7);
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.18);
+      --border-subtle: rgba(148, 163, 184, 0.3);
     }
-    [data-theme="light"]{
-      --bg:#F6F7FB; --bg-2:#FFFFFF; --text:#0E2B4D; --muted:#3b4354;
-      --brand:#2C6FB7; --brand-700:#1F4F8C; --brand-300:#6FB1E6;
-      --ok:#0f9d58; --warn:#f29900; --danger:#d93025;
+    [data-theme="light"] {
+      --bg-surface: #f5f6fb;
+      --bg-card: #ffffff;
+      --text-primary: #0f172a;
+      --text-muted: rgba(15, 23, 42, 0.65);
+      --accent: #2563eb;
+      --accent-soft: rgba(37, 99, 235, 0.12);
+      --border-subtle: rgba(148, 163, 184, 0.35);
     }
-    html,body{height:100%}
-    body{background:var(--bg);color:var(--text);}
-    .navbar-custom{background:var(--bg-2);border-bottom:2px solid var(--brand-700);position:sticky;top:0;z-index:1030}
-    .brand-dot{width:.6rem;height:.6rem;border-radius:50%;display:inline-block;background:var(--brand);box-shadow:0 0 12px var(--brand)}
-    .chip{border:1px solid rgba(0,0,0,.08);background:transparent;color:var(--text);padding:.35rem .6rem;border-radius:999px;display:inline-flex;gap:.35rem;align-items:center;cursor:pointer}
-    .chip.active{background:rgba(44,111,183,.12);border-color:var(--brand)}
-    .card-dark{background:var(--bg-2);border:1px solid rgba(0,0,0,.12);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
-    .card-header{border-bottom:1px solid rgba(0,0,0,.08);color:var(--brand-700);font-weight:600}
-    .th-sortable{cursor:pointer;user-select:none}
-    .th-sortable i{opacity:.8}
-    .table-dark{
-      --bs-table-bg:transparent; --bs-table-striped-color:#000 !important; --bs-table-color:#000 !important;
-      --bs-table-striped-bg:rgba(44,111,183,.06); --bs-table-hover-bg:rgba(44,111,183,.12);
-      color:#000 !important;
+    html, body {
+      min-height: 100%;
     }
-    .status{padding:.25rem .55rem;border-radius:999px;font-size:.75rem;font-weight:600}
-    .status.Pendiente{background:rgba(241,196,15,.12);color:var(--warn);border:1px solid rgba(241,196,15,.35)}
-    .status.Despachado{background:rgba(44,111,183,.12);color:var(--brand-700);border:1px solid rgba(44,111,183,.35)}
-    .status.Entregado{background:rgba(46,204,113,.12);color:var(--ok);border:1px solid rgba(46,204,113,.35)}
-    .status.Cancelado{background:rgba(231,76,60,.12);color:var(--danger);border:1px solid rgba(231,76,60,.35)}
-    .top-search .input-group{border:1.5px solid var(--brand-700);border-radius:10px;overflow:hidden;background:#fff}
-    .top-search .input-group-text{background:#fff;color:var(--brand-700);border:0}
-    .search-input{background:#fff;border:0;color:#0E2B4D}
-    .search-input::placeholder{color:#5b7aa0}
-    .search-input:focus{box-shadow:var(--ring);}
-    .kbd{border:1px solid rgba(0,0,0,.12);border-bottom-width:2px;padding:.05rem .35rem;border-radius:6px;opacity:.8}
-    .btn-ghost{background:transparent;border:1px solid rgba(0,0,0,.12);color:var(--text)}
-    .btn-ghost:hover{border-color:var(--brand-700);background:rgba(44,111,183,.08)}
-    .btn-primary{background:var(--brand-700);border-color:var(--brand-700)}
-    .btn-primary:hover{background:var(--brand);border-color:var(--brand)}
-    .chart-wrap{height:320px}
-    .link-danger{color:var(--danger)!important;font-weight:600}
-    .clock{font-variant-numeric:tabular-nums;letter-spacing:.02em}
-    .dropdown-menu{background:var(--bg-2);color:var(--text);border:1px solid rgba(0,0,0,.1)}
-    .dropdown-item{color:var(--text)}
-    .dropdown-item:hover{background:rgba(44,111,183,.12)}
-    .offcanvas{background:var(--bg-2);color:var(--text)}
-    .form-control,.form-select{background:transparent;border:1px solid rgba(0,0,0,.12);color:var(--text)}
-    .form-control:focus,.form-select:focus{box-shadow:var(--ring);border-color:var(--brand)}
-    .toast{background:var(--bg-2);border:1px solid rgba(0,0,0,.12);color:var(--text)}
-    /* Tabs dentro de la tarjeta de Pedidos */
-    .nav-tabs .nav-link{color:var(--text)}
-    .nav-tabs .nav-link.active{border-color:var(--brand-700) var(--brand-700) transparent;color:var(--brand-700)}
-    .legend-list li{display:flex;justify-content:space-between;gap:8px}
+    body {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+    .navbar-main {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border-subtle);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    }
+    .navbar-brand span.brand-dot {
+      width: 0.65rem;
+      height: 0.65rem;
+      border-radius: 50%;
+      display: inline-flex;
+      background: linear-gradient(135deg, var(--accent), #22d3ee);
+      box-shadow: 0 0 18px var(--accent);
+    }
+    .btn-switch {
+      border-radius: 999px;
+    }
+    .content-wrapper {
+      padding-top: 1.5rem;
+      padding-bottom: 3rem;
+    }
+    .card-surface {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 1rem;
+      box-shadow: 0 18px 46px rgba(15, 23, 42, 0.15);
+      overflow: hidden;
+    }
+    .card-surface .card-header {
+      background: transparent;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+    }
+    .muted {
+      color: var(--text-muted);
+    }
+    table thead th {
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-size: 0.75rem;
+    }
+    .table > :not(caption) > * > * {
+      background-color: transparent;
+      color: var(--text-primary);
+    }
+    .link-muted {
+      color: var(--text-muted);
+    }
+    .link-muted:hover {
+      color: var(--accent);
+    }
   </style>
+  {% block extra_head %}{% endblock %}
 </head>
-<body>
-  <nav class="navbar navbar-expand-lg navbar-custom">
-    <div class="container-fluid py-2">
-      <a class="navbar-brand d-flex align-items-center gap-2" href="#">
-        <span class="brand-dot"></span><span class="fw-bold">MultiTienda</span>
+<body data-theme="light">
+  <nav class="navbar navbar-expand-lg navbar-main py-3">
+    <div class="container-fluid">
+      <a class="navbar-brand d-flex align-items-center gap-2 fw-semibold" href="{%- url 'admin-dashboard' -%}">
+        <span class="brand-dot"></span>
+        <span>Insight Retail</span>
       </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topbar">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
-      <div class="collapse navbar-collapse" id="topbar">
-
-
-        <ul class="navbar-nav ms-auto align-items-center gap-2">
-          <li class="nav-item d-none d-lg-block"><span class="clock small text-muted"></span></li>
-          <li class="nav-item">
-            <button id="btnTheme" class="btn btn-ghost" title="Alternar tema (t)"><i class="bi bi-moon-stars"></i></button>
-          </li>
-          <li class="nav-item dropdown">
-            
-            <ul class="dropdown-menu dropdown-menu-end shadow">
-              <li><a class="dropdown-item" href="#">Nuevo pedido #1024</a></li>
-              <li><a class="dropdown-item" href="#">Stock bajo: Producto C</a></li>
-              <li><a class="dropdown-item" href="#">Cliente Valeria canceló #1012</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="#" id="markRead">Marcar como leídas</a></li>
-            </ul>
-          </li>
-          <li class="nav-item">
-            <button class="btn btn-primary" data-bs-toggle="offcanvas" data-bs-target="#offcanvasFilters"><i class="bi bi-funnel"></i> Filtros</button>
-          </li>
-          <li class="nav-item dropdown">
-            <button class="btn btn-ghost d-flex align-items-center gap-2" data-bs-toggle="dropdown">
-              <img src="https://ui-avatars.com/api/?name=T+123&background=0D8ABC&color=fff" class="rounded-circle" width="28" height="28" alt="avatar"/>
-              <span class="d-none d-md-inline">Trabajador123</span><i class="bi bi-caret-down-fill small"></i>
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow">
-              <li><a class="dropdown-item" href="#">Mi perfil</a></li>
-              <li><a class="dropdown-item" href="#">Preferencias</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item link-danger" href="#">Cerrar sesión</a></li>
-            </ul>
-          </li>
-        </ul>
+      <div class="collapse navbar-collapse justify-content-end" id="navbarSupportedContent">
+        <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-3">
+          <div class="form-check form-switch d-flex align-items-center gap-2 mb-0 text-nowrap">
+            <input class="form-check-input" type="checkbox" role="switch" id="themeToggle">
+            <label class="form-check-label muted" for="themeToggle">Modo oscuro</label>
+          </div>
+          <div class="btn-group" role="group" aria-label="Conmutador de paneles">
+            <a class="btn btn-outline-light btn-switch" href="{% url 'admin-dashboard' %}">Admin</a>
+            <a class="btn btn-outline-light btn-switch" href="{% url 'worker-dashboard' %}">Worker</a>
+          </div>
+        </div>
       </div>
     </div>
   </nav>
-  
-
-  {% block content %}
-  
-  {% endblock %}
-
-  <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
-  <script src="{% static 'chart.js' %}"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-  {% block scripts %}{% endblock %}
+  <main class="content-wrapper">
+    {% block content %}{% endblock %}
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    (function() {
+      const storedTheme = localStorage.getItem('insight-theme') || 'light';
+      const htmlEl = document.documentElement;
+      const bodyEl = document.body;
+      htmlEl.setAttribute('data-theme', storedTheme);
+      bodyEl.setAttribute('data-theme', storedTheme);
+      const toggle = document.getElementById('themeToggle');
+      if (toggle) {
+        toggle.checked = storedTheme === 'dark';
+        toggle.addEventListener('change', (event) => {
+          const nextTheme = event.target.checked ? 'dark' : 'light';
+          htmlEl.setAttribute('data-theme', nextTheme);
+          bodyEl.setAttribute('data-theme', nextTheme);
+          localStorage.setItem('insight-theme', nextTheme);
+        });
+      }
+    })();
+  </script>
+  {% block extra_js %}{% endblock %}
 </body>
 </html>

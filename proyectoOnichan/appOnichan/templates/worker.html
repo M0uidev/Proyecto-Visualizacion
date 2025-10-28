@@ -1,231 +1,280 @@
-<!DOCTYPE html>
-<html lang="es" data-theme="light">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Panel de Operaciones</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <script src="https://cdn.plot.ly/plotly-2.33.0.min.js"></script>
-    <style>
-        body[data-theme="dark"], html[data-theme="dark"] body {
-            background-color: #121212;
-            color: #f8f9fa;
-        }
-        .profile-card {
-            border-radius: 16px;
-            background: linear-gradient(135deg, rgba(32, 201, 151, 0.9), rgba(13, 110, 253, 0.8));
-            color: #fff;
-            box-shadow: 0 1rem 3rem rgba(13, 110, 253, 0.2);
-        }
-        .table-schedule td, .table-schedule th {
-            vertical-align: middle;
-        }
-        .sparkline-container {
-            height: 160px;
-        }
-    </style>
-</head>
-<body class="bg-body-tertiary" data-theme="light">
-<nav class="navbar navbar-expand-lg bg-body-secondary shadow-sm">
-    <div class="container-fluid">
-        <a class="navbar-brand fw-bold" href="#">Onichan Analytics</a>
-        <div class="d-flex align-items-center gap-3">
-            <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" role="switch" id="themeToggle">
-                <label class="form-check-label" for="themeToggle">Modo oscuro</label>
-            </div>
-            <div class="btn-group" role="group">
-                <a class="btn btn-outline-primary" href="{% url 'admin-dashboard' %}">Admin</a>
-                <a class="btn btn-primary" href="{% url 'worker-dashboard' %}">Worker</a>
-            </div>
+{% extends "base.html" %}
+
+{% block title %}Panel de Trabajador{% endblock %}
+
+{% block content %}
+<div class="container" id="workerDashboard" data-worker-id="{{ worker_id }}">
+  <section class="mb-4">
+    <div class="row g-4 align-items-stretch">
+      <div class="col-12 col-xl-5">
+        <div class="card-surface p-4 h-100 d-flex flex-column justify-content-between">
+          <div>
+            <p class="text-uppercase small muted mb-1">Turno activo</p>
+            <h1 class="h3 fw-semibold mb-1">{{ profile.name }}</h1>
+            <p class="mb-2 muted">{{ profile.role }} · {{ profile.city }}</p>
+          </div>
+          <div class="d-flex flex-column gap-2">
+            <span class="badge rounded-pill text-bg-primary align-self-start">ID {{ worker_id }}</span>
+            <span class="muted">Actualizado: {{ profile.timestamp }}</span>
+          </div>
         </div>
+      </div>
+      <div class="col-12 col-xl-7">
+        <div class="card-surface h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Stats estilo JoJo's</span>
+            <small class="muted">Haz clic para profundizar</small>
+          </div>
+          <div class="card-body">
+            <div id="worker_stats_radar" data-chart='{{ stats_chart|escapejs }}' style="height: 360px;"></div>
+          </div>
+        </div>
+      </div>
     </div>
-</nav>
-<main class="container py-4">
-    <section class="mb-4">
-        <div class="row g-4 align-items-center">
-            <div class="col-12 col-lg-6">
-                <div class="profile-card p-4 h-100">
-                    <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-4">
-                        <div>
-                            <h1 class="h3 fw-bold mb-1">{{ profile.name }}</h1>
-                            <p class="mb-1">{{ profile.role }} • {{ profile.city }}</p>
-                            <span class="badge bg-light text-dark">{{ profile.timestamp }}</span>
-                        </div>
-                        <div class="text-sm-center">
-                            <div class="rounded-circle bg-light text-primary d-inline-flex align-items-center justify-content-center" style="width:72px; height:72px;">
-                                <i class="bi bi-bar-chart-line-fill fs-3"></i>
-                            </div>
-                            <p class="small mb-0 mt-2">Desempeño actualizado</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-lg-6">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-transparent border-0">
-                        <h2 class="h6 mb-0">Desempeño integral</h2>
-                    </div>
-                    <div class="card-body">
-                        <div id="stats-radar" class="sparkline-container" data-chart='{{ stats_chart|escapejs }}'></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+  </section>
 
-    <section class="mb-4">
-        <div class="row g-4">
-            {% for stat in stats %}
-            <div class="col-12 col-sm-6 col-xl-4">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
-                        <p class="text-muted mb-1 small text-uppercase">{{ stat.label }}</p>
-                        <div class="progress" style="height: 10px;">
-                            <div class="progress-bar bg-gradient" role="progressbar" style="width: {{ stat.value }}%; background: linear-gradient(90deg, #fd7e14, #d63384);" aria-valuenow="{{ stat.value }}" aria-valuemin="0" aria-valuemax="100"></div>
-                        </div>
-                        <p class="h4 fw-bold mt-3 mb-0">{{ stat.value }}%</p>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
+  <section class="mb-4">
+    <div class="row g-4">
+      {% for stat in stats %}
+      <div class="col-12 col-sm-6 col-xl-4">
+        <div class="card-surface p-4 h-100">
+          <p class="text-uppercase muted small mb-2">{{ stat.label }}</p>
+          <div class="progress rounded-pill" style="height: 10px;">
+            <div class="progress-bar" role="progressbar" style="width: {{ stat.value }}%; background: linear-gradient(90deg, #f59e0b, #8b5cf6);" aria-valuenow="{{ stat.value }}" aria-valuemin="0" aria-valuemax="100"></div>
+          </div>
+          <p class="fw-semibold fs-4 mb-0 mt-3">{{ stat.value }}%</p>
         </div>
-    </section>
-
-    <section class="mb-4">
-        <div class="row g-4">
-            <div class="col-12 col-xl-7">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
-                        <h2 class="h6 mb-0">Horario semanal</h2>
-                        <span class="badge bg-primary-subtle text-primary">Semana activa</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-schedule table-striped align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Día</th>
-                                        <th>Turno</th>
-                                        <th>Estado</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for item in schedule %}
-                                    <tr>
-                                        <td class="fw-semibold">{{ item.day }}</td>
-                                        <td>{{ item.shift }}</td>
-                                        <td>
-                                            {% if item.status == 'Completado' %}
-                                            <span class="badge bg-success-subtle text-success">{{ item.status }}</span>
-                                            {% elif item.status == 'Próximo' %}
-                                            <span class="badge bg-warning-subtle text-warning">{{ item.status }}</span>
-                                            {% else %}
-                                            <span class="badge bg-secondary-subtle text-secondary">{{ item.status }}</span>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-xl-5">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-transparent border-0">
-                        <h2 class="h6 mb-0">Asistencia últimos 14 días</h2>
-                    </div>
-                    <div class="card-body">
-                        <div id="attendance-chart" class="sparkline-container" data-chart='{{ attendance|escapejs }}'></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="mb-5">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-transparent border-0">
-                <h2 class="h6 mb-0">Recordatorios del día</h2>
-            </div>
-            <div class="card-body">
-                <ul class="list-group list-group-flush">
-                    {% for note in notes %}
-                    <li class="list-group-item d-flex align-items-center gap-2">
-                        <span class="badge rounded-pill bg-primary">!</span>
-                        <span>{{ note }}</span>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-    </section>
-</main>
-<footer class="bg-body-secondary py-3 border-top">
-    <div class="container d-flex flex-column flex-lg-row justify-content-between gap-2 small text-muted">
-        <span>Panel de operaciones • {{ profile.timestamp }}</span>
-        <span>Datos sincronizados con el turno actual</span>
+      </div>
+      {% endfor %}
     </div>
-</footer>
+  </section>
+
+  <section class="mb-4">
+    <div class="row g-4">
+      <div class="col-12 col-xl-7">
+        <div class="card-surface h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Horario semanal</span>
+            <small class="muted">Estado de cada turno</small>
+          </div>
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Día</th>
+                  <th>Turno</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in schedule %}
+                <tr>
+                  <td class="fw-semibold">{{ item.day }}</td>
+                  <td>{{ item.shift }}</td>
+                  <td>
+                    {% if item.status == 'Completado' %}
+                    <span class="badge text-bg-success-subtle text-success">{{ item.status }}</span>
+                    {% elif item.status == 'Próximo' %}
+                    <span class="badge text-bg-warning-subtle text-warning">{{ item.status }}</span>
+                    {% else %}
+                    <span class="badge text-bg-secondary-subtle text-secondary">{{ item.status }}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-xl-5">
+        <div class="card-surface h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Asistencia (14 días)</span>
+            <small class="muted">Click para ver turno</small>
+          </div>
+          <div class="card-body">
+            <div id="worker_attendance_chart" data-chart='{{ attendance|escapejs }}' style="height: 260px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-5">
+    <div class="card-surface">
+      <div class="card-header">
+        <span>Notas y recordatorios</span>
+      </div>
+      <div class="card-body">
+        <ul class="list-unstyled mb-0 d-grid gap-3">
+          {% for note in notes %}
+          <li class="d-flex gap-3 align-items-start">
+            <span class="badge rounded-pill text-bg-info">•</span>
+            <span>{{ note }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer class="muted small d-flex flex-column flex-md-row justify-content-between gap-2">
+    <span>Panel del colaborador · {{ profile.city }}</span>
+    <span>Última sincronización: {{ profile.timestamp }}</span>
+  </footer>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Modal genérico -->
+<div class="modal fade" id="drillModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="drillTitle">Detalle</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="drillChart" style="height:360px;"></div>
+        <div class="table-responsive mt-3">
+          <table class="table table-sm" id="drillTable"></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 <script>
-    const themeToggle = document.getElementById('themeToggle');
-    const htmlEl = document.documentElement;
-    const bodyEl = document.body;
-    themeToggle.addEventListener('change', (event) => {
-        const theme = event.target.checked ? 'dark' : 'light';
-        htmlEl.setAttribute('data-theme', theme);
-        bodyEl.setAttribute('data-theme', theme);
-    });
+function openDrill(title){
+  document.getElementById('drillTitle').textContent = title || 'Detalle';
+  const m = new bootstrap.Modal(document.getElementById('drillModal'));
+  m.show();
+}
 
-    const statsData = JSON.parse(document.getElementById('stats-radar').dataset.chart);
+async function fetchJSON(url){
+  const r = await fetch(url, {headers:{'Accept':'application/json'}});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return await r.json();
+}
+
+function renderTable(elId, rows){
+  const t = document.getElementById(elId);
+  if(!rows || !rows.length){ t.innerHTML = '<tbody><tr><td class="text-muted">Sin datos</td></tr></tbody>'; return; }
+  const thead = '<thead class="text-muted"><tr>'+Object.keys(rows[0]).map(k=>`<th>${k}</th>`).join('')+'</tr></thead>';
+  const tbody = '<tbody>'+rows.map(r=>'<tr>'+Object.values(r).map(v=>`<td>${v}</td>`).join('')+'</tr>').join('')+'</tbody>';
+  t.innerHTML = thead+tbody;
+}
+
+const elSales = document.getElementById('chart_sales_by_day');
+if(elSales){
+  elSales.on('plotly_click', async (e) => {
+    try{
+      const x = e.points?.[0]?.x;
+      const storeSelect = document.getElementById('storeSelect');
+      const storeValue = storeSelect?.value || 'A';
+      const storeLabel = storeSelect?.selectedOptions?.[0]?.textContent?.trim() || 'Tienda A';
+      openDrill('Órdenes del '+x+' · '+storeLabel);
+      const data = await fetchJSON(`/api/drill/orders?date=${encodeURIComponent(x)}&store=${storeValue}`);
+      Plotly.react('drillChart', data.traces || [], data.layout || {}, {displayModeBar:false, responsive:true});
+      renderTable('drillTable', data.rows || []);
+    }catch(err){ console.error(err); }
+  });
+}
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const currency = new Intl.NumberFormat('es-CL', {style: 'currency', currency: 'CLP', maximumFractionDigits: 0});
+  const workerWrapper = document.getElementById('workerDashboard');
+  const workerId = workerWrapper?.dataset.workerId || '';
+  const chartConfig = {displayModeBar: false, responsive: true, locale: 'es'};
+
+  const radarContainer = document.getElementById('worker_stats_radar');
+  if (radarContainer) {
+    const radarData = JSON.parse(radarContainer.dataset.chart);
     const radarTrace = {
-        type: 'scatterpolar',
-        r: statsData.values,
-        theta: statsData.labels,
-        fill: 'toself',
-        marker: {color: '#0d6efd'},
-        line: {color: '#20c997', width: 3},
-        hovertemplate: '<b>%{theta}</b><br>Desempeño: %{r:.0f}%<extra></extra>'
+      type: 'scatterpolar',
+      r: radarData.values,
+      theta: radarData.labels,
+      fill: 'toself',
+      line: {color: '#a855f7', width: 2},
+      marker: {color: '#f59e0b'},
+      customdata: radarData.values.map(value => `${value}%`),
+      hovertemplate: '<b>%{theta}</b><br>Índice: %{customdata}<extra></extra>'
     };
     const radarLayout = {
-        polar: {
-            radialaxis: {
-                visible: true,
-                range: [0, 100],
-                tickformat: ',.0f',
-                angle: 90,
-                showline: true,
-                gridcolor: 'rgba(13, 110, 253, 0.2)'
-            }
+      margin: {t: 24, r: 16, b: 24, l: 16},
+      hovermode: 'closest',
+      polar: {
+        bgcolor: 'transparent',
+        radialaxis: {
+          visible: true,
+          range: [0, 100],
+          tickmode: 'array',
+          tickvals: [0, 25, 50, 75, 100],
+          tickfont: {color: '#94a3b8'}
         },
-        margin: {t: 10, r: 10, b: 10, l: 10},
-        paper_bgcolor: 'transparent'
+        angularaxis: {
+          tickfont: {color: '#94a3b8'}
+        }
+      },
+      showlegend: false
     };
-    Plotly.newPlot('stats-radar', [radarTrace], radarLayout, {displaylogo: false, responsive: true});
+    Plotly.newPlot(radarContainer, [radarTrace], radarLayout, chartConfig);
 
-    const attendanceData = JSON.parse(document.getElementById('attendance-chart').dataset.chart);
+    radarContainer.on('plotly_click', async (e) => {
+      try {
+        const metric = e.points?.[0]?.theta;
+        if (!metric) return;
+        openDrill(`Tendencia de ${metric}`);
+        const data = await fetchJSON(`/api/drill/metric?name=${encodeURIComponent(metric)}&worker_id=${encodeURIComponent(workerId)}`);
+        Plotly.react('drillChart', data.traces || [], data.layout || {}, {displayModeBar:false, responsive:true});
+        renderTable('drillTable', data.rows || []);
+      } catch (err) {
+        console.error(err);
+      }
+    });
+  }
+
+  const attendanceContainer = document.getElementById('worker_attendance_chart');
+  if (attendanceContainer) {
+    const attendanceData = JSON.parse(attendanceContainer.dataset.chart);
     const attendanceTrace = {
-        x: attendanceData.days,
-        y: attendanceData.values,
-        type: 'bar',
-        marker: {color: '#0dcaf0'},
-        hovertemplate: '%{x}<br>Asistencia: %{y:.0%}<extra></extra>'
+      x: attendanceData.labels,
+      y: attendanceData.values,
+      type: 'bar',
+      marker: {color: '#38bdf8'},
+      customdata: attendanceData.values.map(value => `${Math.round(value * 100)}%`),
+      hovertemplate: '%{x}<br>Asistencia: %{customdata}<extra></extra>'
     };
     const attendanceLayout = {
-        margin: {t: 10, r: 10, b: 60, l: 40},
-        yaxis: {
-            title: 'Asistencia',
-            tickformat: ',.0%',
-            range: [0, 1.1],
-            gridcolor: 'rgba(13, 110, 253, 0.2)'
-        },
-        xaxis: {title: 'Día'}
+      margin: {t: 24, r: 16, b: 48, l: 60},
+      hovermode: 'closest',
+      yaxis: {
+        title: 'Asistencia',
+        range: [0, 1.1],
+        tickformat: ',.0%',
+        gridcolor: 'rgba(148, 163, 184, 0.2)'
+      },
+      xaxis: {
+        tickangle: -25
+      }
     };
-    Plotly.newPlot('attendance-chart', [attendanceTrace], attendanceLayout, {displaylogo: false, responsive: true, modeBarButtonsToRemove: ['select2d', 'lasso2d']});
+    Plotly.newPlot(attendanceContainer, [attendanceTrace], attendanceLayout, chartConfig);
+
+    attendanceContainer.on('plotly_click', async (e) => {
+      try {
+        const pointIndex = e.points?.[0]?.pointNumber ?? 0;
+        const date = attendanceData.dates?.[pointIndex] || attendanceData.labels?.[pointIndex];
+        if (!date) return;
+        openDrill(`Detalle de turno · ${date}`);
+        const data = await fetchJSON(`/api/drill/shift?date=${encodeURIComponent(date)}&worker_id=${encodeURIComponent(workerId)}`);
+        Plotly.react('drillChart', data.traces || [], data.layout || {}, {displayModeBar:false, responsive:true});
+        renderTable('drillTable', data.rows || []);
+      } catch (err) {
+        console.error(err);
+      }
+    });
+  }
+});
 </script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+{% endblock %}

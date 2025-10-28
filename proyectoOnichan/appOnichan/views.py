@@ -1,123 +1,123 @@
 import json
 from datetime import timedelta
+from random import randint
+
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
+from django.views.decorators.http import require_GET
+
+
+STORES = {
+    "A": "Tienda A",
+    "B": "Tienda B",
+    "C": "Tienda C",
+}
+
+
+def format_clp(amount: int) -> str:
+    return f"$ {amount:,.0f}".replace(",", ".")
 
 
 def index(request):
-    return render(request, 'pagina1.html')
+    return render(request, "pagina1.html")
 
 
 def pagina2(request):
-    return render(request, 'pagina2.html')
+    return render(request, "pagina2.html")
 
 
 def pagina3(request):
-    return render(request, 'pagina3.html')
+    return render(request, "pagina3.html")
 
 
 def admin_dashboard(request):
     today = timezone.now().date()
-    kpis = [
-        {
-            "label": "Ventas Totales",
-            "value": "$125,430",
-            "delta": "+8.2% vs. mes anterior",
-        },
-        {
-            "label": "# Órdenes",
-            "value": "1,248",
-            "delta": "+5.1% intermensual",
-        },
-        {
-            "label": "Ticket Promedio",
-            "value": "$100.60",
-            "delta": "+2.3%",
-        },
-        {
-            "label": "% Clientes Nuevos",
-            "value": "27%",
-            "delta": "+3.4 pts",
-        },
+    dates = [(today - timedelta(days=offset)).strftime("%d-%m-%Y") for offset in range(13, -1, -1)]
+    sales_values = [
+        245_500,
+        258_300,
+        249_800,
+        262_900,
+        271_400,
+        275_600,
+        289_900,
+        301_200,
+        297_800,
+        312_500,
+        326_400,
+        331_900,
+        344_200,
+        352_100,
     ]
 
-    sales_daily = {
-        "dates": [
-            (today - timedelta(days=offset)).strftime("%Y-%m-%d")
-            for offset in range(13, -1, -1)
-        ],
-        "sales": [
-            18230,
-            19480,
-            18760,
-            20530,
-            19880,
-            21420,
-            22340,
-            21980,
-            23100,
-            24510,
-            23870,
-            25630,
-            26840,
-            27320,
-        ],
-    }
+    kpis = [
+        {"label": "Ventas Totales", "value": format_clp(sum(sales_values)), "delta": "+7,4% vs mes anterior"},
+        {"label": "Ticket Promedio", "value": format_clp(58_900), "delta": "+2,1%"},
+        {"label": "Clientes Nuevos", "value": "284", "delta": "+18 clientes"},
+        {"label": "Órdenes Completadas", "value": "1.642", "delta": "+5,6%"},
+    ]
 
     top_categories = {
-        "categories": [
-            "Electrónica",
-            "Hogar",
-            "Moda",
-            "Alimentos",
-            "Deportes",
-        ],
-        "sales": [45210, 31890, 27500, 22340, 18970],
+        "categories": ["Electrónica", "Hogar", "Moda", "Juguetería", "Deportes"],
+        "sales": [982_300, 756_400, 643_200, 521_800, 498_600],
     }
 
-    purchase_distribution = {
-        "values": [
-            84,
-            92,
-            97,
-            104,
-            89,
-            115,
-            101,
-            136,
-            124,
-            112,
-            99,
-            145,
-            133,
-            120,
-            108,
-            96,
-            118,
-            122,
-            140,
-            132,
-        ]
-    }
-
-    recent_orders = [
-        {"id": "A-1045", "customer": "Laura Vega", "product": "Smartwatch", "total": "$320", "date": "2024-06-17"},
-        {"id": "A-1044", "customer": "Carlos Ruiz", "product": "Laptop 14''", "total": "$980", "date": "2024-06-17"},
-        {"id": "A-1043", "customer": "Ana López", "product": "Silla ergonómica", "total": "$210", "date": "2024-06-16"},
-        {"id": "A-1042", "customer": "Miguel Torres", "product": "Auriculares", "total": "$150", "date": "2024-06-16"},
-        {"id": "A-1041", "customer": "Daniela Pérez", "product": "Cafetera", "total": "$120", "date": "2024-06-16"},
+    purchase_values = [
+        34_900,
+        42_500,
+        55_800,
+        61_200,
+        48_900,
+        72_400,
+        81_500,
+        69_800,
+        58_300,
+        63_700,
+        54_100,
+        77_900,
+        88_400,
+        92_100,
+        66_800,
+        59_700,
+        71_200,
+        83_500,
+        94_900,
+        102_300,
+    ]
+    bin_size = 20_000
+    min_value = 20_000
+    bins = [
+        {
+            "start": min_value + index * bin_size,
+            "end": min_value + (index + 1) * bin_size,
+            "size": bin_size,
+        }
+        for index in range(5)
     ]
 
+    recent_orders = [
+        {"id": "A-2081", "customer": "Valentina Ríos", "product": "Notebook 14\"", "total": format_clp(489_900), "date": "14-07-2024"},
+        {"id": "B-2079", "customer": "Felipe Morales", "product": "Audífonos inalámbricos", "total": format_clp(89_990), "date": "13-07-2024"},
+        {"id": "C-2078", "customer": "Claudia Peña", "product": "Silla ergonómica", "total": format_clp(179_500), "date": "13-07-2024"},
+        {"id": "A-2077", "customer": "Ignacio Vera", "product": "Smartwatch deportivo", "total": format_clp(129_990), "date": "12-07-2024"},
+        {"id": "B-2076", "customer": "Camila Torres", "product": "Cafetera premium", "total": format_clp(159_900), "date": "12-07-2024"},
+    ]
+
+    filters = {
+        "date_range": f"{dates[0]} al {dates[-1]}",
+        "last_updated": today.strftime("%d-%m-%Y 09:00"),
+        "stores": [{"value": key, "label": label} for key, label in STORES.items()],
+        "selected_store": "A",
+        "selected_store_label": STORES["A"],
+    }
+
     context = {
-        "filters": {
-            "date_range": "01 - 17 Jun 2024",
-            "cities": ["Todas", "CDMX", "Monterrey", "Guadalajara", "Puebla"],
-            "selected_city": "Todas",
-        },
+        "filters": filters,
         "kpis": kpis,
-        "sales_daily": json.dumps(sales_daily),
+        "sales_daily": json.dumps({"dates": dates, "sales": sales_values}),
         "top_categories": json.dumps(top_categories),
-        "purchase_distribution": json.dumps(purchase_distribution),
+        "purchase_distribution": json.dumps({"values": purchase_values, "bins": bins}),
         "recent_orders": recent_orders,
     }
     return render(request, "admin.html", context)
@@ -126,18 +126,18 @@ def admin_dashboard(request):
 def worker_dashboard(request):
     now = timezone.localtime()
     profile = {
-        "name": "María González",
+        "name": "Constanza Araya",
         "role": "Especialista de Atención",
-        "city": "CDMX",
-        "timestamp": now.strftime("%d %b %Y • %H:%M"),
+        "city": "Santiago",
+        "timestamp": now.strftime("%d-%m-%Y · %H:%M"),
     }
 
     stats = [
-        {"label": "Puntualidad", "value": 92},
-        {"label": "Órdenes atendidas", "value": 88},
-        {"label": "Satisfacción", "value": 95},
-        {"label": "Velocidad", "value": 84},
+        {"label": "Puntualidad", "value": 94},
+        {"label": "Órdenes Atendidas", "value": 88},
+        {"label": "Velocidad", "value": 82},
         {"label": "Precisión", "value": 91},
+        {"label": "Satisfacción", "value": 96},
     ]
 
     schedule = [
@@ -150,29 +150,250 @@ def worker_dashboard(request):
         {"day": "Domingo", "shift": "Descanso", "status": "Libre"},
     ]
 
-    attendance = {
-        "days": [
-            (now - timedelta(days=idx)).strftime("%d %b")
-            for idx in range(13, -1, -1)
-        ],
-        "values": [1, 1, 1, 0.5, 1, 1, 1, 1, 0.8, 1, 1, 1, 1, 0.9],
-    }
+    attendance_labels = [
+        (now - timedelta(days=offset)).strftime("%d-%m") for offset in range(13, -1, -1)
+    ]
+    attendance_dates = [
+        (now - timedelta(days=offset)).strftime("%d-%m-%Y") for offset in range(13, -1, -1)
+    ]
+    attendance_values = [1, 1, 1, 0.75, 1, 1, 1, 0.85, 1, 1, 0.9, 1, 1, 1]
 
     notes = [
-        "Recordar seguimiento VIP a cliente 3256.",
-        "Confirmar inventario de repuestos antes del viernes.",
-        "Revisar feedback del turno nocturno.",
+        "Revisar feedback de clientes premium antes de las 12:00.",
+        "Confirmar stock de accesorios en Tienda B.",
+        "Coordinar capacitación de nuevos ingresos para el viernes.",
     ]
 
     context = {
         "profile": profile,
+        "worker_id": "W-204",
         "stats": stats,
         "stats_chart": json.dumps({
             "labels": [metric["label"] for metric in stats],
             "values": [metric["value"] for metric in stats],
         }),
-        "attendance": json.dumps(attendance),
+        "attendance": json.dumps({
+            "labels": attendance_labels,
+            "dates": attendance_dates,
+            "values": attendance_values,
+        }),
         "schedule": schedule,
         "notes": notes,
     }
     return render(request, "worker.html", context)
+
+
+@require_GET
+def drill_orders(request):
+    date = request.GET.get("date") or timezone.now().strftime("%d-%m-%Y")
+    store = request.GET.get("store", "A").upper()
+    store_label = STORES.get(store, STORES["A"])
+
+    sample_amounts = [randint(58_000, 142_000) for _ in range(5)]
+    rows = [
+        {
+            "ID": f"{store}-{date.replace('-', '')}-{index+1}",
+            "Cliente": f"Cliente {index + 1}",
+            "Total": format_clp(amount),
+            "Fecha": date,
+        }
+        for index, amount in enumerate(sample_amounts)
+    ]
+
+    data = {
+        "traces": [
+            {
+                "type": "bar",
+                "x": [row["ID"] for row in rows],
+                "y": sample_amounts,
+                "marker": {"color": "#2563eb"},
+                "text": [row["Total"] for row in rows],
+                "hovertemplate": "Total: %{text}<extra></extra>",
+            }
+        ],
+        "layout": {
+            "title": f"Órdenes · {store_label}",
+            "margin": {"t": 32, "r": 16, "b": 48, "l": 60},
+            "yaxis": {"title": "Monto (CLP)", "tickprefix": "$", "separatethousands": True},
+            "xaxis": {"title": "Órdenes"},
+        },
+        "rows": rows,
+    }
+    return JsonResponse(data)
+
+
+@require_GET
+def drill_category(request):
+    category = request.GET.get("name", "Categoría")
+    store = request.GET.get("store", "A").upper()
+    store_label = STORES.get(store, STORES["A"])
+    base_details = {
+        "Electrónica": [
+            ("Accesorios", 382_000),
+            ("Gadgets", 275_300),
+            ("Computación", 325_400),
+        ],
+        "Hogar": [
+            ("Decoración", 189_400),
+            ("Cocina", 231_500),
+            ("Electrodomésticos", 255_000),
+        ],
+        "Moda": [
+            ("Calzado", 173_800),
+            ("Ropa", 214_600),
+            ("Accesorios", 128_700),
+        ],
+        "Juguetería": [
+            ("Educativos", 142_800),
+            ("Coleccionables", 121_500),
+            ("Creativos", 118_400),
+        ],
+        "Deportes": [
+            ("Fitness", 165_900),
+            ("Outdoor", 152_300),
+            ("Accesorios", 134_200),
+        ],
+    }
+
+    details = base_details.get(category, [("General", 198_000), ("Otros", 154_000)])
+    rows = [
+        {"Subcategoría": name, "Venta": format_clp(amount), "Tienda": store_label}
+        for name, amount in details
+    ]
+
+    data = {
+        "traces": [
+            {
+                "type": "bar",
+                "x": [amount for _, amount in details],
+                "y": [name for name, _ in details],
+                "orientation": "h",
+                "marker": {"color": "#10b981"},
+                "text": [format_clp(amount) for _, amount in details],
+                "hovertemplate": "%{y}<br>Total: %{text}<extra></extra>",
+            }
+        ],
+        "layout": {
+            "title": f"Detalle de {category} · {store_label}",
+            "margin": {"t": 32, "r": 16, "b": 48, "l": 120},
+            "xaxis": {"title": "Monto (CLP)", "tickprefix": "$", "separatethousands": True},
+            "yaxis": {"automargin": True},
+        },
+        "rows": rows,
+    }
+    return JsonResponse(data)
+
+
+@require_GET
+def drill_purchase_bin(request):
+    store = request.GET.get("store", "A").upper()
+    store_label = STORES.get(store, STORES["A"])
+    try:
+        start = int(float(request.GET.get("bin_start", 0)))
+    except (TypeError, ValueError):
+        start = 0
+    try:
+        end = int(float(request.GET.get("bin_end", start + 20_000)))
+    except (TypeError, ValueError):
+        end = start + 20_000
+
+    tickets = [start + randint(1_500, 18_000) for _ in range(6)]
+    rows = [
+        {
+            "Ticket": f"{store}-{index+1}",
+            "Monto": format_clp(amount),
+            "Fecha": (timezone.now() - timedelta(days=index)).strftime("%d-%m-%Y"),
+        }
+        for index, amount in enumerate(sorted(tickets, reverse=True))
+    ]
+
+    data = {
+        "traces": [
+            {
+                "type": "histogram",
+                "x": tickets,
+                "marker": {"color": "#f97316", "opacity": 0.75},
+                "hovertemplate": "Monto: %{x}<extra></extra>",
+                "xbins": {"start": start, "end": end, "size": max(1, (end - start) // 6)},
+            }
+        ],
+        "layout": {
+            "title": f"Tickets entre {format_clp(start)} y {format_clp(end)} · {store_label}",
+            "margin": {"t": 32, "r": 16, "b": 48, "l": 60},
+            "xaxis": {"title": "Monto (CLP)", "tickprefix": "$", "separatethousands": True},
+            "yaxis": {"title": "Frecuencia"},
+        },
+        "rows": rows,
+    }
+    return JsonResponse(data)
+
+
+@require_GET
+def drill_metric(request):
+    metric = request.GET.get("name", "Métrica")
+    base_value = {
+        "Puntualidad": 94,
+        "Órdenes Atendidas": 88,
+        "Velocidad": 82,
+        "Precisión": 91,
+        "Satisfacción": 96,
+    }.get(metric, 85)
+
+    today = timezone.now().date()
+    dates = [(today - timedelta(days=offset)).strftime("%d-%m") for offset in range(29, -1, -1)]
+    values = [max(60, min(100, base_value + randint(-6, 6))) for _ in dates]
+    rows = [
+        {"Fecha": date, "Índice": f"{value}%"}
+        for date, value in list(zip(dates, values))[-7:]
+    ]
+
+    data = {
+        "traces": [
+            {
+                "type": "scatter",
+                "x": dates,
+                "y": values,
+                "mode": "lines+markers",
+                "line": {"color": "#8b5cf6"},
+                "marker": {"size": 6},
+                "hovertemplate": "%{x}<br>Valor: %{y}%<extra></extra>",
+            }
+        ],
+        "layout": {
+            "title": f"{metric} · últimos 30 días",
+            "margin": {"t": 32, "r": 16, "b": 48, "l": 60},
+            "yaxis": {"title": "Índice", "range": [50, 105]},
+            "xaxis": {"title": "Fecha"},
+        },
+        "rows": rows,
+    }
+    return JsonResponse(data)
+
+
+@require_GET
+def drill_shift(request):
+    date = request.GET.get("date") or timezone.now().strftime("%d-%m-%Y")
+    rows = [
+        {"Fecha": date, "Entrada": "09:00", "Salida": "17:00", "Observación": "Turno completado"},
+        {"Fecha": date, "Entrada": "17:10", "Salida": "17:40", "Observación": "Cierre de incidencias"},
+    ]
+
+    data = {
+        "traces": [
+            {
+                "type": "bar",
+                "x": ["Horas trabajadas"],
+                "y": [7.5],
+                "text": ["7,5 h"],
+                "marker": {"color": "#2563eb"},
+                "hovertemplate": "Duración: %{text}<extra></extra>",
+            }
+        ],
+        "layout": {
+            "title": f"Turno · {date}",
+            "margin": {"t": 32, "r": 16, "b": 48, "l": 60},
+            "yaxis": {"title": "Horas", "range": [0, 9]},
+        },
+        "rows": rows,
+    }
+    return JsonResponse(data)

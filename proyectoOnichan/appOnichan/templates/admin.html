@@ -1,265 +1,338 @@
-<!DOCTYPE html>
-<html lang="es" data-theme="light">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Panel Administrador</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.plot.ly/plotly-2.33.0.min.js"></script>
-    <style>
-        body[data-theme="dark"], html[data-theme="dark"] body {
-            background-color: #121212;
-            color: #f8f9fa;
-        }
-        .card[data-theme="dark"], html[data-theme="dark"] .card {
-            background-color: #1c1c1c;
-            color: #f8f9fa;
-        }
-        .chart-container {
-            min-height: 320px;
-        }
-        .table-responsive::-webkit-scrollbar {
-            height: 6px;
-        }
-        .table-responsive::-webkit-scrollbar-thumb {
-            background-color: rgba(13, 110, 253, 0.4);
-            border-radius: 3px;
-        }
-    </style>
-</head>
-<body class="bg-body-tertiary" data-theme="light">
-<nav class="navbar navbar-expand-lg bg-body-secondary shadow-sm">
-    <div class="container-fluid">
-        <a class="navbar-brand fw-bold" href="#">Onichan Analytics</a>
-        <div class="d-flex align-items-center gap-3">
-            <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" role="switch" id="themeToggle">
-                <label class="form-check-label" for="themeToggle">Modo oscuro</label>
-            </div>
-            <div class="btn-group" role="group">
-                <a class="btn btn-primary" href="{% url 'admin-dashboard' %}">Admin</a>
-                <a class="btn btn-outline-primary" href="{% url 'worker-dashboard' %}">Worker</a>
-            </div>
-        </div>
-    </div>
-</nav>
-<main class="container py-4">
-    <section class="mb-4">
-        <div class="row g-3 align-items-center">
-            <div class="col-lg-4">
-                <h1 class="h3 mb-1">Panel de Ventas</h1>
-                <p class="text-muted mb-0">Rango: {{ filters.date_range }}</p>
-            </div>
-            <div class="col-lg-4">
-                <label for="dateRange" class="form-label">Rango de fechas</label>
-                <input type="text" id="dateRange" class="form-control" value="{{ filters.date_range }}" readonly>
-            </div>
-            <div class="col-lg-4">
-                <label for="citySelect" class="form-label">Ciudad/Tienda</label>
-                <select class="form-select" id="citySelect">
-                    {% for city in filters.cities %}
-                    <option {% if city == filters.selected_city %}selected{% endif %}>{{ city }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
-    </section>
+{% extends "base.html" %}
 
-    <section class="mb-4">
-        <div class="row g-3">
-            {% for card in kpis %}
-            <div class="col-12 col-md-6 col-xl-3">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
-                        <p class="text-uppercase text-muted fw-semibold small mb-2">{{ card.label }}</p>
-                        <h2 class="h3 fw-bold mb-1">{{ card.value }}</h2>
-                        <span class="badge bg-success-subtle text-success">{{ card.delta }}</span>
-                    </div>
-                </div>
-            </div>
+{% block title %}Panel de Administración{% endblock %}
+
+{% block content %}
+<div class="container">
+  <section class="mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between gap-4 align-items-lg-end">
+      <div>
+        <p class="text-uppercase muted small mb-1">Panel de control</p>
+        <h1 class="display-6 fw-semibold mb-1 text-break">Panel de Administración</h1>
+        <p class="muted mb-0">Resumen ejecutivo de ventas y comportamiento de compra.</p>
+      </div>
+      <div class="row g-3 flex-grow-1">
+        <div class="col-12 col-lg-6">
+          <label for="dateRange" class="form-label small text-uppercase muted">Rango de fechas</label>
+          <input id="dateRange" type="text" class="form-control" value="{{ filters.date_range }}" readonly>
+        </div>
+        <div class="col-12 col-lg-6">
+          <label for="storeSelect" class="form-label small text-uppercase muted">Tienda</label>
+          <select id="storeSelect" class="form-select">
+            {% for store in filters.stores %}
+            <option value="{{ store.value }}" {% if store.value == filters.selected_store %}selected{% endif %}>{{ store.label }}</option>
             {% endfor %}
+          </select>
         </div>
-    </section>
-
-    <section class="mb-4">
-        <div class="row g-4">
-            <div class="col-12 col-lg-6">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
-                        <h2 class="h6 mb-0">Ventas por día</h2>
-                        <span class="text-muted small">Actualizable</span>
-                    </div>
-                    <div class="card-body">
-                        <div id="sales-daily-chart" class="chart-container" data-chart='{{ sales_daily|escapejs }}'></div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-lg-6">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-transparent border-0">
-                        <h2 class="h6 mb-0">Top 5 categorías</h2>
-                    </div>
-                    <div class="card-body">
-                        <div id="top-categories-chart" class="chart-container" data-chart='{{ top_categories|escapejs }}'></div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-transparent border-0">
-                        <h2 class="h6 mb-0">Distribución de Purchase</h2>
-                    </div>
-                    <div class="card-body">
-                        <div id="purchase-distribution-chart" class="chart-container" data-chart='{{ purchase_distribution|escapejs }}'></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="mb-5">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
-                <h2 class="h6 mb-0">Órdenes recientes</h2>
-                <a href="#" class="btn btn-sm btn-outline-secondary">Ver todas</a>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>ID</th>
-                                <th>Cliente</th>
-                                <th>Producto</th>
-                                <th>Total</th>
-                                <th>Fecha</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for order in recent_orders %}
-                            <tr>
-                                <td class="fw-semibold">{{ order.id }}</td>
-                                <td>{{ order.customer }}</td>
-                                <td>{{ order.product }}</td>
-                                <td>{{ order.total }}</td>
-                                <td>{{ order.date }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </section>
-</main>
-<footer class="bg-body-secondary py-3 border-top">
-    <div class="container d-flex flex-column flex-lg-row justify-content-between gap-2 small text-muted">
-        <span>Última actualización: {{ filters.date_range }}</span>
-        <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" id="includeOutliers" checked>
-            <label class="form-check-label" for="includeOutliers">Incluir outliers</label>
-        </div>
+      </div>
     </div>
-</footer>
+  </section>
+
+  <section class="mb-4">
+    <div class="row g-4">
+      {% for card in kpis %}
+      <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card-surface p-4 h-100">
+          <p class="text-uppercase small muted mb-1">{{ card.label }}</p>
+          <h2 class="h3 fw-semibold mb-2">{{ card.value }}</h2>
+          <span class="badge text-bg-success-subtle text-success">{{ card.delta }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="mb-4">
+    <div class="row g-4">
+      <div class="col-12 col-xl-6">
+        <div class="card-surface h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Ventas por día</span>
+            <small class="muted">Interactividad habilitada</small>
+          </div>
+          <div class="card-body">
+            <div id="chart_sales_by_day" data-chart='{{ sales_daily|escapejs }}' style="height: 340px;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-xl-6">
+        <div class="card-surface h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Top 5 categorías</span>
+            <small class="muted">Click para detalle</small>
+          </div>
+          <div class="card-body">
+            <div id="chart_top_categories" data-chart='{{ top_categories|escapejs }}' style="height: 340px;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="card-surface">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Distribución de compras</span>
+            <small class="muted">Incluye boxplot</small>
+          </div>
+          <div class="card-body">
+            <div id="chart_purchase_distribution" data-chart='{{ purchase_distribution|escapejs }}' style="height: 360px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-5">
+    <div class="card-surface">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Órdenes recientes</span>
+        <a href="#" class="link-muted small">Ver todo</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th scope="col">ID</th>
+              <th scope="col">Cliente</th>
+              <th scope="col">Producto</th>
+              <th scope="col">Total</th>
+              <th scope="col">Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for order in recent_orders %}
+            <tr>
+              <td class="fw-semibold">{{ order.id }}</td>
+              <td>{{ order.customer }}</td>
+              <td>{{ order.product }}</td>
+              <td>{{ order.total }}</td>
+              <td>{{ order.date }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-2 muted small">
+    <span>Última actualización: {{ filters.last_updated }}</span>
+    <span>Datos filtrados para {{ filters.selected_store_label }}</span>
+  </footer>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Modal genérico -->
+<div class="modal fade" id="drillModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="drillTitle">Detalle</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="drillChart" style="height:360px;"></div>
+        <div class="table-responsive mt-3">
+          <table class="table table-sm" id="drillTable"></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 <script>
-    const themeToggle = document.getElementById('themeToggle');
-    const htmlEl = document.documentElement;
-    const bodyEl = document.body;
-    themeToggle.addEventListener('change', (event) => {
-        const theme = event.target.checked ? 'dark' : 'light';
-        htmlEl.setAttribute('data-theme', theme);
-        bodyEl.setAttribute('data-theme', theme);
-    });
+function openDrill(title){
+  document.getElementById('drillTitle').textContent = title || 'Detalle';
+  const m = new bootstrap.Modal(document.getElementById('drillModal'));
+  m.show();
+}
 
-    const salesChartData = JSON.parse(document.getElementById('sales-daily-chart').dataset.chart);
-    const chartConfig = {responsive: true, displaylogo: false, modeBarButtonsToRemove: ['select2d', 'lasso2d']};
+async function fetchJSON(url){
+  const r = await fetch(url, {headers:{'Accept':'application/json'}});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return await r.json();
+}
 
-    Plotly.newPlot('sales-daily-chart', [
-        {
-            x: salesChartData.dates,
-            y: salesChartData.sales,
-            type: 'scatter',
-            mode: 'lines+markers',
-            line: {color: '#0d6efd', width: 3},
-            marker: {size: 8},
-            hovertemplate: '<b>%{x}</b><br>Ventas: $%{y:,.0f}<extra></extra>'
-        }
-    ], {
-        margin: {t: 10, r: 10, b: 40, l: 50},
-        xaxis: {title: 'Fecha', rangeslider: {visible: true}, rangeselector: {buttons: [
-            {step: 'day', stepmode: 'backward', count: 3, label: '3D'},
-            {step: 'day', stepmode: 'backward', count: 5, label: '5D'},
-            {step: 'all', label: 'Todo'}
-        ]}},
-        yaxis: {title: 'Ventas ($)', tickprefix: '$', separatethousands: true},
-        hovermode: 'x unified'
-    }, chartConfig);
+function renderTable(elId, rows){
+  const t = document.getElementById(elId);
+  if(!rows || !rows.length){ t.innerHTML = '<tbody><tr><td class="text-muted">Sin datos</td></tr></tbody>'; return; }
+  const thead = '<thead class="text-muted"><tr>'+Object.keys(rows[0]).map(k=>`<th>${k}</th>`).join('')+'</tr></thead>';
+  const tbody = '<tbody>'+rows.map(r=>'<tr>'+Object.values(r).map(v=>`<td>${v}</td>`).join('')+'</tr>').join('')+'</tbody>';
+  t.innerHTML = thead+tbody;
+}
 
-    const topCategoriesData = JSON.parse(document.getElementById('top-categories-chart').dataset.chart);
-    Plotly.newPlot('top-categories-chart', [
-        {
-            x: topCategoriesData.categories,
-            y: topCategoriesData.sales,
-            type: 'bar',
-            marker: {color: '#6610f2'},
-            hovertemplate: '<b>%{x}</b><br>Ventas: $%{y:,.0f}<extra></extra>'
-        }
-    ], {
-        margin: {t: 10, r: 10, b: 60, l: 50},
-        yaxis: {title: 'Ventas ($)', tickprefix: '$', separatethousands: true},
-        xaxis: {title: 'Categoría'}
-    }, chartConfig);
-
-    const purchaseData = JSON.parse(document.getElementById('purchase-distribution-chart').dataset.chart);
-    const buildPurchaseData = (values) => ([
-        {
-            x: values,
-            type: 'histogram',
-            name: 'Histograma',
-            marker: {color: '#20c997'},
-            opacity: 0.75,
-            hovertemplate: 'Purchase: $%{x:,.0f}<br>Cantidad: %{y}<extra></extra>'
-        },
-        {
-            y: values,
-            type: 'box',
-            name: 'Boxplot',
-            marker: {color: '#0dcaf0'},
-            xaxis: 'x2',
-            yaxis: 'y2',
-            hovertemplate: 'Purchase: $%{y:,.0f}<extra></extra>'
-        }
-    ]);
-    const purchaseLayout = {
-        grid: {rows: 1, columns: 2, pattern: 'independent'},
-        margin: {t: 10, r: 10, b: 40, l: 50},
-        showlegend: false,
-        xaxis: {title: 'Purchase ($)', tickprefix: '$', separatethousands: true},
-        yaxis: {title: 'Frecuencia'},
-        xaxis2: {showgrid: false, showticklabels: false},
-        yaxis2: {title: 'Purchase ($)', tickprefix: '$', separatethousands: true}
-    };
-
-    Plotly.newPlot('purchase-distribution-chart', buildPurchaseData(purchaseData.values), purchaseLayout, chartConfig);
-
-    document.getElementById('includeOutliers').addEventListener('change', (event) => {
-        const values = [...purchaseData.values];
-        if (!event.target.checked) {
-            values.sort((a, b) => a - b);
-            const q1Index = Math.floor(values.length * 0.25);
-            const q3Index = Math.floor(values.length * 0.75);
-            const q1 = values[q1Index];
-            const q3 = values[q3Index];
-            const iqr = q3 - q1;
-            const lower = q1 - 1.5 * iqr;
-            const upper = q3 + 1.5 * iqr;
-            const filtered = values.filter(v => v >= lower && v <= upper);
-            Plotly.react('purchase-distribution-chart', buildPurchaseData(filtered), purchaseLayout, chartConfig);
-            return;
-        }
-        Plotly.react('purchase-distribution-chart', buildPurchaseData(purchaseData.values), purchaseLayout, chartConfig);
-    });
+const elSales = document.getElementById('chart_sales_by_day');
+if(elSales){
+  elSales.on('plotly_click', async (e) => {
+    try{
+      const x = e.points?.[0]?.x;
+      const storeSelect = document.getElementById('storeSelect');
+      const storeValue = storeSelect?.value || 'A';
+      const storeLabel = storeSelect?.selectedOptions?.[0]?.textContent?.trim() || 'Tienda A';
+      openDrill('Órdenes del '+x+' · '+storeLabel);
+      const data = await fetchJSON(`/api/drill/orders?date=${encodeURIComponent(x)}&store=${storeValue}`);
+      Plotly.react('drillChart', data.traces || [], data.layout || {}, {displayModeBar:false, responsive:true});
+      renderTable('drillTable', data.rows || []);
+    }catch(err){ console.error(err); }
+  });
+}
 </script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const currency = new Intl.NumberFormat('es-CL', {style: 'currency', currency: 'CLP', maximumFractionDigits: 0});
+  const chartConfig = {displayModeBar: false, responsive: true, locale: 'es'};
+
+  const salesContainer = document.getElementById('chart_sales_by_day');
+  if (salesContainer) {
+    const salesData = JSON.parse(salesContainer.dataset.chart);
+    const salesTrace = {
+      x: salesData.dates,
+      y: salesData.sales,
+      type: 'scatter',
+      mode: 'lines+markers',
+      line: {color: '#2563eb', width: 3},
+      marker: {size: 8, color: '#38bdf8'},
+      customdata: salesData.sales.map(value => currency.format(value)),
+      hovertemplate: '<b>%{x}</b><br>Ventas: %{customdata}<extra></extra>'
+    };
+    const salesLayout = {
+      margin: {t: 24, r: 16, b: 48, l: 60},
+      hovermode: 'x unified',
+      xaxis: {
+        title: 'Fecha',
+        showgrid: false,
+        tickangle: -30
+      },
+      yaxis: {
+        title: 'Ventas (CLP)',
+        tickprefix: '$',
+        separatethousands: true,
+        gridcolor: 'rgba(148, 163, 184, 0.2)'
+      }
+    };
+    Plotly.newPlot(salesContainer, [salesTrace], salesLayout, chartConfig);
+  }
+
+  const categoriesContainer = document.getElementById('chart_top_categories');
+  if (categoriesContainer) {
+    const categoriesData = JSON.parse(categoriesContainer.dataset.chart);
+    const categoryTrace = {
+      y: categoriesData.categories,
+      x: categoriesData.sales,
+      orientation: 'h',
+      type: 'bar',
+      marker: {color: '#10b981', line: {width: 1, color: '#0f766e'}},
+      customdata: categoriesData.sales.map(value => currency.format(value)),
+      hovertemplate: '<b>%{y}</b><br>Ventas: %{customdata}<extra></extra>'
+    };
+    const categoryLayout = {
+      margin: {t: 24, r: 16, b: 48, l: 100},
+      hovermode: 'closest',
+      xaxis: {
+        title: 'Ventas (CLP)',
+        tickprefix: '$',
+        separatethousands: true,
+        gridcolor: 'rgba(148, 163, 184, 0.2)'
+      },
+      yaxis: {
+        automargin: true
+      }
+    };
+    Plotly.newPlot(categoriesContainer, [categoryTrace], categoryLayout, chartConfig);
+
+    categoriesContainer.on('plotly_click', async (e) => {
+      try {
+        const category = e.points?.[0]?.y;
+        const storeSelect = document.getElementById('storeSelect');
+        const storeValue = storeSelect?.value || 'A';
+        const storeLabel = storeSelect?.selectedOptions?.[0]?.textContent?.trim() || 'Tienda A';
+        if (!category) return;
+        openDrill(`Detalle de ${category} · ${storeLabel}`);
+        const data = await fetchJSON(`/api/drill/category?name=${encodeURIComponent(category)}&store=${storeValue}`);
+        Plotly.react('drillChart', data.traces || [], data.layout || {}, {displayModeBar:false, responsive:true});
+        renderTable('drillTable', data.rows || []);
+      } catch (err) {
+        console.error(err);
+      }
+    });
+  }
+
+  const purchaseContainer = document.getElementById('chart_purchase_distribution');
+  if (purchaseContainer) {
+    const purchaseData = JSON.parse(purchaseContainer.dataset.chart);
+    const hasBins = Array.isArray(purchaseData.bins) && purchaseData.bins.length > 0;
+    const histTrace = {
+      x: purchaseData.values,
+      type: 'histogram',
+      xbins: hasBins ? {
+        start: purchaseData.bins[0].start,
+        end: purchaseData.bins[purchaseData.bins.length - 1].end,
+        size: Math.max(1, purchaseData.bins[0].size || 1)
+      } : undefined,
+      marker: {color: '#f97316', opacity: 0.75},
+      name: 'Histograma',
+      hovertemplate: 'Monto: %{x}<extra></extra>'
+    };
+    const boxTrace = {
+      y: purchaseData.values,
+      type: 'box',
+      name: 'Boxplot',
+      marker: {color: '#8b5cf6'},
+      hovertemplate: 'Monto: %{y}<extra></extra>'
+    };
+    const purchaseLayout = {
+      grid: {rows: 1, columns: 2, pattern: 'independent', xgap: 0.25},
+      margin: {t: 24, r: 16, b: 48, l: 60},
+      hovermode: 'closest',
+      xaxis: {
+        title: 'Monto (CLP)',
+        tickprefix: '$',
+        separatethousands: true,
+        gridcolor: 'rgba(148, 163, 184, 0.2)'
+      },
+      yaxis: {
+        title: 'Frecuencia',
+        gridcolor: 'rgba(148, 163, 184, 0.2)'
+      },
+      xaxis2: {showgrid: false, showticklabels: false},
+      yaxis2: {
+        title: 'Monto (CLP)',
+        tickprefix: '$',
+        separatethousands: true
+      },
+      showlegend: false
+    };
+    Plotly.newPlot(purchaseContainer, [histTrace, boxTrace], purchaseLayout, chartConfig);
+
+    purchaseContainer.on('plotly_click', async (e) => {
+      try {
+        const binIndex = e.points?.[0]?.pointNumber ?? 0;
+        const storeSelect = document.getElementById('storeSelect');
+        const storeValue = storeSelect?.value || 'A';
+        const storeLabel = storeSelect?.selectedOptions?.[0]?.textContent?.trim() || 'Tienda A';
+        let binLabel = '';
+        if (hasBins && purchaseData.bins[binIndex]) {
+          const bin = purchaseData.bins[binIndex];
+          binLabel = `${currency.format(bin.start)} - ${currency.format(bin.end)}`;
+        } else {
+          const value = e.points?.[0]?.x;
+          binLabel = currency.format(value || 0);
+        }
+        openDrill(`Tickets entre ${binLabel} · ${storeLabel}`);
+        const params = new URLSearchParams();
+        if (hasBins && purchaseData.bins[binIndex]) {
+          params.set('bin_start', purchaseData.bins[binIndex].start);
+          params.set('bin_end', purchaseData.bins[binIndex].end);
+        } else if (e.points?.[0]?.x) {
+          params.set('bin_start', e.points[0].x);
+        }
+        params.set('store', storeValue);
+        const data = await fetchJSON(`/api/drill/purchase_bin?${params.toString()}`);
+        Plotly.react('drillChart', data.traces || [], data.layout || {}, {displayModeBar:false, responsive:true});
+        renderTable('drillTable', data.rows || []);
+      } catch (err) {
+        console.error(err);
+      }
+    });
+  }
+});
+</script>
+{% endblock %}
