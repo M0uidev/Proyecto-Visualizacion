@@ -43,10 +43,25 @@ def admin_dashboard(request):
 
     sales_daily = {
         "dates": [
-            today.replace(day=day).strftime("%Y-%m-%d")
-            for day in range(1, 8)
+            (today - timedelta(days=offset)).strftime("%Y-%m-%d")
+            for offset in range(13, -1, -1)
         ],
-        "sales": [21500, 19800, 22340, 24510, 23870, 25630, 27320],
+        "sales": [
+            18230,
+            19480,
+            18760,
+            20530,
+            19880,
+            21420,
+            22340,
+            21980,
+            23100,
+            24510,
+            23870,
+            25630,
+            26840,
+            27320,
+        ],
     }
 
     top_categories = {
@@ -62,22 +77,26 @@ def admin_dashboard(request):
 
     purchase_distribution = {
         "values": [
-            85,
-            91,
-            95,
-            102,
-            87,
-            115,
-            98,
-            134,
-            122,
-            110,
+            84,
+            92,
             97,
-            142,
-            131,
-            118,
+            104,
+            89,
+            115,
+            101,
+            136,
+            124,
+            112,
+            99,
+            145,
+            133,
+            120,
             108,
-            95,
+            96,
+            118,
+            122,
+            140,
+            132,
         ]
     }
 
@@ -117,8 +136,8 @@ def worker_dashboard(request):
         {"label": "Puntualidad", "value": 92},
         {"label": "Órdenes atendidas", "value": 88},
         {"label": "Satisfacción", "value": 95},
-        {"label": "Velocidad", "value": 82},
-        {"label": "Precisión", "value": 90},
+        {"label": "Velocidad", "value": 84},
+        {"label": "Precisión", "value": 91},
     ]
 
     schedule = [

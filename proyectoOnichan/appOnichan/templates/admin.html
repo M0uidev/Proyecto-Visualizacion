@@ -172,7 +172,7 @@
     });
 
     const salesChartData = JSON.parse(document.getElementById('sales-daily-chart').dataset.chart);
-    const chartConfig = {responsive: true};
+    const chartConfig = {responsive: true, displaylogo: false, modeBarButtonsToRemove: ['select2d', 'lasso2d']};
 
     Plotly.newPlot('sales-daily-chart', [
         {
@@ -181,12 +181,17 @@
             type: 'scatter',
             mode: 'lines+markers',
             line: {color: '#0d6efd', width: 3},
-            marker: {size: 8}
+            marker: {size: 8},
+            hovertemplate: '<b>%{x}</b><br>Ventas: $%{y:,.0f}<extra></extra>'
         }
     ], {
         margin: {t: 10, r: 10, b: 40, l: 50},
-        xaxis: {title: 'Fecha'},
-        yaxis: {title: 'Ventas ($)'},
+        xaxis: {title: 'Fecha', rangeslider: {visible: true}, rangeselector: {buttons: [
+            {step: 'day', stepmode: 'backward', count: 3, label: '3D'},
+            {step: 'day', stepmode: 'backward', count: 5, label: '5D'},
+            {step: 'all', label: 'Todo'}
+        ]}},
+        yaxis: {title: 'Ventas ($)', tickprefix: '$', separatethousands: true},
         hovermode: 'x unified'
     }, chartConfig);
 
@@ -196,11 +201,12 @@
             x: topCategoriesData.categories,
             y: topCategoriesData.sales,
             type: 'bar',
-            marker: {color: '#6610f2'}
+            marker: {color: '#6610f2'},
+            hovertemplate: '<b>%{x}</b><br>Ventas: $%{y:,.0f}<extra></extra>'
         }
     ], {
         margin: {t: 10, r: 10, b: 60, l: 50},
-        yaxis: {title: 'Ventas ($)'},
+        yaxis: {title: 'Ventas ($)', tickprefix: '$', separatethousands: true},
         xaxis: {title: 'Categoría'}
     }, chartConfig);
 
@@ -212,6 +218,7 @@
             name: 'Histograma',
             marker: {color: '#20c997'},
             opacity: 0.75,
+            hovertemplate: 'Purchase: $%{x:,.0f}<br>Cantidad: %{y}<extra></extra>'
         },
         {
             y: values,
@@ -219,13 +226,18 @@
             name: 'Boxplot',
             marker: {color: '#0dcaf0'},
             xaxis: 'x2',
-            yaxis: 'y2'
+            yaxis: 'y2',
+            hovertemplate: 'Purchase: $%{y:,.0f}<extra></extra>'
         }
     ]);
     const purchaseLayout = {
         grid: {rows: 1, columns: 2, pattern: 'independent'},
         margin: {t: 10, r: 10, b: 40, l: 50},
-        showlegend: false
+        showlegend: false,
+        xaxis: {title: 'Purchase ($)', tickprefix: '$', separatethousands: true},
+        yaxis: {title: 'Frecuencia'},
+        xaxis2: {showgrid: false, showticklabels: false},
+        yaxis2: {title: 'Purchase ($)', tickprefix: '$', separatethousands: true}
     };
 
     Plotly.newPlot('purchase-distribution-chart', buildPurchaseData(purchaseData.values), purchaseLayout, chartConfig);
