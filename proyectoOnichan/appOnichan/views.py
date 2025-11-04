@@ -83,8 +83,8 @@ def pagina1(request):
     return render(request, "pagina1.html", {"productos": productos})
 
 
-def pagina2(request):
-    return render(request, "pagina2.html")
+def iniciosesiontrabajador(request):
+    return render(request, "iniciosesiontrabajador.html")
 
 
 def pagina3(request):

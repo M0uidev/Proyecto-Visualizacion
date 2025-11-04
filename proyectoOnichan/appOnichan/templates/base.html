@@ -19,9 +19,9 @@
       {% block nav_left %}{% endblock %}
       <div class="nav-actions">
         <a href="#mainMenu" class="nav-link" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="mainMenu">
-          <i class="bi bi-list"></i> Menú
+          <i class="bi bi-list"></i>Menú
         </a>
-        <a href="#" class="nav-link"><i class="bi bi-person"></i> Invitado</a>
+        <a href="#" class="nav-link"><i class="bi bi-person"></i>Iniciar Sesión</a>
         {% block nav_right %}{% endblock %}
       </div>
     </nav>
@@ -46,8 +46,8 @@
         <h6>Cuenta</h6>
         <a href="#">Mis pedidos</a>
         <a href="#">Favoritos</a>
-        <a href="{% url 'pagina3' %}">Soporte</a>
-        <a href="{% url 'pagina2' %}">Acceso trabajadores</a>
+        <a href="#">Soporte</a>
+        <a href="{% url 'iniciosesiontrabajador' %}">Acceso trabajadores</a>
       </div>
       <div class="menu-col">
         <h6>Más</h6>
