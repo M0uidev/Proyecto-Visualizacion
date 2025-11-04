@@ -1,0 +1,259 @@
+/* Reset & tokens */
+:root {
+  --surface-bg: #fff;
+  --surface-border: #ddd;
+  --text-primary: #111;
+  --text-muted: #555;
+  --brand-accent: #0d6efd;
+  --nav-height: 90px;
+  --nav-padding-x: 32rem;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  background: var(--surface-bg);
+  color: var(--text-primary);
+}
+
+a {
+  color: inherit;
+}
+
+a:hover {
+  color: inherit;
+}
+
+/* Layout */
+.navbar-sketched {
+  background: var(--surface-bg);
+  border-bottom: 1px solid var(--surface-border);
+  height: var(--nav-height);
+  padding: 0 var(--nav-padding-x);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  position: relative;
+}
+
+.brand-title {
+  position: absolute;
+  left: 2rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.brand-title:hover {
+  color: var(--brand-accent);
+  text-decoration: none;
+}
+
+.nav-left {
+  position: absolute;
+  left: var(--nav-padding-x);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0;
+  height: 100%;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+.nav-actions i {
+  font-size: 1.4rem;
+  margin-right: 0.35rem;
+  color: var(--text-primary);
+}
+
+.nav-link {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.nav-link:hover {
+  text-decoration: underline;
+}
+
+/* Collapsible menu */
+.menu-panel {
+  background: var(--surface-bg);
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0;
+}
+
+.menu-inner {
+  padding: 1rem 4rem;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.menu-col h6 {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.menu-col a {
+  display: block;
+  color: var(--text-primary);
+  text-decoration: none;
+  padding: 0.35rem 0.25rem;
+  border-radius: 0.4rem;
+}
+
+.menu-col a:hover {
+  background: #f8f9fa;
+}
+
+.page-content {
+  padding: 2rem 3rem;
+}
+
+/* Footer */
+.site-footer {
+  border-top: 1px solid var(--surface-border);
+  background: var(--surface-bg);
+  padding: 1.2rem 3rem;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.site-footer a {
+  color: var(--brand-accent);
+  text-decoration: none;
+}
+
+.site-footer a:hover {
+  text-decoration: underline;
+}
+
+/* Header utilities */
+.search-bar {
+  display: flex;
+  align-items: center;
+  border: 1px solid #aaa;
+  border-radius: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  max-width: 460px;
+  background: var(--surface-bg);
+}
+
+.search-bar i {
+  font-size: 1.3rem;
+  color: #555;
+  margin-right: 0.5rem;
+}
+
+.search-bar input {
+  border: 0;
+  outline: 0;
+  width: 100%;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+  background: transparent;
+}
+
+.location-text {
+  font-size: 1rem;
+  color: #444;
+}
+
+/* Sections */
+.hero-highlight {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+}
+
+/* Components */
+.month-picker {
+  max-width: 200px;
+}
+
+.toast-stack {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  padding: 1rem;
+  z-index: 1080;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  :root {
+    --nav-padding-x: 18rem;
+  }
+}
+
+@media (max-width: 992px) {
+  :root {
+    --nav-padding-x: 2rem;
+  }
+
+  .navbar-sketched {
+    padding: 1rem var(--nav-padding-x);
+    flex-direction: column;
+    align-items: flex-start;
+    height: auto;
+    gap: 0.75rem;
+  }
+
+  .nav-left {
+    position: static;
+    width: 100%;
+    order: 2;
+  }
+
+  .nav-actions {
+    font-size: 1.05rem;
+    gap: 1.25rem;
+  }
+
+  .menu-inner {
+    padding: 1rem 2rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .page-content {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 576px) {
+  :root {
+    --nav-padding-x: 1rem;
+  }
+
+  .navbar-sketched {
+    padding: 1rem;
+  }
+
+  .menu-inner {
+    padding: 1rem;
+    grid-template-columns: 1fr;
+  }
+
+  .page-content {
+    padding: 1rem;
+  }
+}

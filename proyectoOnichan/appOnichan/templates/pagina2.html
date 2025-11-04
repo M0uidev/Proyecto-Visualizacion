@@ -4,11 +4,7 @@
 {% block title %}Ingreso de Trabajadores{% endblock %}
 
 {% block extra_css %}
-<style>
-  .auth-wrap{display:grid;place-items:center;min-height:calc(100vh - 180px)}
-  .auth-card{max-width:420px;margin:auto;border:1px solid #e5e7eb;border-radius:16px;background:#fff}
-  .auth-brand{font-weight:700}
-</style>
+  <link rel="stylesheet" href="{% static 'css/auth.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -119,9 +115,10 @@
       }, 600);
     });
 
-    // Borrar estado inválido al tipear
-    [user, pass].forEach(el => {
-      el.addEventListener('input', () => clearInvalid(el));
+    form.addEventListener('input', ({target}) => {
+      if (target.classList.contains('form-control')){
+        clearInvalid(target);
+      }
     });
   })();
 </script>
