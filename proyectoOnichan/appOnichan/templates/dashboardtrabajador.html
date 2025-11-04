@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Panel del trabajador{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="mb-4">
+    <h1 class="display-6">Bienvenido "{{ worker_name }}"</h1>
+    <p class="text-muted mb-0">Comisión asignada: {{ commission_rate_percent }}%</p>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-lg-6">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Clientes atendidos por mes</h2>
+          <canvas id="clientesChart" aria-label="Clientes atendidos por mes" role="img"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-1">
+            <h2 class="h5 mb-0">Comisiones por mes</h2>
+            <small class="text-muted">Basadas en ventas registradas</small>
+          </div>
+          <canvas id="comisionesChart" aria-label="Comisiones por mes" role="img"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
+        <h2 class="h5 mb-2 mb-md-0">Turnos</h2>
+        <span class="text-muted">{{ turnos_period_label }}</span>
+      </div>
+      <div class="row row-cols-2 row-cols-md-4 row-cols-lg-7 g-3">
+        {% for turno in turnos %}
+        <div class="col">
+          <div class="border rounded p-3 text-center h-100">
+            <div class="fw-semibold">{{ turno.day }}</div>
+            <div class="text-muted small mb-2">{{ turno.date }}</div>
+            {% if turno.status == "Trabajando" %}
+            <span class="badge bg-success text-white">{{ turno.status }}</span>
+            {% elif turno.status == "Libre" %}
+            <span class="badge bg-info text-dark">{{ turno.status }}</span>
+            {% else %}
+            <span class="badge bg-secondary text-white">{{ turno.status }}</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" integrity="sha384-joWnLB+KbrnffO53P0tkHNMnvzG0WqflPFFSTwXMT/uLVIx4gdWC4InENcy+XUG6" crossorigin="anonymous"></script>
+{{ month_labels|json_script:"month-labels" }}
+{{ clients_data|json_script:"clientes-data" }}
+{{ commissions_data|json_script:"comisiones-data" }}
+{{ sales_data|json_script:"ventas-data" }}
+<script>
+  const labels = JSON.parse(document.getElementById('month-labels').textContent);
+  const clientesData = JSON.parse(document.getElementById('clientes-data').textContent);
+  const comisionesData = JSON.parse(document.getElementById('comisiones-data').textContent);
+  const ventasData = JSON.parse(document.getElementById('ventas-data').textContent);
+
+  const clientesCtx = document.getElementById('clientesChart');
+  const comisionesCtx = document.getElementById('comisionesChart');
+
+  new Chart(clientesCtx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Clientes atendidos',
+          data: clientesData,
+          borderColor: '#0d6efd',
+          backgroundColor: 'rgba(13, 110, 253, 0.15)',
+          tension: 0.35,
+          fill: true,
+          pointRadius: 4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { stepSize: 10 }
+        }
+      }
+    }
+  });
+
+  new Chart(comisionesCtx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Comisiones (CLP)',
+          data: comisionesData,
+          backgroundColor: 'rgba(25, 135, 84, 0.6)',
+          borderColor: '#198754'
+        },
+        {
+          type: 'line',
+          label: 'Ventas (CLP)',
+          data: ventasData,
+          borderColor: '#6610f2',
+          backgroundColor: 'rgba(102, 16, 242, 0.15)',
+          tension: 0.2,
+          yAxisID: 'y1'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { intersect: false, mode: 'index' },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: value => '$' + new Intl.NumberFormat('es-CL').format(value)
+          },
+          title: { display: true, text: 'Comisiones' }
+        },
+        y1: {
+          beginAtZero: true,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          ticks: {
+            callback: value => '$' + new Intl.NumberFormat('es-CL').format(value)
+          },
+          title: { display: true, text: 'Ventas' }
+        }
+      }
+    }
+  });
+</script>
+{% endblock %}
