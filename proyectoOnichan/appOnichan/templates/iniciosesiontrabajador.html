@@ -8,118 +8,48 @@
 {% endblock %}
 
 {% block content %}
-<section class="auth-wrap">
-  <div class="auth-card p-4 p-md-5 shadow-sm">
-    <h1 class="h4 mb-1 auth-brand">Multitienda</h1>
-    <p class="text-muted mb-4">Ingreso de trabajadores</p>
+<section class="auth-wrap py-5">
+  <div class="auth-card p-4 p-md-5 shadow-sm w-100">
+    <h1 class="h4 mb-1 auth-brand">Acceso trabajadores</h1>
+    <p class="text-muted mb-4">Ingresa tus credenciales para continuar.</p>
 
-    <div id="alertBox" class="alert d-none" role="alert"></div>
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} mb-4" role="alert">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
 
-    <form id="loginForm" novalidate>
+    <form method="post" novalidate>
       {% csrf_token %}
       <div class="mb-3">
-        <label for="username" class="form-label">Usuario</label>
-        <input type="text" class="form-control" id="username" placeholder="ej: jrojas" autocomplete="username">
-        <div class="invalid-feedback">Ingresa tu usuario.</div>
+        <label for="nombre" class="form-label">Nombre</label>
+        <input
+          type="text"
+          class="form-control{% if error_nombre %} is-invalid{% endif %}"
+          id="nombre"
+          name="nombre"
+          value="{{ nombre_inicial }}"
+          autocomplete="username"
+          required
+        >
+        {% if error_nombre %}
+          <div class="invalid-feedback d-block">{{ error_nombre }}</div>
+        {% endif %}
       </div>
 
-      <div class="mb-2">
-        <label for="password" class="form-label">Contraseña</label>
-        <div class="input-group">
-          <input type="password" class="form-control" id="password" placeholder="********" autocomplete="current-password">
-          <button class="btn btn-outline-secondary" type="button" id="togglePwd" aria-label="Mostrar u ocultar contraseña">
-            <i class="bi bi-eye"></i>
-          </button>
-          <div class="invalid-feedback">Ingresa tu contraseña.</div>
-        </div>
+      <div class="mb-4">
+        <label for="contrasena" class="form-label">Contraseña</label>
+        <input
+          type="password"
+          class="form-control"
+          id="contrasena"
+          name="contrasena"
+          autocomplete="current-password"
+        >
       </div>
 
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <div class="form-check">
-          <input class="form-check-input" type="checkbox" id="remember">
-          <label class="form-check-label" for="remember">Recordarme</label>
-        </div>
-        <a href="#" class="small text-decoration-none">¿Olvidaste tu contraseña?</a>
-      </div>
-
-      <button type="submit" class="btn btn-primary w-100" id="submitBtn">
-        <i class="bi bi-box-arrow-in-right me-1"></i> Ingresar
-      </button>
+      <button type="submit" class="btn btn-primary w-100">Iniciar sesión</button>
     </form>
   </div>
 </section>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-  (function(){
-    const form = document.getElementById('loginForm');
-    const user = document.getElementById('username');
-    const pass = document.getElementById('password');
-    const alertBox = document.getElementById('alertBox');
-    const togglePwd = document.getElementById('togglePwd');
-    const submitBtn = document.getElementById('submitBtn');
-
-    function setInvalid(input, msg){
-      input.classList.add('is-invalid');
-      const feedback = input.parentElement.querySelector('.invalid-feedback') || input.nextElementSibling;
-      if (feedback) feedback.textContent = msg;
-    }
-    function clearInvalid(input){
-      input.classList.remove('is-invalid');
-    }
-    function showAlert(type, text){
-      alertBox.className = 'alert alert-' + type;
-      alertBox.textContent = text;
-      alertBox.classList.remove('d-none');
-    }
-
-    // Mostrar/ocultar contraseña
-    togglePwd.addEventListener('click', () => {
-      const isPw = pass.type === 'password';
-      pass.type = isPw ? 'text' : 'password';
-      togglePwd.innerHTML = isPw ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
-    });
-
-    // Validación y "login" ficticio
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      alertBox.classList.add('d-none');
-
-      const u = user.value.trim();
-      const p = pass.value.trim();
-
-      // reset estados
-      clearInvalid(user); clearInvalid(pass);
-
-      let ok = true;
-      if (!u){ setInvalid(user, 'Ingresa tu usuario.'); ok = false; }
-      if (!p){ setInvalid(pass, 'Ingresa tu contraseña.'); ok = false; }
-
-      if (!ok){
-        showAlert('danger', 'Revisa los campos resaltados.');
-        return;
-      }
-
-      // Simular éxito (todos los logins sirven si tienen texto)
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Ingresando...';
-
-      setTimeout(() => {
-        showAlert('success', 'Ingreso exitoso. ¡Bienvenido!');
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="bi bi-box-arrow-in-right me-1"></i> Ingresar';
-
-        // 👉 Si quieres redirigir después del login, descomenta y ajusta la URL:
-        // window.location.href = "{% url 'pagina1' %}";
-      }, 600);
-    });
-
-    form.addEventListener('input', ({target}) => {
-      if (target.classList.contains('form-control')){
-        clearInvalid(target);
-      }
-    });
-  })();
-</script>
 {% endblock %}

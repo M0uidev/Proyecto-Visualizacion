@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Panel de trabajador{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/dashboard_trabajador.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="mb-4">
+    <h1 class="display-6">Bienvenido "{{ nombre_trabajador }}"</h1>
+    <p class="text-muted mb-0">Aquí verás un resumen actualizado de tu desempeño y turnos.</p>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-lg-6">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Clientes atendidos por mes</h2>
+          <canvas id="graficoClientes" height="260" aria-label="Gráfico de clientes atendidos" role="img"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Ventas y comisión mensual</h2>
+          <canvas id="graficoVentas" height="260" aria-label="Gráfico de ventas y comisiones" role="img"></canvas>
+          <p class="small text-muted mt-3">Los porcentajes de comisión varían entre 8% y 18% según tu desempeño mensual.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+        <h2 class="h5 mb-0">Calendario de turnos</h2>
+        <span class="text-muted">{{ titulo_calendario }}</span>
+      </div>
+      <div class="leyenda-calendario mb-3">
+        <span class="badge turno-trabajo">Trabajo</span>
+        <span class="badge turno-descanso">Descanso</span>
+        <span class="badge turno-libre">Libre</span>
+      </div>
+      <div id="calendarioTurnos" class="calendario-contenedor" data-fecha-referencia="{{ fecha_referencia }}T00:00:00"></div>
+    </div>
+  </div>
+</div>
+
+{{ labels_meses|json_script:"labels-meses" }}
+{{ clientes_por_mes|json_script:"clientes-por-mes" }}
+{{ ventas_por_mes|json_script:"ventas-por-mes" }}
+{{ porcentaje_comision_por_mes|json_script:"porcentaje-comision" }}
+{{ comision_por_mes|json_script:"comision-por-mes" }}
+{{ eventos_turnos|json_script:"eventos-turnos" }}
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'js/chart.umd.min.js' %}"></script>
+  <script src="{% static 'js/dashboard_trabajador.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,82 @@
+.calendario-contenedor {
+  overflow-x: auto;
+}
+
+.calendario-tabla {
+  min-width: 640px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.calendario-tabla th {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-align: center;
+  padding: 0.75rem 0.5rem;
+  background-color: #0d6efd;
+  color: #fff;
+}
+
+.calendario-tabla td {
+  width: calc(100% / 7);
+  height: 110px;
+  padding: 0.75rem 0.5rem;
+  vertical-align: top;
+  border: 1px solid #e9ecef;
+  background-color: #fff;
+}
+
+.calendario-tabla td.mes-otro {
+  background-color: #f8f9fa;
+  color: #adb5bd;
+}
+
+.calendario-tabla .dia-numero {
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  display: block;
+}
+
+.calendario-tabla .etiqueta-turno {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.leyenda-calendario {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.leyenda-calendario .badge {
+  font-weight: 500;
+  padding: 0.4rem 0.75rem;
+}
+
+.badge.turno-trabajo,
+.calendario-tabla .etiqueta-trabajo {
+  background-color: rgba(25, 135, 84, 0.15);
+  color: #198754;
+}
+
+.badge.turno-descanso,
+.calendario-tabla .etiqueta-descanso {
+  background-color: rgba(253, 126, 20, 0.18);
+  color: #fd7e14;
+}
+
+.badge.turno-libre,
+.calendario-tabla .etiqueta-libre {
+  background-color: rgba(108, 117, 125, 0.18);
+  color: #6c757d;
+}
+
+.calendario-tabla .etiqueta-turno small {
+  font-size: 0.65rem;
+}
