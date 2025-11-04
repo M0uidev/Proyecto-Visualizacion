@@ -1,0 +1,17 @@
+.auth-wrap {
+  display: grid;
+  place-items: center;
+  min-height: calc(100vh - 180px);
+}
+
+.auth-card {
+  max-width: 420px;
+  margin: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.auth-brand {
+  font-weight: 700;
+}

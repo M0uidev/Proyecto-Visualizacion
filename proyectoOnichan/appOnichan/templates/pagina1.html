@@ -1,14 +1,42 @@
-{% extends "base2.html" %}
+{% extends "basecliente.html" %}
+{% load static %}
 
-{% block title %}Tienda - Vista Cliente{% endblock %}
+{% block title %}Productos · Multitienda{% endblock %}
 
-{% block container_class %}container-fluid{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/pages/pagina1.css' %}">
+{% endblock %}
 
 {% block content %}
+  <header class="container mb-4">
+    <h1 class="display-6 fw-semibold mb-1">Productos Recomendados</h1>
+    <p class="text-muted mb-0">Explora nuestras novedades y clásicos de siempre.</p>
+  </header>
 
-  <section class="p-4 p-md-5 mb-4" style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:.75rem;">
-    <h1 class="fw-bold mb-2">Todo en un solo lugar</h1>
-    <p class="lead mb-3">Electrónica, ropa, juguetes, hogar y más.</p>
-    <a href="#productos" class="btn btn-primary btn-lg">Comprar ahora</a>
+  <section class="container">
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-3 g-md-4">
+  {% for producto in productos %}
+    <div class="col">
+      <article class="card product-card h-100 border-0 shadow-sm">
+        <div class="ratio ratio-1x1 product-thumb">
+          <img src="{{ producto.image_url }}" alt="{{ producto.name }}" class="img-fluid rounded-top object-fit-cover">
+        </div>
+        <div class="card-body">
+          <div class="d-flex align-items-start justify-content-between mb-2">
+            <h2 class="h6 product-title mb-0">{{ producto.name }}</h2>
+            {% if producto.is_new %}
+            <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">Nuevo</span>
+            {% endif %}
+          </div>
+          <div class="product-price fs-5 fw-semibold">${{ producto.price }}</div>
+        </div>
+        <div class="card-footer bg-white border-0 pt-0 pb-3 px-3">
+          <a href="{{ producto.detail_url }}" class="btn btn-outline-dark w-100">Ver detalles</a>
+        </div>
+      </article>
+    </div>
+  {% endfor %}
+  </div>
+
   </section>
 {% endblock %}
