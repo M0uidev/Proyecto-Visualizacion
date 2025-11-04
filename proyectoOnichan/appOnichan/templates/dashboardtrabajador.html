@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Panel del trabajador{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+    <div>
+      <h1 class="h2 mb-1">Bienvenido "{{ nombre }}"</h1>
+      <p class="text-muted mb-0">Resumen de desempeño y turnos</p>
+    </div>
+    <div class="text-md-end">
+      <span class="badge bg-primary-subtle text-primary">Comisión {{ commission_percentage|floatformat:1 }}%</span>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Clientes atendidos por mes</h2>
+          <canvas id="clientesChart" height="220"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Comisiones por mes</h2>
+          <canvas id="comisionesChart" height="220"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mt-4">
+    <div class="card-body">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-3">
+        <div>
+          <h2 class="h5 mb-0">Turnos de {{ current_month_label }}</h2>
+        </div>
+        <div class="d-flex flex-wrap gap-2 small">
+          <span class="badge bg-primary">Trabajando</span>
+          <span class="badge bg-success">Libre</span>
+          <span class="badge bg-secondary">No trabaja</span>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-bordered text-center align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              {% for day in week_labels %}
+              <th scope="col">{{ day }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for week in turno_weeks %}
+            <tr>
+              {% for cell in week %}
+              <td class="py-3">
+                {% if cell.day %}
+                <div class="fw-semibold">{{ cell.day }}</div>
+                {% if cell.status %}
+                <span class="{{ status_classes[cell.status] }}">{{ cell.status }}</span>
+                {% endif %}
+                {% endif %}
+              </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{{ months|json_script:"month-labels" }}
+{{ clients_data|json_script:"clients-data" }}
+{{ commissions_data|json_script:"commissions-data" }}
+<script>
+  const monthLabels = JSON.parse(document.getElementById('month-labels').textContent);
+  const clientsData = JSON.parse(document.getElementById('clients-data').textContent);
+  const commissionsData = JSON.parse(document.getElementById('commissions-data').textContent);
+
+  const clientesCtx = document.getElementById('clientesChart');
+  const comisionesCtx = document.getElementById('comisionesChart');
+
+  const baseOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          precision: 0
+        }
+      }
+    }
+  };
+
+  new Chart(clientesCtx, {
+    type: 'bar',
+    data: {
+      labels: monthLabels,
+      datasets: [{
+        label: 'Clientes',
+        data: clientsData,
+        backgroundColor: 'rgba(13, 110, 253, 0.35)',
+        borderColor: 'rgba(13, 110, 253, 0.9)',
+        borderWidth: 1
+      }]
+    },
+    options: baseOptions
+  });
+
+  new Chart(comisionesCtx, {
+    type: 'line',
+    data: {
+      labels: monthLabels,
+      datasets: [{
+        label: 'Comisión',
+        data: commissionsData,
+        fill: true,
+        backgroundColor: 'rgba(25, 135, 84, 0.25)',
+        borderColor: 'rgba(25, 135, 84, 0.9)',
+        borderWidth: 2,
+        tension: 0.3
+      }]
+    },
+    options: baseOptions
+  });
+</script>
+{% endblock %}
