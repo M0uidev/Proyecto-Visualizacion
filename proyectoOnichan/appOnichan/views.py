@@ -1,3 +1,5 @@
+import json
+
 from django.shortcuts import render
 from django.http import Http404
 
@@ -111,7 +113,21 @@ def pagina3(request):
     return render(request, "pagina3.html")
 
 def dashboardtrabajador(request):
-    return render(request, "dashboardtrabajador.html")
+    dashboard_data = {
+        "labels": ["Ropa", "Calzado", "Accesorios"],
+        "values": [120, 80, 45],
+        "detalles": {
+            "Ropa": {"Polera Oversized": 42, "Chaqueta Azul": 31},
+            "Calzado": {"Zapatillas Urban": 55, "Botín": 25},
+            "Accesorios": {"Gorro": 22, "Mochila": 10},
+        },
+    }
+
+    context = {
+        "data_json": json.dumps(dashboard_data),
+    }
+
+    return render(request, "dashboardtrabajador.html", context)
 
 def producto_detalle(request, pid: int):
     producto = next((p for p in PRODUCTOS if p["id"] == pid), None)

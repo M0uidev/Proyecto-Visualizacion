@@ -1,8 +1,216 @@
 {% extends "base.html" %}
-{% load static %}
 
-{% block title %}Ingreso de Trabajadores{% endblock %}
+{% block title %}Dashboard Trabajador{% endblock %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+  <style>
+    #chartContainer {
+      max-width: 640px;
+      margin: 2rem auto;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.5);
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background-color: #fff;
+      padding: 1.5rem;
+      border-radius: 12px;
+      max-width: 720px;
+      width: 100%;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+      position: relative;
+      animation: slideIn 0.25s ease;
+    }
+
+    .modal-content canvas {
+      max-height: 320px;
+    }
+
+    .modal-content h3 {
+      margin-top: 0;
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+
+    .close {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #666;
+    }
+
+    .close:hover,
+    .close:focus {
+      color: #000;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <h2>Dashboard de Ventas</h2>
+  <div id="chartContainer">
+    <canvas id="pieChart"></canvas>
+  </div>
+
+  <!-- Modal reutilizable -->
+  <div id="barModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-content">
+      <span class="close" role="button" aria-label="Cerrar">&times;</span>
+      <h3 id="modalTitle"></h3>
+      <canvas id="barChart"></canvas>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" integrity="sha384-mEusZT6FpsSw0Z+uDC4W4iSFAES7dMAeDi/Zju7wHSko1M9jMIROCr7itG7afJxR" crossorigin="anonymous"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const rawData = JSON.parse('{{ data_json|default:"{}"|escapejs }}');
+      const fallbackData = {
+        labels: ["Ropa", "Calzado", "Accesorios"],
+        values: [120, 80, 45],
+        detalles: {
+          "Ropa": {"Polera Oversized": 42, "Chaqueta Azul": 31},
+          "Calzado": {"Zapatillas Urban": 55, "Botín": 25},
+          "Accesorios": {"Gorro": 22, "Mochila": 10}
+        }
+      };
+
+      const data = rawData && Object.keys(rawData).length ? rawData : fallbackData;
+
+      const modal = document.getElementById('barModal');
+      const modalTitle = document.getElementById('modalTitle');
+      const ctxPie = document.getElementById('pieChart').getContext('2d');
+      const ctxBar = document.getElementById('barChart').getContext('2d');
+      const closeBtn = modal.querySelector('.close');
+      let barChartInstance = null;
+
+      const pieChart = new Chart(ctxPie, {
+        type: 'pie',
+        data: {
+          labels: data.labels,
+          datasets: [
+            {
+              data: data.values,
+              backgroundColor: [
+                'rgba(75, 192, 192, 0.7)',
+                'rgba(255, 205, 86, 0.7)',
+                'rgba(255, 99, 132, 0.7)'
+              ],
+              borderColor: [
+                'rgba(75, 192, 192, 1)',
+                'rgba(255, 205, 86, 1)',
+                'rgba(255, 99, 132, 1)'
+              ],
+              borderWidth: 1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          },
+          onClick: (evt, elements) => {
+            if (elements.length) {
+              const categoria = data.labels[elements[0].index];
+              mostrarModal(categoria);
+            }
+          }
+        }
+      });
+
+      function mostrarModal(categoria) {
+        const detalleCategoria = data.detalles ? data.detalles[categoria] : null;
+        if (!detalleCategoria) {
+          return;
+        }
+
+        const etiquetas = Object.keys(detalleCategoria);
+        const valores = Object.values(detalleCategoria);
+
+        if (barChartInstance) {
+          barChartInstance.destroy();
+        }
+
+        barChartInstance = new Chart(ctxBar, {
+          type: 'bar',
+          data: {
+            labels: etiquetas,
+            datasets: [
+              {
+                label: categoria,
+                data: valores,
+                backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: {
+                beginAtZero: true
+              }
+            }
+          }
+        });
+
+        modalTitle.textContent = `Detalle de ${categoria}`;
+        modal.classList.add('show');
+      }
+
+      function cerrarModal() {
+        modal.classList.remove('show');
+      }
+
+      closeBtn.addEventListener('click', cerrarModal);
+
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+          cerrarModal();
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && modal.classList.contains('show')) {
+          cerrarModal();
+        }
+      });
+    });
+  </script>
 {% endblock %}
