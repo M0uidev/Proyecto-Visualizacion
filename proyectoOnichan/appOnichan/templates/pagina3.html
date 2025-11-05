@@ -9,7 +9,6 @@
 {% endblock %}
 
 {% block content %}
-  <!-- Detail modal -->
   <div class="modal" id="chartModal" tabindex="-1">
     <div class="modal-dialog modal-xl stock-modal-dialog">
       <div class="modal-content">
@@ -27,7 +26,6 @@
   </div>
 
   <main class="container-fluid py-4">
-    <!-- Navigation button -->
     <div class="mb-4">
       <a href="{% url 'dashboardadmin' %}" class="btn btn-primary dash-link-btn">
         <i class="bi bi-graph-up me-2"></i>Dashboard Administrador
@@ -35,7 +33,6 @@
     </div>
 
     <div class="dashboard-wrapper">
-      <!-- Actions -->
       <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="h4 mb-0">Administración de Stock</h2>
         <div class="d-flex gap-2">
@@ -48,7 +45,6 @@
         </div>
       </div>
 
-      <!-- Chart and table -->
       <div class="row g-4">
         <div class="col-12 col-lg-5">
           <article class="dash-card">

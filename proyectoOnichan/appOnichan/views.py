@@ -161,7 +161,6 @@ def dashboardadmin(request):
     return render(request, "dashboardadmin.html", context)
 
 def pagina3(request):
-    # Datos de ejemplo para la página de administración de pedidos
     orders_data = {
         "orders": [
             {
