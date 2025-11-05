@@ -7,9 +7,12 @@
 .auth-card {
   max-width: 420px;
   margin: auto;
-  border: 1px solid #e5e7eb;
   border-radius: 16px;
-  background: #fff;
+  /* use dashboard variables when available, with sensible fallbacks */
+  background: var(--dash-card-bg, #fff);
+  border: 1px solid var(--dash-card-border, #e5e7eb);
+  box-shadow: var(--dash-card-shadow, 0 8px 20px rgba(0,0,0,0.04));
+  padding: 1.25rem;
 }
 
 .auth-brand {

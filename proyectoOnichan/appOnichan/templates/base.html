@@ -13,6 +13,7 @@
   {% block extra_css %}{% endblock %}
 </head>
 <body>
+  <!-- Main navigation -->
   <header>
     <nav class="navbar-sketched" aria-label="Principal">
       <a href="{% url 'index' %}" class="brand-title">Multitienda</a>
@@ -21,12 +22,12 @@
         <a href="#mainMenu" class="nav-link" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="mainMenu">
           <i class="bi bi-list"></i>Menú
         </a>
-        <a href="#" class="nav-link"><i class="bi bi-person"></i>Iniciar Sesión</a>
         {% block nav_right %}{% endblock %}
       </div>
     </nav>
   </header>
 
+  <!-- Mega menu -->
   <div class="collapse menu-panel" id="mainMenu">
     <div class="menu-inner">
       <div class="menu-col">
@@ -47,21 +48,24 @@
         <a href="#">Mis pedidos</a>
         <a href="#">Favoritos</a>
         <a href="#">Soporte</a>
-        <a href="{% url 'iniciosesiontrabajador' %}">Acceso trabajadores</a>
+        
       </div>
       <div class="menu-col">
         <h6>Más</h6>
         <a href="#">Sucursales</a>
         <a href="#">Envíos y devoluciones</a>
         <a href="#">Términos y privacidad</a>
+        <a href="{% url 'iniciosesionadmin' %}">Acceso administrador</a>
       </div>
     </div>
   </div>
 
+  <!-- Main content -->
   <main class="page-content">
     {% block content %}{% endblock %}
   </main>
 
+  <!-- Footer -->
   <footer class="site-footer">
     © 2025 Multitienda. Todos los derechos reservados.
   </footer>

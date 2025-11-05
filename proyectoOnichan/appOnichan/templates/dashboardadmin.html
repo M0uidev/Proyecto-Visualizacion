@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard Trabajador{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/dashboardtrabajador.css' %}">
+{% endblock %}
+
+{% block content %}
+  <main class="container-fluid py-4">
+    <div class="mb-4">
+      <a href="{% url 'pagina3' %}" class="btn btn-primary dash-link-btn">
+        <i class="bi bi-box-seam me-2"></i>Administrador Stock
+      </a>
+    </div>
+
+    <div class="dashboard-wrapper">
+      <section class="row g-4">
+        <div class="col-12 col-md-4">
+          <article class="dash-card metric-card" aria-labelledby="metricPedidosHoy">
+            <span class="metric-label" id="metricPedidosHoy">Pedidos hoy</span>
+            <span class="metric-value" data-kpi="pedidos_hoy">--</span>
+            <span class="metric-trend" data-kpi-trend="pedidos_hoy">&nbsp;</span>
+          </article>
+        </div>
+        <div class="col-12 col-md-4">
+          <article class="dash-card metric-card" aria-labelledby="metricPendientes">
+            <span class="metric-label" id="metricPendientes">Pendientes</span>
+            <span class="metric-value" data-kpi="pendientes">--</span>
+            <span class="metric-trend" data-kpi-trend="pendientes">&nbsp;</span>
+          </article>
+        </div>
+        <div class="col-12 col-md-4">
+          <article class="dash-card metric-card" aria-labelledby="metricIngresos">
+            <span class="metric-label" id="metricIngresos">Ingresos (7d)</span>
+            <span class="metric-value" data-kpi="ingresos_7d">--</span>
+            <span class="metric-trend" data-kpi-trend="ingresos_7d">&nbsp;</span>
+          </article>
+        </div>
+      </section>
+
+      <!-- Line and pie charts -->
+      <section class="row g-4">
+        <div class="col-12 col-lg-7">
+          <article class="dash-card chart-card" aria-labelledby="chartLineTitle">
+            <header>
+              <h3 id="chartLineTitle">Pedidos por día (7d)</h3>
+            </header>
+            <div class="chart-wrapper">
+              <canvas id="ordersLineChart" aria-describedby="chartLineTitle"></canvas>
+            </div>
+          </article>
+        </div>
+        <div class="col-12 col-lg-5">
+          <article class="dash-card chart-card" aria-labelledby="chartPieTitle">
+            <header>
+              <h3 id="chartPieTitle">Top productos</h3>
+            </header>
+            <div class="chart-wrapper">
+              <canvas id="topProductsPieChart" aria-describedby="chartPieTitle"></canvas>
+            </div>
+            <div class="chart-legend" id="topProductsLegend" aria-hidden="true"></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Bar chart -->
+      <section class="row g-4">
+        <div class="col-12">
+          <article class="dash-card chart-card" aria-labelledby="chartBarTitle">
+            <header>
+              <h3 id="chartBarTitle">Ingresos por categoría</h3>
+            </header>
+            <div class="chart-wrapper">
+              <canvas id="categoryRevenueBarChart" aria-describedby="chartBarTitle"></canvas>
+            </div>
+          </article>
+        </div>
+      </section>
+    </div>
+
+    <!-- Reusable modal -->
+    <div id="dashModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-head">
+          <strong id="dashModalTitle">Detalle</strong>
+          <span id="dashModalClose" class="modal-close" role="button" aria-label="Cerrar modal">&times;</span>
+        </div>
+        <div class="modal-body">
+          <canvas id="dashModalChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </main>
+{% endblock %}
+
+{% block scripts %}
+  <script type="application/json" id="dashboard-data">{{ data_json|default:"{}"|safe }}</script>
+  <script src="{% static 'chart.js' %}"></script>
+  <script src="{% static 'js/dashboardadmin.js' %}"></script>
+{% endblock %}

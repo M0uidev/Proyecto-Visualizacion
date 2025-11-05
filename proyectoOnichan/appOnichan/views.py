@@ -106,13 +106,13 @@ def index(request):
 def pagina1(request):
     return render(request, "pagina1.html", {"productos": PRODUCTOS})
 
-def iniciosesiontrabajador(request):
-    return render(request, "iniciosesiontrabajador.html")
+def iniciosesionadmin(request):
+    return render(request, "iniciosesionadmin.html")
 
 def pagina3(request):
     return render(request, "pagina3.html")
 
-def dashboardtrabajador(request):
+def dashboardadmin(request):
     dashboard_data = {
         "kpis": {
             "pedidos_hoy": {"value": 28, "trend": "+4 vs. ayer"},
@@ -158,7 +158,7 @@ def dashboardtrabajador(request):
         "data_json": json.dumps(dashboard_data),
     }
 
-    return render(request, "dashboardtrabajador.html", context)
+    return render(request, "dashboardadmin.html", context)
 
 def pagina3(request):
     # Datos de ejemplo para la página de administración de pedidos
