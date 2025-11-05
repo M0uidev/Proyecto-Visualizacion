@@ -1,0 +1,203 @@
+:root {
+  --dash-bg: #f5f7fb;
+  --dash-card-bg: #ffffff;
+  --dash-card-shadow: 0 18px 35px rgba(15, 23, 42, 0.12);
+  --dash-text: #1f2937;
+  --dash-muted: #6b7280;
+  --dash-primary: #4f46e5;
+}
+
+body {
+  background: var(--dash-bg);
+  color: var(--dash-text);
+  font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+.dashboard-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.dash-card {
+  background: var(--dash-card-bg);
+  border-radius: 18px;
+  box-shadow: var(--dash-card-shadow);
+  padding: 1.5rem;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.dash-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 45px rgba(15, 23, 42, 0.18);
+}
+
+.metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.metric-label {
+  font-size: 0.95rem;
+  color: var(--dash-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.metric-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--dash-primary);
+}
+
+.metric-trend {
+  font-size: 0.85rem;
+  color: var(--dash-muted);
+}
+
+.chart-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.chart-card header h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.chart-wrapper {
+  position: relative;
+  flex: 1;
+  min-height: 260px;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chart-legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Modal styles */
+.modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.55);
+  padding: 1.5rem;
+  z-index: 1100;
+}
+
+.modal.show {
+  display: flex;
+  animation: fadeIn 180ms ease;
+}
+
+.modal-card {
+  background: #fff;
+  border-radius: 22px;
+  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.26);
+  width: min(560px, 95vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: translateY(12px);
+  animation: slideUp 240ms ease forwards;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.modal-head strong {
+  font-size: 1.05rem;
+}
+
+.modal-close {
+  cursor: pointer;
+  font-size: 1.5rem;
+  color: var(--dash-muted);
+  transition: color 120ms ease;
+}
+
+.modal-close:hover,
+.modal-close:focus {
+  color: var(--dash-primary);
+}
+
+.modal-body {
+  padding: 1.5rem;
+  background: linear-gradient(180deg, rgba(79, 70, 229, 0.04), transparent);
+}
+
+.modal-body canvas {
+  width: 100%;
+  height: 320px;
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 992px) {
+  .chart-wrapper {
+    min-height: 240px;
+  }
+}
+
+@media (max-width: 576px) {
+  .metric-card {
+    align-items: flex-start;
+  }
+
+  .metric-value {
+    font-size: 1.7rem;
+  }
+}

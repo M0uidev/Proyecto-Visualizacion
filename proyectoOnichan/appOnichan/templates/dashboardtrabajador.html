@@ -1,236 +1,416 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Dashboard de Ventas{% endblock %}
+{% block title %}Dashboard Trabajador{% endblock %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/auth.css' %}">
-  <style>
-    #chartContainer {
-      max-width: 640px;
-      margin: 0 auto;
-      padding: 1.5rem 1rem 2rem;
-    }
-
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1050;
-      inset: 0;
-      background-color: rgba(15, 23, 42, 0.55);
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem;
-    }
-
-    .modal.show {
-      display: flex;
-    }
-
-    body.modal-open {
-      overflow: hidden;
-    }
-
-    .modal-content {
-      background: #ffffff;
-      border-radius: 16px;
-      box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
-      max-width: 560px;
-      width: 100%;
-      padding: 1.75rem;
-      position: relative;
-      animation: modalFadeIn 180ms ease-out;
-    }
-
-    .modal-content h3 {
-      margin-bottom: 1rem;
-      font-weight: 600;
-    }
-
-    .close {
-      position: absolute;
-      top: 1rem;
-      right: 1rem;
-      font-size: 1.5rem;
-      color: #64748b;
-      cursor: pointer;
-      transition: color 120ms ease;
-    }
-
-    .close:hover,
-    .close:focus {
-      color: #334155;
-    }
-
-    @keyframes modalFadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(12px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    @media (max-width: 576px) {
-      .modal-content {
-        padding: 1.25rem;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="{% static 'css/dashboardtrabajador.css' %}">
 {% endblock %}
 
 {% block content %}
-  <h2>Dashboard de Ventas</h2>
-  <div id="chartContainer">
-    <canvas id="pieChart"></canvas>
+<main class="container-fluid py-4">
+  <div class="dashboard-wrapper">
+    <!-- Tarjetas con métricas -->
+    <section class="row g-4">
+      <div class="col-12 col-md-4">
+        <article class="dash-card metric-card" aria-labelledby="metricPedidosHoy">
+          <span class="metric-label" id="metricPedidosHoy">Pedidos hoy</span>
+          <span class="metric-value" data-kpi="pedidos_hoy">--</span>
+          <span class="metric-trend" data-kpi-trend="pedidos_hoy">&nbsp;</span>
+        </article>
+      </div>
+      <div class="col-12 col-md-4">
+        <article class="dash-card metric-card" aria-labelledby="metricPendientes">
+          <span class="metric-label" id="metricPendientes">Pendientes</span>
+          <span class="metric-value" data-kpi="pendientes">--</span>
+          <span class="metric-trend" data-kpi-trend="pendientes">&nbsp;</span>
+        </article>
+      </div>
+      <div class="col-12 col-md-4">
+        <article class="dash-card metric-card" aria-labelledby="metricIngresos">
+          <span class="metric-label" id="metricIngresos">Ingresos (7d)</span>
+          <span class="metric-value" data-kpi="ingresos_7d">--</span>
+          <span class="metric-trend" data-kpi-trend="ingresos_7d">&nbsp;</span>
+        </article>
+      </div>
+    </section>
+
+    <!-- Gráfico de línea y pie -->
+    <section class="row g-4">
+      <div class="col-12 col-lg-7">
+        <article class="dash-card chart-card" aria-labelledby="chartLineTitle">
+          <header>
+            <h3 id="chartLineTitle">Pedidos por día (7d)</h3>
+          </header>
+          <div class="chart-wrapper">
+            <canvas id="ordersLineChart" aria-describedby="chartLineTitle"></canvas>
+          </div>
+        </article>
+      </div>
+      <div class="col-12 col-lg-5">
+        <article class="dash-card chart-card" aria-labelledby="chartPieTitle">
+          <header>
+            <h3 id="chartPieTitle">Top productos</h3>
+          </header>
+          <div class="chart-wrapper">
+            <canvas id="topProductsPieChart" aria-describedby="chartPieTitle"></canvas>
+          </div>
+          <div class="chart-legend" id="topProductsLegend" aria-hidden="true"></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Gráfico de barras -->
+    <section class="row g-4">
+      <div class="col-12">
+        <article class="dash-card chart-card" aria-labelledby="chartBarTitle">
+          <header>
+            <h3 id="chartBarTitle">Ingresos por categoría</h3>
+          </header>
+          <div class="chart-wrapper">
+            <canvas id="categoryRevenueBarChart" aria-describedby="chartBarTitle"></canvas>
+          </div>
+        </article>
+      </div>
+    </section>
   </div>
 
   <!-- Modal reutilizable -->
-  <div id="barModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal-content">
-      <span class="close" role="button" aria-label="Cerrar modal">&times;</span>
-      <h3 id="modalTitle"></h3>
-      <canvas id="barChart"></canvas>
+  <div id="dashModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <strong id="dashModalTitle">Detalle</strong>
+        <span id="dashModalClose" class="modal-close" role="button" aria-label="Cerrar modal">&times;</span>
+      </div>
+      <div class="modal-body">
+        <canvas id="dashModalChart"></canvas>
+      </div>
     </div>
   </div>
+</main>
 {% endblock %}
 
-{% block extra_js %}
-  {% block scripts %}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-      document.addEventListener('DOMContentLoaded', function () {
-        const parsedData = JSON.parse('{{ data_json|default:"{}"|escapejs }}');
-        const fallbackData = {
-          labels: ['Ropa', 'Calzado', 'Accesorios'],
-          values: [120, 80, 45],
+{% block scripts %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" integrity="sha384-fu0Sg1KOQGa59RcNy27Rvv58c08LomqKgMBKUQl9RDL7z2b8gk1jsmfl7uO1VtQA" crossorigin="anonymous"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const parsed = JSON.parse('{{ data_json|default:"{}"|escapejs }}');
+      const fallback = {
+        kpis: {
+          pedidos_hoy: { value: 26, trend: '+3 vs. ayer' },
+          pendientes: { value: 14, trend: 'En línea con promedio' },
+          ingresos_7d: { value: 1825000, trend: '+5% semana previa', isCurrency: true },
+        },
+        lineChart: {
+          labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+          values: [18, 22, 19, 25, 28, 31, 24],
           detalles: {
-            'Ropa': { 'Polera Oversized': 42, 'Chaqueta Azul': 31 },
-            'Calzado': { 'Zapatillas Urban': 55, 'Botín': 25 },
-            'Accesorios': { 'Gorro': 22, 'Mochila': 10 }
+            'Lun': { Entregados: 15, Pendientes: 3 },
+            'Mar': { Entregados: 19, Pendientes: 3 },
+            'Mié': { Entregados: 15, Pendientes: 4 },
+            'Jue': { Entregados: 21, Pendientes: 4 },
+            'Vie': { Entregados: 24, Pendientes: 4 },
+            'Sáb': { Entregados: 27, Pendientes: 4 },
+            'Dom': { Entregados: 20, Pendientes: 4 },
+          },
+        },
+        topProducts: {
+          labels: ['Polera Oversized', 'Zapatillas Urban', 'Chaqueta Azul', 'Mochila Explorer'],
+          values: [42, 35, 28, 22],
+          detalles: {
+            'Polera Oversized': { 'Negro / M': 14, 'Negro / L': 11, 'Blanco / M': 9, 'Blanco / L': 8 },
+            'Zapatillas Urban': { '41': 12, '42': 10, '43': 8, '44': 5 },
+            'Chaqueta Azul': { 'S': 7, 'M': 9, 'L': 7, 'XL': 5 },
+            'Mochila Explorer': { 'Negro': 10, 'Gris': 7, 'Arena': 5 },
+          },
+        },
+        categoryRevenue: {
+          labels: ['Ropa', 'Calzado', 'Accesorios', 'Equipaje'],
+          values: [520000, 410000, 195000, 132000],
+          detalles: {
+            'Ropa': { Online: 320000, Tienda: 200000 },
+            'Calzado': { Online: 240000, Tienda: 170000 },
+            'Accesorios': { Online: 115000, Tienda: 80000 },
+            'Equipaje': { Online: 72000, Tienda: 60000 },
+          },
+        },
+      };
+
+      const data = parsed && Object.keys(parsed).length ? parsed : fallback;
+      const currencyFormatter = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+
+      const modal = document.getElementById('dashModal');
+      const modalTitle = document.getElementById('dashModalTitle');
+      const modalClose = document.getElementById('dashModalClose');
+      const modalCanvas = document.getElementById('dashModalChart');
+      let modalChartInstance = null;
+
+      const palette = ['#4f46e5', '#22c55e', '#f97316', '#0ea5e9', '#ec4899', '#f59e0b', '#8b5cf6'];
+
+      function setMetrics() {
+        const metricKeys = ['pedidos_hoy', 'pendientes', 'ingresos_7d'];
+        metricKeys.forEach((key) => {
+          const metric = data.kpis?.[key] ?? fallback.kpis[key];
+          const valueTarget = document.querySelector(`[data-kpi="${key}"]`);
+          const trendTarget = document.querySelector(`[data-kpi-trend="${key}"]`);
+          if (!valueTarget) {
+            return;
           }
-        };
-
-        const hasValidData = parsedData && Object.keys(parsedData).length > 0;
-        const data = hasValidData ? parsedData : fallbackData;
-        data.detalles = data.detalles || {};
-
-        const pieCanvas = document.getElementById('pieChart');
-        if (!pieCanvas) {
-          return;
-        }
-
-        const modal = document.getElementById('barModal');
-        const modalTitle = document.getElementById('modalTitle');
-        const barCanvas = document.getElementById('barChart');
-        const closeButton = modal.querySelector('.close');
-        let barChartInstance = null;
-
-        const colors = ['#4F46E5', '#22C55E', '#F97316', '#06B6D4', '#EC4899', '#F59E0B'];
-
-        function closeModal() {
-          modal.classList.remove('show');
-          modal.setAttribute('aria-hidden', 'true');
-          document.body.classList.remove('modal-open');
-        }
-
-        function mostrarModal(categoria) {
-          const detallesCategoria = data.detalles[categoria] || {};
-          let labels = Object.keys(detallesCategoria);
-          let values = labels.map((label) => detallesCategoria[label]);
-
-          if (!labels.length) {
-            labels = ['Sin datos'];
-            values = [0];
-          }
-
-          modalTitle.textContent = `Detalle de ${categoria}`;
-
-          const ctxBar = barCanvas.getContext('2d');
-          if (barChartInstance) {
-            barChartInstance.destroy();
-          }
-
-          barChartInstance = new Chart(ctxBar, {
-            type: 'bar',
-            data: {
-              labels,
-              datasets: [
-                {
-                  label: 'Unidades vendidas',
-                  data: values,
-                  backgroundColor: labels.map((_, index) => colors[index % colors.length]),
-                  borderRadius: 6
-                }
-              ]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  ticks: {
-                    precision: 0
-                  }
-                }
-              },
-              plugins: {
-                legend: {
-                  display: false
-                }
-              }
-            }
-          });
-
-          modal.classList.add('show');
-          modal.setAttribute('aria-hidden', 'false');
-          document.body.classList.add('modal-open');
-        }
-
-        closeButton.addEventListener('click', closeModal);
-        modal.addEventListener('click', function (event) {
-          if (event.target === modal) {
-            closeModal();
+          const isCurrency = metric?.isCurrency || key === 'ingresos_7d';
+          const formattedValue = isCurrency && metric?.value !== undefined
+            ? currencyFormatter.format(metric.value)
+            : (metric?.value ?? '--');
+          valueTarget.textContent = formattedValue;
+          if (trendTarget) {
+            trendTarget.textContent = metric?.trend || '';
           }
         });
-        document.addEventListener('keydown', function (event) {
-          if (event.key === 'Escape') {
-            closeModal();
-          }
-        });
+      }
 
-        const ctxPie = pieCanvas.getContext('2d');
-        const pieChart = new Chart(ctxPie, {
-          type: 'pie',
+      function closeModal() {
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+        if (modalChartInstance) {
+          modalChartInstance.destroy();
+          modalChartInstance = null;
+        }
+      }
+
+      function openModal(config) {
+        const { title, labels, values, datasetLabel = 'Detalle', type = 'bar' } = config;
+        modalTitle.textContent = title;
+        const ctx = modalCanvas.getContext('2d');
+        if (modalChartInstance) {
+          modalChartInstance.destroy();
+        }
+        modalChartInstance = new Chart(ctx, {
+          type,
           data: {
-            labels: data.labels,
+            labels,
             datasets: [
               {
-                data: data.values,
-                backgroundColor: data.labels.map((_, index) => colors[index % colors.length]),
-                hoverOffset: 8
-              }
-            ]
+                label: datasetLabel,
+                data: values,
+                backgroundColor: labels.map((_, index) => palette[index % palette.length]),
+                borderColor: labels.map((_, index) => palette[index % palette.length]),
+                borderWidth: type === 'line' ? 2 : 1,
+                tension: 0.35,
+              },
+            ],
           },
           options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
               legend: {
-                position: 'bottom'
-              }
+                display: type !== 'bar' || labels.length > 1,
+              },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const value = context.parsed.y ?? context.parsed;
+                    if (datasetLabel.toLowerCase().includes('ingreso')) {
+                      return `${context.dataset.label}: ${currencyFormatter.format(value)}`;
+                    }
+                    return `${context.dataset.label}: ${value}`;
+                  },
+                },
+              },
             },
-            onClick: (evt, elements) => {
-              if (elements.length) {
-                const index = elements[0].index;
-                mostrarModal(data.labels[index]);
-              }
-            }
-          }
+              scales: type === 'pie' || type === 'doughnut' ? {} : {
+                y: {
+                  beginAtZero: true,
+                  ticks: datasetLabel.toLowerCase().includes('ingreso')
+                    ? {
+                        callback: (val) => currencyFormatter.format(val),
+                      }
+                    : {},
+                },
+              },
+          },
         });
+
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+      }
+
+      modalClose.addEventListener('click', closeModal);
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+          closeModal();
+        }
       });
-    </script>
-  {% endblock %}
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && modal.classList.contains('show')) {
+          closeModal();
+        }
+      });
+
+      setMetrics();
+
+      Chart.defaults.color = '#1f2937';
+      Chart.defaults.font.family = 'Inter, "Segoe UI", sans-serif';
+
+      const lineCtx = document.getElementById('ordersLineChart');
+      const pieCtx = document.getElementById('topProductsPieChart');
+      const barCtx = document.getElementById('categoryRevenueBarChart');
+
+      if (!lineCtx || !pieCtx || !barCtx) {
+        return;
+      }
+
+      const lineData = data.lineChart ?? fallback.lineChart;
+      const pieData = data.topProducts ?? fallback.topProducts;
+      const barData = data.categoryRevenue ?? fallback.categoryRevenue;
+
+      const ordersLineChart = new Chart(lineCtx, {
+        type: 'line',
+        data: {
+          labels: lineData.labels,
+          datasets: [
+            {
+              label: 'Pedidos',
+              data: lineData.values,
+              borderColor: '#4f46e5',
+              backgroundColor: 'rgba(79, 70, 229, 0.18)',
+              tension: 0.35,
+              fill: true,
+            },
+          ],
+        },
+        options: {
+          maintainAspectRatio: false,
+          interaction: { mode: 'nearest', intersect: false },
+          plugins: {
+            legend: { display: false },
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { precision: 0 },
+            },
+          },
+          onClick: (evt, elements) => {
+            if (!elements.length) return;
+            const index = elements[0].index;
+            const label = lineData.labels[index];
+            const detail = lineData.detalles?.[label];
+            const detailLabels = detail ? Object.keys(detail) : ['Sin datos'];
+            const detailValues = detail ? detailLabels.map((key) => detail[key]) : [0];
+            openModal({
+              title: `Pedidos ${label}`,
+              labels: detailLabels,
+              values: detailValues,
+              datasetLabel: 'Pedidos',
+            });
+          },
+        },
+      });
+
+      const pieColors = pieData.labels.map((_, index) => palette[index % palette.length]);
+      const topProductsPieChart = new Chart(pieCtx, {
+        type: 'pie',
+        data: {
+          labels: pieData.labels,
+          datasets: [
+            {
+              data: pieData.values,
+              backgroundColor: pieColors,
+              hoverOffset: 10,
+            },
+          ],
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false,
+            },
+          },
+          onClick: (evt, elements) => {
+            if (!elements.length) return;
+            const index = elements[0].index;
+            const label = pieData.labels[index];
+            const detail = pieData.detalles?.[label];
+            const detailLabels = detail ? Object.keys(detail) : ['Sin datos'];
+            const detailValues = detail ? detailLabels.map((key) => detail[key]) : [0];
+            openModal({
+              title: `Top productos · ${label}`,
+              labels: detailLabels,
+              values: detailValues,
+              datasetLabel: 'Unidades',
+            });
+          },
+        },
+      });
+
+      const legendContainer = document.getElementById('topProductsLegend');
+      if (legendContainer) {
+        legendContainer.innerHTML = '';
+        pieData.labels.forEach((label, index) => {
+          const item = document.createElement('span');
+          const marker = document.createElement('i');
+          marker.style.backgroundColor = pieColors[index];
+          const text = document.createElement('span');
+          text.textContent = label;
+          item.appendChild(marker);
+          item.appendChild(text);
+          legendContainer.appendChild(item);
+        });
+      }
+
+      const categoryRevenueBarChart = new Chart(barCtx, {
+        type: 'bar',
+        data: {
+          labels: barData.labels,
+          datasets: [
+            {
+              label: 'Ingresos',
+              data: barData.values,
+              backgroundColor: barData.labels.map((_, index) => palette[index % palette.length]),
+              borderRadius: 8,
+            },
+          ],
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  const value = context.parsed.y;
+                  return `${context.dataset.label}: ${currencyFormatter.format(value)}`;
+                },
+              },
+            },
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: (value) => currencyFormatter.format(value),
+              },
+            },
+          },
+          onClick: (evt, elements) => {
+            if (!elements.length) return;
+            const index = elements[0].index;
+            const label = barData.labels[index];
+            const detail = barData.detalles?.[label];
+            const detailLabels = detail ? Object.keys(detail) : ['Sin datos'];
+            const detailValues = detail ? detailLabels.map((key) => detail[key]) : [0];
+            openModal({
+              title: `Ingresos · ${label}`,
+              labels: detailLabels,
+              values: detailValues,
+              datasetLabel: 'Ingresos',
+            });
+          },
+        },
+      });
+    });
+  </script>
 {% endblock %}

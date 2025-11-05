@@ -113,18 +113,49 @@ def pagina3(request):
     return render(request, "pagina3.html")
 
 def dashboardtrabajador(request):
-    mock_dashboard_data = {
-        "labels": ["Ropa", "Calzado", "Accesorios"],
-        "values": [120, 80, 45],
-        "detalles": {
-            "Ropa": {"Polera Oversized": 42, "Chaqueta Azul": 31},
-            "Calzado": {"Zapatillas Urban": 55, "Botín": 25},
-            "Accesorios": {"Gorro": 22, "Mochila": 10},
+    dashboard_data = {
+        "kpis": {
+            "pedidos_hoy": {"value": 28, "trend": "+4 vs. ayer"},
+            "pendientes": {"value": 12, "trend": "-2 respecto a la semana pasada"},
+            "ingresos_7d": {"value": 1987500, "trend": "+6% semana previa", "isCurrency": True},
+        },
+        "lineChart": {
+            "labels": ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
+            "values": [20, 24, 21, 27, 32, 34, 26],
+            "detalles": {
+                "Lun": {"Entregados": 16, "Pendientes": 4},
+                "Mar": {"Entregados": 19, "Pendientes": 5},
+                "Mié": {"Entregados": 17, "Pendientes": 4},
+                "Jue": {"Entregados": 22, "Pendientes": 5},
+                "Vie": {"Entregados": 26, "Pendientes": 6},
+                "Sáb": {"Entregados": 28, "Pendientes": 6},
+                "Dom": {"Entregados": 21, "Pendientes": 5},
+            },
+        },
+        "topProducts": {
+            "labels": ["Polera Oversized", "Zapatillas Urban", "Chaqueta Azul", "Mochila Explorer"],
+            "values": [48, 39, 31, 24],
+            "detalles": {
+                "Polera Oversized": {"Negro / M": 16, "Negro / L": 14, "Blanco / M": 10, "Blanco / L": 8},
+                "Zapatillas Urban": {"41": 13, "42": 11, "43": 9, "44": 6},
+                "Chaqueta Azul": {"S": 8, "M": 10, "L": 7, "XL": 6},
+                "Mochila Explorer": {"Negro": 11, "Gris": 7, "Arena": 6},
+            },
+        },
+        "categoryRevenue": {
+            "labels": ["Ropa", "Calzado", "Accesorios", "Equipaje"],
+            "values": [580000, 436500, 208000, 160500],
+            "detalles": {
+                "Ropa": {"Online": 350000, "Tienda": 230000},
+                "Calzado": {"Online": 260000, "Tienda": 176500},
+                "Accesorios": {"Online": 125000, "Tienda": 83000},
+                "Equipaje": {"Online": 90500, "Tienda": 70000},
+            },
         },
     }
 
     context = {
-        "data_json": json.dumps(mock_dashboard_data),
+        "data_json": json.dumps(dashboard_data),
     }
 
     return render(request, "dashboardtrabajador.html", context)
