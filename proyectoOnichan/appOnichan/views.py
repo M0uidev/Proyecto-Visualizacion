@@ -160,6 +160,123 @@ def dashboardtrabajador(request):
 
     return render(request, "dashboardtrabajador.html", context)
 
+def pagina3(request):
+    # Datos de ejemplo para la página de administración de pedidos
+    orders_data = {
+        "orders": [
+            {
+                "id": "PED-001",
+                "fecha": "2025-11-03",
+                "cliente": "Juan Pérez",
+                "total": 54990,
+                "estado": "Pendiente",
+                "productos": [
+                    {"nombre": "Polera Oversized Negra", "cantidad": 2},
+                    {"nombre": "Gorro Beanie Gris", "cantidad": 1}
+                ]
+            },
+            {
+                "id": "PED-002",
+                "fecha": "2025-11-03",
+                "cliente": "María González",
+                "total": 89980,
+                "estado": "Despachado",
+                "productos": [
+                    {"nombre": "Zapatillas Urban Classic", "cantidad": 1},
+                    {"nombre": "Cinturón Minimal", "cantidad": 2}
+                ]
+            },
+            {
+                "id": "PED-003",
+                "fecha": "2025-11-02",
+                "cliente": "Carlos Rodríguez",
+                "total": 34990,
+                "estado": "Entregado",
+                "productos": [
+                    {"nombre": "Chaqueta Denim Azul", "cantidad": 1}
+                ]
+            }
+        ],
+        "estadisticas": {
+            "total_pedidos": 3,
+            "pendientes": 1,
+            "despachados": 1,
+            "entregados": 1,
+            "cancelados": 0
+        }
+    }
+    
+    return render(request, "pagina3.html", {"data": json.dumps(orders_data)})
+
+def pagina3(request):
+    # Generar 20 pedidos de ejemplo
+    pedidos = []
+    estados = ["Pendiente", "Despachado", "Entregado", "Cancelado"]
+    nombres = ["Juan Pérez", "María González", "Carlos Rodríguez", "Ana Silva", "Luis Torres", 
+              "Carmen Ruiz", "Diego Muñoz", "Patricia Lagos", "Roberto Vera", "Isabel Ortiz"]
+    productos = [
+        {"nombre": "Polera Oversized Negra", "precio": 14990},
+        {"nombre": "Zapatillas Urban Classic", "precio": 39990},
+        {"nombre": "Pantalón Cargo Verde", "precio": 29990},
+        {"nombre": "Chaqueta Denim Azul", "precio": 34990},
+        {"nombre": "Gorro Beanie Gris", "precio": 9990},
+        {"nombre": "Polerón Essential Blanco", "precio": 25990},
+        {"nombre": "Mochila Explorer Negra", "precio": 27990},
+        {"nombre": "Botines Urbanos Cuero", "precio": 49990},
+    ]
+    
+    import random
+    from datetime import datetime, timedelta
+
+    for i in range(1, 21):
+        # Generar fecha aleatoria en los últimos 7 días
+        dias_atras = random.randint(0, 7)
+        fecha = datetime.now() - timedelta(days=dias_atras)
+        
+        # Seleccionar productos aleatorios para el pedido
+        productos_pedido = []
+        num_productos = random.randint(1, 3)
+        productos_seleccionados = random.sample(productos, num_productos)
+        total = 0
+        
+        for producto in productos_seleccionados:
+            cantidad = random.randint(1, 3)
+            productos_pedido.append({
+                "nombre": producto["nombre"],
+                "cantidad": cantidad
+            })
+            total += producto["precio"] * cantidad
+
+        pedido = {
+            "id": f"PED-{i:03d}",
+            "fecha": fecha.strftime("%Y-%m-%d"),
+            "cliente": random.choice(nombres),
+            "total": total,
+            "estado": random.choice(estados),
+            "productos": productos_pedido
+        }
+        pedidos.append(pedido)
+    
+    # Ordenar por fecha más reciente primero
+    pedidos.sort(key=lambda x: x["fecha"], reverse=True)
+    
+    # Calcular estadísticas
+    estadisticas = {
+        "total_pedidos": len(pedidos),
+        "pendientes": sum(1 for p in pedidos if p["estado"] == "Pendiente"),
+        "despachados": sum(1 for p in pedidos if p["estado"] == "Despachado"),
+        "entregados": sum(1 for p in pedidos if p["estado"] == "Entregado"),
+        "cancelados": sum(1 for p in pedidos if p["estado"] == "Cancelado"),
+        "total_ventas": sum(p["total"] for p in pedidos)
+    }
+    
+    orders_data = {
+        "orders": pedidos,
+        "estadisticas": estadisticas
+    }
+    
+    return render(request, "pagina3.html", {"data": json.dumps(orders_data)})
+
 def producto_detalle(request, pid: int):
     producto = next((p for p in PRODUCTOS if p["id"] == pid), None)
     if not producto:

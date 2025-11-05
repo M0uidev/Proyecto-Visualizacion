@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% load static %}
 
+{% block extra_js %}
+  <script src="{% static 'chart.js' %}"></script>
+{% endblock %}
+
 {% block title %}Dashboard Trabajador{% endblock %}
 
 {% block extra_css %}
@@ -9,8 +13,12 @@
 
 {% block content %}
 <main class="container-fluid py-4">
+  <div class="mb-4">
+    <a href="{% url 'pagina3' %}" class="btn btn-primary" style="font-size: 1.1rem; padding: 0.5rem 1.5rem; border-radius: 8px;">
+      <i class="bi bi-box-seam me-2"></i>Administrador Stock
+    </a>
+  </div>
   <div class="dashboard-wrapper">
-    <!-- Tarjetas con métricas -->
     <section class="row g-4">
       <div class="col-12 col-md-4">
         <article class="dash-card metric-card" aria-labelledby="metricPedidosHoy">
@@ -180,6 +188,7 @@
       function openModal(config) {
         const { title, labels, values, datasetLabel = 'Detalle', type = 'bar' } = config;
         modalTitle.textContent = title;
+        modalTitle.style.fontSize = '1.5rem';
         const ctx = modalCanvas.getContext('2d');
         if (modalChartInstance) {
           modalChartInstance.destroy();
@@ -205,8 +214,21 @@
             plugins: {
               legend: {
                 display: type !== 'bar' || labels.length > 1,
+                labels: {
+                  font: {
+                    size: 14
+                  },
+                  padding: 15
+                }
               },
               tooltip: {
+                titleFont: {
+                  size: 16
+                },
+                bodyFont: {
+                  size: 14
+                },
+                padding: 12,
                 callbacks: {
                   label: (context) => {
                     const value = context.parsed.y ?? context.parsed;
@@ -221,12 +243,24 @@
               scales: type === 'pie' || type === 'doughnut' ? {} : {
                 y: {
                   beginAtZero: true,
-                  ticks: datasetLabel.toLowerCase().includes('ingreso')
-                    ? {
-                        callback: (val) => currencyFormatter.format(val),
-                      }
-                    : {},
+                  ticks: {
+                    font: {
+                      size: 13
+                    },
+                    ...(datasetLabel.toLowerCase().includes('ingreso')
+                      ? {
+                          callback: (val) => currencyFormatter.format(val),
+                        }
+                      : {})
+                  }
                 },
+                x: {
+                  ticks: {
+                    font: {
+                      size: 13
+                    }
+                  }
+                }
               },
           },
         });
@@ -289,8 +323,21 @@
           scales: {
             y: {
               beginAtZero: true,
-              ticks: { precision: 0 },
+              ticks: { 
+                precision: 0,
+                font: {
+                  size: 14
+                }
+              },
             },
+            x: {
+              ticks: {
+                font: {
+                  size: 14,
+                  weight: 'medium'
+                }
+              }
+            }
           },
           onClick: (evt, elements) => {
             if (!elements.length) return;
@@ -328,6 +375,14 @@
             legend: {
               display: false,
             },
+            tooltip: {
+              titleFont: {
+                size: 14
+              },
+              bodyFont: {
+                size: 14
+              }
+            }
           },
           onClick: (evt, elements) => {
             if (!elements.length) return;
@@ -392,8 +447,19 @@
               beginAtZero: true,
               ticks: {
                 callback: (value) => currencyFormatter.format(value),
+                font: {
+                  size: 14
+                }
               },
             },
+            x: {
+              ticks: {
+                font: {
+                  size: 14,
+                  weight: 'medium'
+                }
+              }
+            }
           },
           onClick: (evt, elements) => {
             if (!elements.length) return;

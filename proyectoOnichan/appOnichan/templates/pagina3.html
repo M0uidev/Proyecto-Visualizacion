@@ -1,497 +1,573 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block title %}Tienda - Vista Cliente{% endblock %}
+{% block title %}Administración de Stock{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/dashboardtrabajador.css' %}">
+  <style>
+    .status-card {
+      padding: 1.25rem;
+      border-radius: 12px;
+      background: var(--dash-card-bg);
+      box-shadow: var(--dash-card-shadow);
+    }
+    
+    .dash-card {
+      background: var(--dash-card-bg);
+      border-radius: 18px;
+      box-shadow: var(--dash-card-shadow);
+      overflow: hidden;
+    }
+    
+    .dash-card header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    
+    .dash-card header h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      color: var(--dash-text);
+    }
+    
+    .chart-wrapper {
+      padding: 1.5rem;
+      height: 100%;
+      min-height: 500px;
+    }
+    
+    .dash-card {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .dash-card .p-4 {
+      flex: 1;
+      overflow-y: auto;
+    }
+    
+    .table {
+      margin-bottom: 0;
+    }
+    
+    .table th {
+      font-weight: 600;
+      color: var(--dash-muted);
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+    
+    .table td {
+      vertical-align: middle;
+    }
+    
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.4rem 1rem;
+      border-radius: 100px;
+      font-size: 0.9rem;
+      border: 1px solid var(--dash-muted);
+      color: var(--dash-text);
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .chip:hover {
+      background: var(--dash-primary);
+      border-color: var(--dash-primary);
+      color: white;
+    }
+    
+    .chip.active {
+      background: var(--dash-primary);
+      border-color: var(--dash-primary);
+      color: white;
+    }
+  </style>
+{% endblock %}
 
 {% block content %}
-
-  <main class="container-fluid py-3">
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-      <button id="btnRefresh" class="btn btn-ghost"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
-      <button id="btnExport" class="btn btn-ghost"><i class="bi bi-file-earmark-spreadsheet"></i> Exportar CSV</button>
-      <div class="ms-auto d-flex align-items-center gap-2">
-        <input id="fromDate" type="date" class="form-control form-control-sm"/>
-        <span class="text-muted">→</span>
-        <input id="toDate" type="date" class="form-control form-control-sm"/>
-        <button class="btn btn-primary btn-sm" id="btnDateApply">Aplicar</button>
-        <button class="btn btn-ghost btn-sm" id="btnDateClear">Limpiar</button>
-        <span class="small text-muted d-none d-md-inline">
+  <!-- Modal para detalles -->
+  <div class="modal" id="chartModal" tabindex="-1">
+    <div class="modal-dialog modal-xl" style="max-width: 95vw;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" style="font-size: 1.5rem; font-weight: 600;">Detalles de Categoría</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div style="height: 70vh; min-height: 600px;">
+            <canvas id="modalChart"></canvas>
+          </div>
+        </div>
       </div>
     </div>
+  </div>
 
-    <div class="row g-3">
-      <div class="col-12 col-lg-8">
-        <div class="card card-dark">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <span>Pedidos</span>
-            <span class="small text-muted" id="tableStats">0 pedidos</span>
-          </div>
+  <main class="container-fluid py-4">
+    <!-- Botón de navegación -->
+    <div class="mb-4">
+      <a href="{% url 'dashboardtrabajador' %}" class="btn btn-primary" style="font-size: 1.1rem; padding: 0.5rem 1.5rem; border-radius: 8px;">
+        <i class="bi bi-graph-up me-2"></i>Dashboard Administrador
+      </a>
+    </div>
+    
+    <div class="dashboard-wrapper">
+      <!-- Acciones -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h4 mb-0">Administración de Stock</h2>
+        <div class="d-flex gap-2">
+          <button id="btnRefresh" class="btn btn-primary">
+            <i class="bi bi-arrow-clockwise me-2"></i>Actualizar
+          </button>
+          <button id="btnAdd" class="btn btn-success">
+            <i class="bi bi-plus-lg me-2"></i>Nuevo Producto
+          </button>
+        </div>
+      </div>
 
-          <ul class="nav nav-tabs px-3 pt-2" id="ordersTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-              <button class="nav-link active" id="tab-pedidos-tab" data-bs-toggle="tab" data-bs-target="#tab-pedidos" type="button" role="tab">Pedidos</button>
-            </li>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="tab-rangos-tab" data-bs-toggle="tab" data-bs-target="#tab-rangos" type="button" role="tab">Rangos de pedidos por día (7d)</button>
-            </li>
-          </ul>
+      <!-- Gráfico y tabla -->
+      <div class="row g-4">
+        <div class="col-12 col-lg-5">
+          <article class="dash-card">
+            <header>
+              <h3>Inventario por Categoría</h3>
+            </header>
+            <div class="chart-wrapper">
+              <canvas id="stockByCategory"></canvas>
+            </div>
+          </article>
+        </div>
 
-          <div class="card-body tab-content">
-            <div class="tab-pane fade show active" id="tab-pedidos" role="tabpanel" aria-labelledby="tab-pedidos-tab">
-              <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                <button class="chip" data-filter="status:Pendiente">Pendientes</button>
-                <button class="chip" data-filter="status:Despachado">Despachados</button>
-                <button class="chip" data-filter="status:Entregado">Entregados</button>
-                <button class="chip" data-filter="status:Cancelado">Cancelados</button>
+        <div class="col-12 col-lg-7">
+          <section class="dash-card">
+            <header class="d-flex justify-content-between align-items-center">
+              <h3 class="h5 mb-0">Inventario</h3>
+              <span class="text-muted" id="tableStats">0 productos</span>
+            </header>
+
+            <div class="p-4">
+              <div class="d-flex flex-wrap gap-2 mb-4">
+                <button class="chip active" data-filter="all">Todos</button>
+                <button class="chip" data-filter="category:Ropa">Ropa</button>
+                <button class="chip" data-filter="category:Calzado">Calzado</button>
+                <button class="chip" data-filter="category:Accesorios">Accesorios</button>
+                <button class="chip" data-filter="stock:bajo">Stock Bajo</button>
               </div>
 
               <div class="table-responsive">
-                <table class="table table-dark table-hover align-middle" id="ordersTable">
+                <table class="table table-hover align-middle" id="stockTable">
                   <thead>
                     <tr>
-                      <th>ID</th>
-                      <th>Cliente</th>
+                      <th>Código</th>
+                      <th>Producto</th>
+                      <th>Categoría</th>
+                      <th>Stock</th>
+                      <th>Precio</th>
                       <th>Estado</th>
-                      <th>Total</th>
-                      <th>Método</th>
-                      <th class="th-sortable" data-sort="fecha">Fecha <i class="bi bi-arrow-down-short"></i></th>
-                      <th></th>
+                      <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody></tbody>
                 </table>
               </div>
-              <div class="d-flex justify-content-between align-items-center mt-2">
-                <div class="small text-muted" id="selectionInfo">0 seleccionados</div>
-                <div class="btn-group">
-                  <button class="btn btn-ghost btn-sm" id="prevPage">Anterior</button>
-                  <button class="btn btn-ghost btn-sm" id="nextPage">Siguiente</button>
-                </div>
-              </div>
             </div>
-
-            <div class="tab-pane fade" id="tab-rangos" role="tabpanel" aria-labelledby="tab-rangos-tab">
-              <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                <label class="small text-muted me-2">Mes:</label>
-                <input type="month" id="monthPicker" class="form-control form-control-sm month-picker">
-                <span class="small text-muted ms-auto">Por defecto: mes actual</span>
-              </div>
-              <div class="chart-wrap"><canvas id="ordersMonthChart"></canvas></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-12 col-lg-4 d-flex flex-column gap-3">
-        <div class="card card-dark">
-          <div class="card-header">Resumen</div>
-          <div class="card-body d-flex flex-wrap gap-3">
-            <div class="flex-fill"><div class="text-muted small">Hoy</div><div class="h4 mb-0" id="kpiHoy">—</div></div>
-            <div class="flex-fill"><div class="text-muted small">Pendientes</div><div class="h4 mb-0" id="kpiPend">—</div></div>
-            <div class="flex-fill"><div class="text-muted small">Ingresos (7d)</div><div class="h4 mb-0" id="kpiIngresos">—</div></div>
-          </div>
-        </div>
-
-        <div class="card card-dark">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <span>Productos más vendidos</span>
-            <span class="small text-muted">Top 5 (según filtros)</span>
-          </div>
-          <div class="card-body">
-            <div class="chart-wrap"><canvas id="productsPie"></canvas></div>
-            <hr class="my-3">
-            <ul id="productsList" class="list-unstyled legend-list small mb-0"></ul>
-          </div>
+          </section>
         </div>
       </div>
     </div>
   </main>
-
-  <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasFilters" aria-labelledby="offcanvasFiltersLabel">
-    <div class="offcanvas-header">
-      <h5 id="offcanvasFiltersLabel">Filtros avanzados</h5>
-      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-    </div>
-    <div class="offcanvas-body">
-      <div class="mb-3">
-        <label class="form-label">Estado</label>
-        <select id="fEstado" class="form-select">
-          <option value="">Todos</option>
-          <option>Pendiente</option><option>Despachado</option><option>Entregado</option><option>Cancelado</option>
-        </select>
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Método de pago</label>
-        <select id="fMetodo" class="form-select">
-          <option value="">Todos</option>
-          <option>Tarjeta</option><option>Efectivo</option><option>Transferencia</option><option>App</option>
-        </select>
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Monto mínimo</label>
-        <input id="fMin" type="number" class="form-control" placeholder="0"/>
-      </div>
-      <div class="d-flex gap-2">
-        <button class="btn btn-primary" id="applyAdvanced">Aplicar</button>
-        <button class="btn btn-ghost" id="clearAdvanced">Limpiar</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="orderModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-      <div class="modal-content card-dark">
-        <div class="modal-header">
-          <h5 class="modal-title">Pedido <span id="mId">#—</span></h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="row g-3">
-            <div class="col-12 col-lg-6">
-              <div class="mb-2 small text-muted">Cliente</div>
-              <div class="h6" id="mCliente">—</div>
-              <div class="small text-muted">Método: <span id="mMetodo">—</span></div>
-              <div class="small text-muted">Fecha: <span id="mFecha">—</span></div>
-            </div>
-            <div class="col-12 col-lg-6">
-              <div class="mb-2 small text-muted">Estado</div>
-              <div><span id="mEstado" class="status">—</span></div>
-              <div class="mt-2 small">Cambiar a:
-                <div class="btn-group btn-group-sm ms-2" role="group">
-                  <button class="btn btn-ghost" data-newstate="Pendiente">Pendiente</button>
-                  <button class="btn btn-ghost" data-newstate="Despachado">Despachado</button>
-                  <button class="btn btn-ghost" data-newstate="Entregado">Entregado</button>
-                  <button class="btn btn-ghost" data-newstate="Cancelado">Cancelado</button>
-                </div>
-              </div>
-            </div>
-            <div class="col-12">
-              <div class="mb-2 small text-muted">Items</div>
-              <ul id="mItems" class="list-group list-group-flush"></ul>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer d-flex justify-content-between">
-          <div class="h5 mb-0">Total: <span id="mTotal">$—</span></div>
-          <button class="btn btn-primary" data-bs-dismiss="modal">OK</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="position-fixed bottom-0 end-0 p-3 toast-stack">
-    <div id="toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-      <div class="toast-header bg-transparent border-0">
-        <strong class="me-auto">Acción</strong>
-        <small class="text-muted">ahora</small>
-        <button type="button" class="btn-close ms-2 mb-1" data-bs-dismiss="toast" aria-label="Close"></button>
-      </div>
-      <div class="toast-body">Hecho.</div>
-    </div>
-  </div>
 {% endblock %}
-  
 
-  <script>
-  // THEME PERSISTENCE
-  (function(){
-    const saved = localStorage.getItem('theme');
-    if(saved){ document.documentElement.setAttribute('data-theme', saved); }
-  })();
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Utilidades
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+    const peso = x => x.toLocaleString('es-CL', {style:'currency', currency:'CLP'});
+    
+    // Variables globales para el modal
+    let modalChartInstance = null;
 
-  const $ = sel => document.querySelector(sel);
-  const $$ = sel => Array.from(document.querySelectorAll(sel));
+    // Datos reales de la base de datos
+    const orders = JSON.parse('{{ data|safe }}').orders;
+    const stats = JSON.parse('{{ data|safe }}').estadisticas;
+    
+    // Agregamos el estado de stock para cada producto
+    const PRODUCTS = [];
+    const seenProducts = new Set();
+    
+    orders.forEach(order => {
+      order.productos.forEach(prod => {
+        const key = prod.nombre;
+        if (!seenProducts.has(key)) {
+          seenProducts.add(key);
+          
+          // Extraemos el precio real del primer pedido que lo contiene
+          const price = order.total / order.productos.reduce((acc, p) => acc + p.cantidad, 0);
+          
+          PRODUCTS.push({
+            code: key.toLowerCase().replace(/\s+/g, '-'),
+            name: prod.nombre,
+            price: Math.round(price),
+            category: prod.nombre.includes('Polera') || prod.nombre.includes('Pantalón') || prod.nombre.includes('Chaqueta') || prod.nombre.includes('Polerón') ? 'Ropa' : 
+                     prod.nombre.includes('Zapatillas') || prod.nombre.includes('Botines') ? 'Calzado' :
+                     'Accesorios',
+            stock: Math.floor(Math.random() * 100), // Simulamos stock aleatorio
+            status: 'Disponible' // Estado por defecto
+          });
+        }
+      });
+    });
+    
+    const CATEGORIES = [...new Set(PRODUCTS.map(p => p.category))];
 
-  // CLOCK
-  function tickClock(){
-    const el = document.querySelector('.clock');
-    if(!el) return; const d = new Date();
-    el.textContent = d.toLocaleString('es-CL',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  }
-  setInterval(tickClock, 1000); tickClock();
+    // Estado
+    let currentCategory = 'all';
+    let currentSort = {field: 'name', direction: 'asc'};
+    let searchQuery = '';
 
-  // SAMPLE DATA
-  const NAMES = ['Valeria','Benjamín','Lucía','Matías','Amanda','Vicente','Carla','Javier','Sofía','Diego'];
-  const METHODS = ['Tarjeta','Efectivo','Transferencia','App'];
-  const PRODUCTS = ['Producto A','Producto B','Producto C','Producto D','Producto E','Producto F','Producto G','Producto H'];
-  const rand=(min,max)=>Math.floor(Math.random()*(max-min+1))+min;
-  const pick=arr=>arr[rand(0,arr.length-1)];
-  const peso=x=>x.toLocaleString('es-CL',{style:'currency',currency:'CLP'});
-
-  let orders = Array.from({length: 86}).map((_,i)=>{
-    const estado = pick(['Pendiente','Despachado','Entregado','Cancelado']);
-    const d = new Date(); d.setDate(d.getDate()-rand(0,6)); d.setHours(rand(9,21), rand(0,59));
-    const items = Array.from({length: rand(1,4)}).map(()=>({ name: pick(PRODUCTS), qty: rand(1,3), price: rand(2500,12000) }));
-    const total = items.reduce((s,it)=>s+it.qty*it.price,0);
-    return { id: 1000+i, cliente: pick(NAMES), estado, total, metodo: pick(METHODS), fecha: d, items }
-  });
-
-  // STATE
-  let page=0, pageSize=10, query='', chips=new Set(), adv={estado:'',metodo:'',min:''}, dateFrom=null, dateTo=null, sortBy='fecha', sortDir='desc';
-
-  // FILTERING
-  function matches(o, opts={useDate:true}){
-    if(query){
-      const q=query.toLowerCase();
-      const txt = `${o.id} ${o.cliente} ${o.metodo} ${o.estado}`.toLowerCase();
-      if(!txt.includes(q)) return false;
+    // Funciones de utilidad
+    function getStatusClass(status) {
+      return {
+        'Disponible': 'success',
+        'Stock Bajo': 'warning',
+        'Sin Stock': 'danger'
+      }[status] || 'secondary';
     }
-    if(chips.size && !chips.has(o.estado)) return false;
-    if(adv.estado && o.estado!==adv.estado) return false;
-    if(adv.metodo && o.metodo!==adv.metodo) return false;
-    if(adv.min && o.total < Number(adv.min)) return false;
-    if(opts.useDate){
-      if(dateFrom && o.fecha < dateFrom) return false;
-      if(dateTo && o.fecha > dateTo) return false;
+
+    function updateStockStatus(product) {
+      if (product.stock <= 0) return 'Sin Stock';
+      if (product.stock <= 10) return 'Stock Bajo';
+      return 'Disponible';
     }
-    return true;
-  }
 
-  const formatDate=d=>d.toLocaleString('es-CL',{dateStyle:'medium', timeStyle:'short'});
+    // Filtrado de productos
+    function filterProducts(products) {
+      return products.filter(product => {
+        // Filtro por categoría
+        if (currentCategory !== 'all') {
+          if (currentCategory === 'stock:bajo') {
+            if (product.stock > 10) return false;
+          } else if (currentCategory.startsWith('category:')) {
+            if (product.category !== currentCategory.split(':')[1]) return false;
+          }
+        }
+        
+        // Filtro por búsqueda
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          return product.name.toLowerCase().includes(query) || 
+                 product.code.toLowerCase().includes(query) ||
+                 product.category.toLowerCase().includes(query);
+        }
+        
+        return true;
+      });
+    }
 
-  function renderTable(){
-    const body = $('#ordersTable tbody');
-    const filtered = orders.filter(o=>matches(o));
-    filtered.sort((a,b)=> sortDir==='asc' ? a.fecha-b.fecha : b.fecha-a.fecha);
-    const start = page*pageSize; const slice = filtered.slice(start, start+pageSize);
-    body.innerHTML = slice.map(o=>`
-      <tr data-id="${o.id}">
-        <td>#${o.id}</td>
-        <td>${o.cliente}</td>
-        <td><span class="status ${o.estado}">${o.estado}</span></td>
-        <td>${peso(o.total)}</td>
-        <td>${o.metodo}</td>
-        <td>${formatDate(o.fecha)}</td>
-        <td class="text-end"><button class="btn btn-sm btn-ghost" data-action="view">Detalles</button></td>
-      </tr>`).join('');
-    $('#tableStats').textContent = `${filtered.length} pedidos`;
-    $('#selectionInfo').textContent = `${slice.length} en página / ${filtered.length} totales`;
+    // Renderizado de la tabla
+    function renderTable() {
+      const filtered = filterProducts(PRODUCTS);
+      const sorted = [...filtered].sort((a, b) => {
+        const factor = currentSort.direction === 'asc' ? 1 : -1;
+        return a[currentSort.field] > b[currentSort.field] ? factor : -factor;
+      });
 
-    // KPIs
-    const today = new Date(); today.setHours(0,0,0,0);
-    const hoyOrders = filtered.filter(o=>{const f=new Date(o.fecha); f.setHours(0,0,0,0); return f.getTime()===today.getTime()});
-    $('#kpiHoy').textContent = hoyOrders.length;
-    $('#kpiPend').textContent = filtered.filter(o=>o.estado==='Pendiente').length;
-    const last7 = filtered.filter(o=> (new Date()) - o.fecha <= 7*86400000 ).reduce((s,o)=>s+o.total,0);
-    $('#kpiIngresos').textContent = peso(last7);
-  }
+      const tbody = $('#stockTable tbody');
+      tbody.innerHTML = sorted.map(product => `
+        <tr>
+          <td>${product.code}</td>
+          <td>${product.name}</td>
+          <td>${product.category}</td>
+          <td>${product.stock}</td>
+          <td>${peso(product.price)}</td>
+          <td><span class="badge bg-${getStatusClass(product.status)}">${product.status}</span></td>
+          <td>
+            <div class="btn-group">
+              <button class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${product.code}">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${product.code}">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
 
-  // EXPORT CSV
-  function exportCSV(){
-    const rows = [['ID','Cliente','Estado','Total','Método','Fecha']];
-    orders.filter(o=>matches(o)).forEach(o=>rows.push([o.id,o.cliente,o.estado,o.total, o.metodo, formatDate(o.fecha)]));
-    const csv = rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'}); const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href=url; a.download='pedidos.csv'; a.click(); URL.revokeObjectURL(url);
-  }
+      $('#tableStats').textContent = `${filtered.length} productos`;
+      updateChart();
+    }
 
-  // MODAL + UI
-  let orderModal, toast;
-  document.addEventListener('DOMContentLoaded', ()=>{
-    orderModal = new bootstrap.Modal('#orderModal');
-    toast = new bootstrap.Toast('#toast');
-    bindUI(); renderTable(); renderCharts();
-  });
+    // Actualización del gráfico
+    function updateChart() {
+      const ctx = $('#stockByCategory').getContext('2d');
+      const productsByCategory = CATEGORIES.map(category => ({
+        category,
+        count: PRODUCTS.filter(p => p.category === category).length,
+        totalStock: PRODUCTS.filter(p => p.category === category)
+                          .reduce((sum, p) => sum + p.stock, 0)
+      }));
 
-  function bindUI(){
-    $('#q').addEventListener('input', e=>{query=e.target.value; page=0; renderTable(); updateCharts();});
+      if (window.stockChart) {
+        window.stockChart.destroy();
+      }
 
-    $$('.chip').forEach(ch=>{
-      ch.addEventListener('click',()=>{
-        const val = ch.dataset.filter.split(':')[1];
-        if(ch.classList.toggle('active')) chips.add(val); else chips.delete(val);
-        page=0; renderTable(); updateCharts();
+      const colorPalette = ['#4f46e5', '#22c55e', '#f97316', '#0ea5e9', '#ec4899', '#f59e0b', '#8b5cf6'];
+
+      window.stockChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: productsByCategory.map(p => p.category),
+          datasets: [{
+            data: productsByCategory.map(p => p.totalStock),
+            backgroundColor: productsByCategory.map((_, i) => colorPalette[i % colorPalette.length]),
+            borderWidth: 0,
+            hoverOffset: 10
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: {
+            padding: {
+              top: 20,
+              bottom: 20
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                font: { size: 14 },
+                padding: 20,
+                usePointStyle: true,
+                boxWidth: 10,
+                boxHeight: 10
+              }
+            },
+            tooltip: {
+              titleFont: { size: 16 },
+              bodyFont: { size: 14 },
+              padding: 12,
+              callbacks: {
+                label: (context) => {
+                  const totalItems = context.dataset.data[context.dataIndex];
+                  const totalProducts = PRODUCTS.filter(p => p.category === context.label).length;
+                  return [
+                    `Stock Total: ${totalItems} unidades`,
+                    `${totalProducts} productos diferentes`
+                  ];
+                }
+              }
+            }
+          },
+          onClick: (evt, elements) => {
+            if (!elements.length) return;
+            const index = elements[0].index;
+            const category = productsByCategory[index].category;
+            const productsInCategory = PRODUCTS.filter(p => p.category === category)
+              .sort((a, b) => b.stock - a.stock);
+            
+            // Calcular ventas por producto
+            const sales = {};
+            orders.forEach(order => {
+              order.productos.forEach(prod => {
+                if (productsInCategory.find(p => p.name === prod.nombre)) {
+                  sales[prod.nombre] = (sales[prod.nombre] || 0) + prod.cantidad;
+                }
+              });
+            });
+            
+            // Preparar y mostrar el modal
+            if (modalChartInstance) {
+              modalChartInstance.destroy();
+            }
+
+            const modalCanvas = document.getElementById('modalChart');
+            const modal = document.getElementById('chartModal');
+            const modalTitle = modal.querySelector('.modal-title');
+            modalTitle.textContent = `Detalle de ${category}`;
+
+            modalChartInstance = new Chart(modalCanvas.getContext('2d'), {
+              type: 'bar',
+              data: {
+                labels: productsInCategory.map(p => p.name),
+                datasets: [
+                  {
+                    label: 'Stock',
+                    data: productsInCategory.map(p => p.stock),
+                    backgroundColor: colorPalette[index % colorPalette.length] + '80',
+                    borderWidth: 1,
+                    order: 2
+                  },
+                  {
+                    label: 'Ventas',
+                    data: productsInCategory.map(p => sales[p.name] || 0),
+                    backgroundColor: colorPalette[(index + 1) % colorPalette.length] + '80',
+                    borderWidth: 1,
+                    order: 1
+                  }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                  title: {
+                    display: true,
+                    text: 'Stock y Ventas por Producto',
+                    font: {
+                      size: 20,
+                      weight: 'bold'
+                    },
+                    padding: 20
+                  },
+                  legend: { 
+                    display: true,
+                    position: 'top',
+                    labels: {
+                      font: { size: 16 },
+                      usePointStyle: true,
+                      padding: 20
+                    }
+                  },
+                  tooltip: {
+                    titleFont: { size: 16 },
+                    bodyFont: { size: 15 },
+                    padding: 12,
+                    callbacks: {
+                      label: (context) => {
+                        const product = productsInCategory[context.dataIndex];
+                        if (context.dataset.label === 'Stock') {
+                          return `Stock: ${product.stock} unidades · Precio: ${peso(product.price)}`;
+                        } else {
+                          return `Ventas: ${sales[product.name] || 0} unidades`;
+                        }
+                      }
+                    }
+                  }
+                },
+                scales: {
+                  x: {
+                    stacked: false,
+                    grid: {
+                      display: false
+                    },
+                    ticks: {
+                      font: { size: 14 },
+                      callback: function(value) {
+                        return value + ' unidades';
+                      }
+                    },
+                    title: {
+                      display: true,
+                      text: 'Cantidad',
+                      font: {
+                        size: 16,
+                        weight: 'bold'
+                      },
+                      padding: {top: 20, bottom: 10}
+                    }
+                  },
+                  y: {
+                    stacked: false,
+                    grid: {
+                      display: true,
+                      drawBorder: false
+                    },
+                    ticks: {
+                      font: { size: 15 },
+                      padding: 10
+                    },
+                    title: {
+                      display: true,
+                      text: 'Productos',
+                      font: {
+                        size: 16,
+                        weight: 'bold'
+                      },
+                      padding: {top: 20, bottom: 10}
+                    }
+                  }
+                }
+              }
+            });
+
+            // Mostrar el modal usando Bootstrap
+            const bsModal = new bootstrap.Modal(modal);
+            modal.addEventListener('shown.bs.modal', function () {
+              // Ajustar el tamaño del canvas después de que el modal sea visible
+              modalCanvas.style.height = '400px';
+              modalChartInstance.resize();
+            });
+            bsModal.show();
+          }
+        }
+      });
+      
+      // Limpiar el gráfico modal cuando se cierre
+      document.getElementById('chartModal').addEventListener('hidden.bs.modal', function () {
+        if (modalChartInstance) {
+          modalChartInstance.destroy();
+          modalChartInstance = null;
+        }
+      });
+
+      // Debugging para verificar que el evento click funciona
+      document.getElementById('stockByCategory').addEventListener('click', function(event) {
+        console.log('Click en el gráfico detectado');
+      });
+    }
+
+    // Manejadores de eventos
+    // Filtros por categoría
+    $$('.chip').forEach(button => {
+      button.addEventListener('click', (e) => {
+        $$('.chip').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        
+        currentCategory = e.target.dataset.filter;
+        renderTable();
       });
     });
 
-    $$('#ordersTable thead th.th-sortable').forEach(th=>{
-      th.addEventListener('click', ()=>{
-        const key = th.dataset.sort; if(sortBy===key){ sortDir = (sortDir==='asc'?'desc':'asc'); } else { sortBy=key; sortDir='desc'; }
-        $$('#ordersTable thead th.th-sortable i').forEach(i=> i.className='bi');
-        const icon = th.querySelector('i'); if(icon){ icon.className = 'bi ' + (sortDir==='asc'?'bi-arrow-up-short':'bi-arrow-down-short'); }
-        page=0; renderTable(); updateCharts();
-      });
+    // Botones de acción
+    $('#btnRefresh').addEventListener('click', () => location.reload());
+    $('#btnAdd').addEventListener('click', () => {
+      // TODO: Implementar modal de nuevo producto
+      alert('Funcionalidad de agregar producto pendiente');
     });
 
-    $('#prevPage').onclick = ()=>{ if(page>0){page--; renderTable()} };
-    $('#nextPage').onclick = ()=>{ const max = Math.ceil(orders.filter(o=>matches(o)).length/pageSize)-1; if(page<max){page++; renderTable()} };
+    // Eventos de la tabla
+    $('#stockTable').addEventListener('click', (e) => {
+      const button = e.target.closest('[data-action]');
+      if (!button) return;
 
-    $('#ordersTable').addEventListener('click', e=>{
-      const btn = e.target.closest('button[data-action="view"]');
-      if(!btn) return; const tr = btn.closest('tr'); const id = Number(tr.dataset.id);
-      const o = orders.find(x=>x.id===id); openOrder(o);
-    });
-
-    $('#btnTheme').onclick = ()=>{
-      const cur = document.documentElement.getAttribute('data-theme');
-      const next = cur==='light'?'dark':'light';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('theme', next);
-      updateCharts();
-    };
-
-    $('#markRead').onclick = ()=> showToast('Notificaciones marcadas como leídas');
-
-    $('#btnDateApply').onclick = ()=>{
-      dateFrom = $('#fromDate').value ? new Date($('#fromDate').value+'T00:00:00') : null;
-      dateTo = $('#toDate').value ? new Date($('#toDate').value+'T23:59:59') : null;
-      page=0; renderTable(); updateCharts();
-    };
-    $('#btnDateClear').onclick = ()=>{ $('#fromDate').value=''; $('#toDate').value=''; dateFrom=null; dateTo=null; renderTable(); updateCharts(); };
-
-    $('#applyAdvanced').onclick = ()=>{ adv={estado:$('#fEstado').value,metodo:$('#fMetodo').value,min:$('#fMin').value}; renderTable(); updateCharts(); showToast('Filtros aplicados'); };
-    $('#clearAdvanced').onclick = ()=>{ adv={estado:'',metodo:'',min:''}; $('#fEstado').value=''; $('#fMetodo').value=''; $('#fMin').value=''; renderTable(); updateCharts(); };
-
-    $('#btnExport').onclick = exportCSV;
-    $('#btnRefresh').onclick = ()=>{ shuffleData(); renderTable(); updateCharts(); showToast('Datos actualizados'); };
-
-    // Month picker (default: current month)
-    const mp = $('#monthPicker');
-    const today = new Date();
-    mp.value = today.toISOString().slice(0,7);
-    mp.addEventListener('change', updateCharts);
-
-    document.addEventListener('shown.bs.tab', (e)=>{
-      // Recalcular charts cuando cambio de tab
-      updateCharts();
-    });
-
-    document.addEventListener('keydown', (e)=>{
-      if(e.key==='/' && document.activeElement !== $('#q')){ e.preventDefault(); $('#q').focus(); }
-      if(e.key==='?'){ alert('Atajos:\n/ enfoca búsqueda\n t alterna tema'); }
-      if(e.key==='t'){ $('#btnTheme').click(); }
-    });
-  }
-
-  function showToast(msg){ $('#toast .toast-body').textContent = msg; toast.show(); }
-
-  function openOrder(o){
-    $('#mId').textContent = '#'+o.id;
-    $('#mCliente').textContent = o.cliente;
-    $('#mMetodo').textContent = o.metodo;
-    $('#mFecha').textContent = formatDate(o.fecha);
-    const est = $('#mEstado'); est.textContent = o.estado; est.className = 'status '+o.estado;
-    $('#mTotal').textContent = peso(o.total);
-    const ul = $('#mItems');
-    ul.innerHTML = o.items.map(it=>`
-      <li class="list-group-item bg-transparent border-secondary d-flex justify-content-between">
-        <span>${it.qty}× ${it.name}</span><span>${peso(it.qty*it.price)}</span>
-      </li>`).join('');
-    $$('#orderModal [data-newstate]').forEach(b=>{
-      b.onclick = ()=>{ o.estado = b.dataset.newstate; renderTable(); updateCharts(); const est = $('#mEstado'); est.textContent = o.estado; est.className = 'status '+o.estado; showToast('Estado actualizado'); };
-    });
-    orderModal.show();
-  }
-
-  function shuffleData(){
-    const add = rand(1,3);
-    for(let i=0;i<add;i++){
-      const items = Array.from({length: rand(1,3)}).map(()=>({name:pick(PRODUCTS),qty:rand(1,2),price:rand(2500,12000)}));
-      orders.unshift({
-        id: (orders[0]?.id||1000)+1,
-        cliente: pick(NAMES), estado: 'Pendiente',
-        total: items.reduce((s, it)=>s+it.qty*it.price,0), metodo: pick(METHODS), fecha: new Date(), items
-      });
-    }
-    orders.forEach(o=>{ if(Math.random()<.05) o.estado = pick(['Pendiente','Despachado','Entregado']); });
-  }
-
-  // ===== CHARTS =====
-  let monthChart, productsPie;
-  function chartColors(){
-    const theme = document.documentElement.getAttribute('data-theme');
-    const text = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || (theme==='light'?'#0E2B4D':'#F5F5F5');
-    return {grid:'rgba(31,79,140,0.12)', text};
-  }
-
-  // Vista mensual: cuenta pedidos por día del mes seleccionado (ignora dateFrom/dateTo para no “capar” el mes)
-  function ordersByMonth(){
-    const mp = $('#monthPicker').value; // "YYYY-MM"
-    const [y,m] = mp.split('-').map(Number);
-    const first = new Date(y, m-1, 1, 0,0,0,0);
-    const last  = new Date(y, m, 0, 23,59,59,999); // último día del mes
-
-    const daysInMonth = last.getDate();
-    const labels = Array.from({length:daysInMonth}, (_,i)=> String(i+1));
-    const data = Array.from({length:daysInMonth}, ()=>0);
-
-    orders.forEach(o=>{
-      if(!matches(o, {useDate:false})) return; // respeta filtros/estado/búsqueda, ignora rango global
-      if(o.fecha>=first && o.fecha<=last){
-        const d = o.fecha.getDate();
-        data[d-1] += 1;
+      const action = button.dataset.action;
+      const productId = button.dataset.id;
+      
+      if (action === 'edit') {
+        // TODO: Implementar modal de edición
+        alert(`Editar producto ${productId}`);
+      } else if (action === 'delete') {
+        // TODO: Implementar confirmación de eliminación
+        alert(`Eliminar producto ${productId}`);
       }
     });
-    return {labels, data};
-  }
 
-  // Productos Top 5 (pie). Usa filtros globales (incluye rango dateFrom/dateTo si set)
-  function productsTop5(){
-    const counts = {};
-    orders.filter(o=>matches(o)).forEach(o=>o.items.forEach(it=>{
-      counts[it.name] = (counts[it.name]||0) + it.qty;
-    }));
-    const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
-    return {
-      labels: entries.map(e=>e[0]),
-      data: entries.map(e=>e[1])
-    };
-  }
-
-  function renderCharts(){
-    const {text, grid} = chartColors();
-
-    // Monthly chart (en el tab Rangos)
-    const oc = document.getElementById('ordersMonthChart');
-    const om = ordersByMonth();
-    monthChart = new Chart(oc, {
-      type:'line',
-      data:{labels:om.labels, datasets:[{
-        label:'Pedidos por día (mes)', data:om.data,
-        borderColor:getComputedStyle(document.documentElement).getPropertyValue('--brand-700').trim()||'#1F4F8C',
-        backgroundColor:'rgba(44,111,183,0.18)', tension:.35, fill:true
-      }]},
-      options:{responsive:true, maintainAspectRatio:false,
-        plugins:{legend:{labels:{color:text}}},
-        scales:{x:{grid:{color:grid},ticks:{color:text}}, y:{grid:{color:grid},ticks:{color:text,precision:0}}}
-      },
-    });
-
-    // Productos Pie (Top 5)
-    const pc = document.getElementById('productsPie');
-    const p = productsTop5();
-    productsPie = new Chart(pc, {
-      type:'pie',
-      data:{labels:p.labels, datasets:[{data:p.data}]},
-      options:{responsive:true, maintainAspectRatio:false,
-        plugins:{legend:{display:false}, tooltip:{callbacks:{label:(ctx)=>`${ctx.label}: ${ctx.parsed}`}}}
-      }
-    });
-    renderProductsList(p);
-  }
-
-  function updateCharts(){
-    const {text, grid} = chartColors();
-
-    // Update monthly
-    const om = ordersByMonth();
-    monthChart.data.labels = om.labels;
-    monthChart.data.datasets[0].data = om.data;
-    monthChart.options.scales.x.ticks.color=text;
-    monthChart.options.scales.y.ticks.color=text;
-    monthChart.update();
-
-    // Update products pie
-    const p = productsTop5();
-    productsPie.data.labels = p.labels;
-    productsPie.data.datasets[0].data = p.data;
-    productsPie.update();
-    renderProductsList(p);
-  }
-
-  function renderProductsList(p){
-    const ul = $('#productsList');
-    ul.innerHTML = p.labels.map((name, i)=>`<li><span>${i+1}. ${name}</span><strong>${p.data[i]}</strong></li>`).join('');
-  }
-  </script>
-</body>
-</html>
+    // Inicializar
+    renderTable();
+  });
+</script>
+{% endblock %}
