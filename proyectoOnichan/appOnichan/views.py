@@ -1,3 +1,5 @@
+import json
+
 from django.shortcuts import render
 from django.http import Http404
 
@@ -111,7 +113,169 @@ def pagina3(request):
     return render(request, "pagina3.html")
 
 def dashboardtrabajador(request):
-    return render(request, "dashboardtrabajador.html")
+    dashboard_data = {
+        "kpis": {
+            "pedidos_hoy": {"value": 28, "trend": "+4 vs. ayer"},
+            "pendientes": {"value": 12, "trend": "-2 respecto a la semana pasada"},
+            "ingresos_7d": {"value": 1987500, "trend": "+6% semana previa", "isCurrency": True},
+        },
+        "lineChart": {
+            "labels": ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
+            "values": [20, 24, 21, 27, 32, 34, 26],
+            "detalles": {
+                "Lun": {"Entregados": 16, "Pendientes": 4},
+                "Mar": {"Entregados": 19, "Pendientes": 5},
+                "Mié": {"Entregados": 17, "Pendientes": 4},
+                "Jue": {"Entregados": 22, "Pendientes": 5},
+                "Vie": {"Entregados": 26, "Pendientes": 6},
+                "Sáb": {"Entregados": 28, "Pendientes": 6},
+                "Dom": {"Entregados": 21, "Pendientes": 5},
+            },
+        },
+        "topProducts": {
+            "labels": ["Polera Oversized", "Zapatillas Urban", "Chaqueta Azul", "Mochila Explorer"],
+            "values": [48, 39, 31, 24],
+            "detalles": {
+                "Polera Oversized": {"Negro / M": 16, "Negro / L": 14, "Blanco / M": 10, "Blanco / L": 8},
+                "Zapatillas Urban": {"41": 13, "42": 11, "43": 9, "44": 6},
+                "Chaqueta Azul": {"S": 8, "M": 10, "L": 7, "XL": 6},
+                "Mochila Explorer": {"Negro": 11, "Gris": 7, "Arena": 6},
+            },
+        },
+        "categoryRevenue": {
+            "labels": ["Ropa", "Calzado", "Accesorios", "Equipaje"],
+            "values": [580000, 436500, 208000, 160500],
+            "detalles": {
+                "Ropa": {"Online": 350000, "Tienda": 230000},
+                "Calzado": {"Online": 260000, "Tienda": 176500},
+                "Accesorios": {"Online": 125000, "Tienda": 83000},
+                "Equipaje": {"Online": 90500, "Tienda": 70000},
+            },
+        },
+    }
+
+    context = {
+        "data_json": json.dumps(dashboard_data),
+    }
+
+    return render(request, "dashboardtrabajador.html", context)
+
+def pagina3(request):
+    # Datos de ejemplo para la página de administración de pedidos
+    orders_data = {
+        "orders": [
+            {
+                "id": "PED-001",
+                "fecha": "2025-11-03",
+                "cliente": "Juan Pérez",
+                "total": 54990,
+                "estado": "Pendiente",
+                "productos": [
+                    {"nombre": "Polera Oversized Negra", "cantidad": 2},
+                    {"nombre": "Gorro Beanie Gris", "cantidad": 1}
+                ]
+            },
+            {
+                "id": "PED-002",
+                "fecha": "2025-11-03",
+                "cliente": "María González",
+                "total": 89980,
+                "estado": "Despachado",
+                "productos": [
+                    {"nombre": "Zapatillas Urban Classic", "cantidad": 1},
+                    {"nombre": "Cinturón Minimal", "cantidad": 2}
+                ]
+            },
+            {
+                "id": "PED-003",
+                "fecha": "2025-11-02",
+                "cliente": "Carlos Rodríguez",
+                "total": 34990,
+                "estado": "Entregado",
+                "productos": [
+                    {"nombre": "Chaqueta Denim Azul", "cantidad": 1}
+                ]
+            }
+        ],
+        "estadisticas": {
+            "total_pedidos": 3,
+            "pendientes": 1,
+            "despachados": 1,
+            "entregados": 1,
+            "cancelados": 0
+        }
+    }
+    
+    return render(request, "pagina3.html", {"data": json.dumps(orders_data)})
+
+def pagina3(request):
+    # Generar 20 pedidos de ejemplo
+    pedidos = []
+    estados = ["Pendiente", "Despachado", "Entregado", "Cancelado"]
+    nombres = ["Juan Pérez", "María González", "Carlos Rodríguez", "Ana Silva", "Luis Torres", 
+              "Carmen Ruiz", "Diego Muñoz", "Patricia Lagos", "Roberto Vera", "Isabel Ortiz"]
+    productos = [
+        {"nombre": "Polera Oversized Negra", "precio": 14990},
+        {"nombre": "Zapatillas Urban Classic", "precio": 39990},
+        {"nombre": "Pantalón Cargo Verde", "precio": 29990},
+        {"nombre": "Chaqueta Denim Azul", "precio": 34990},
+        {"nombre": "Gorro Beanie Gris", "precio": 9990},
+        {"nombre": "Polerón Essential Blanco", "precio": 25990},
+        {"nombre": "Mochila Explorer Negra", "precio": 27990},
+        {"nombre": "Botines Urbanos Cuero", "precio": 49990},
+    ]
+    
+    import random
+    from datetime import datetime, timedelta
+
+    for i in range(1, 21):
+        # Generar fecha aleatoria en los últimos 7 días
+        dias_atras = random.randint(0, 7)
+        fecha = datetime.now() - timedelta(days=dias_atras)
+        
+        # Seleccionar productos aleatorios para el pedido
+        productos_pedido = []
+        num_productos = random.randint(1, 3)
+        productos_seleccionados = random.sample(productos, num_productos)
+        total = 0
+        
+        for producto in productos_seleccionados:
+            cantidad = random.randint(1, 3)
+            productos_pedido.append({
+                "nombre": producto["nombre"],
+                "cantidad": cantidad
+            })
+            total += producto["precio"] * cantidad
+
+        pedido = {
+            "id": f"PED-{i:03d}",
+            "fecha": fecha.strftime("%Y-%m-%d"),
+            "cliente": random.choice(nombres),
+            "total": total,
+            "estado": random.choice(estados),
+            "productos": productos_pedido
+        }
+        pedidos.append(pedido)
+    
+    # Ordenar por fecha más reciente primero
+    pedidos.sort(key=lambda x: x["fecha"], reverse=True)
+    
+    # Calcular estadísticas
+    estadisticas = {
+        "total_pedidos": len(pedidos),
+        "pendientes": sum(1 for p in pedidos if p["estado"] == "Pendiente"),
+        "despachados": sum(1 for p in pedidos if p["estado"] == "Despachado"),
+        "entregados": sum(1 for p in pedidos if p["estado"] == "Entregado"),
+        "cancelados": sum(1 for p in pedidos if p["estado"] == "Cancelado"),
+        "total_ventas": sum(p["total"] for p in pedidos)
+    }
+    
+    orders_data = {
+        "orders": pedidos,
+        "estadisticas": estadisticas
+    }
+    
+    return render(request, "pagina3.html", {"data": json.dumps(orders_data)})
 
 def producto_detalle(request, pid: int):
     producto = next((p for p in PRODUCTOS if p["id"] == pid), None)
