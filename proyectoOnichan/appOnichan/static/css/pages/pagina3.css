@@ -1,0 +1,87 @@
+/* Inventory dashboard specific styles */
+.chart-wrapper-lg {
+  padding: 1.5rem;
+  height: 100%;
+  min-height: 500px;
+}
+
+.dash-card-stack {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-card-stack .p-4 {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.table-inventory {
+  margin-bottom: 0;
+}
+
+.table-inventory th {
+  font-weight: 600;
+  color: var(--dash-muted);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.table-inventory td {
+  vertical-align: middle;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 1rem;
+  border-radius: 100px;
+  font-size: 0.9rem;
+  border: 1px solid var(--dash-muted);
+  color: var(--dash-text);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chip:hover,
+.chip:focus {
+  background: var(--dash-primary);
+  border-color: var(--dash-primary);
+  color: #fff;
+}
+
+.chip.active {
+  background: var(--dash-primary);
+  border-color: var(--dash-primary);
+  color: #fff;
+}
+
+.modal-dialog-wide {
+  max-width: 95vw;
+}
+
+.modal-title-lg {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.chart-modal-body {
+  height: 70vh;
+  min-height: 600px;
+}
+
+.chart-modal-canvas {
+  height: 70%;
+}
+
+@media (max-width: 992px) {
+  .chart-wrapper-lg {
+    min-height: 320px;
+  }
+
+  .chart-modal-body {
+    min-height: 420px;
+  }
+}

@@ -1,17 +1,18 @@
 {% extends "base.html" %}
 
 {% block nav_right %}
-        <a href="#" class="nav-link" aria-label="Carrito"><i class="bi bi-cart"></i>Carrito</a>
+  <a href="#" class="nav-link" aria-label="Carrito"><i class="bi bi-cart"></i>Carrito</a>
 {% endblock %}
 
 {% block nav_left %}
-<div class="nav-left">
-  <div class="search-bar">
-    <i class="bi bi-search"></i>
-    <input type="text" placeholder="Buscar productos..." />
+  <!-- Search tools -->
+  <div class="nav-left">
+    <div class="search-bar">
+      <i class="bi bi-search"></i>
+      <input type="text" placeholder="Buscar productos..." />
+    </div>
+    <div class="location-text">
+      <i class="bi bi-geo-alt"></i> Entrega en todo el país
+    </div>
   </div>
-  <div class="location-text">
-    <i class="bi bi-geo-alt"></i> Entrega en todo el país
-  </div>
-</div>
 {% endblock %}

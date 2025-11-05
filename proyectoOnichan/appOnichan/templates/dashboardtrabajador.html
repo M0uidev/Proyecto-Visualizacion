@@ -1,24 +1,23 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block extra_js %}
-  <script src="{% static 'chart.js' %}"></script>
-{% endblock %}
-
 {% block title %}Dashboard Trabajador{% endblock %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/dashboardtrabajador.css' %}">
+  <link rel="stylesheet" href="{% static 'css/pages/dashboardtrabajador.css' %}">
 {% endblock %}
 
 {% block content %}
 <main class="container-fluid py-4">
+  <!-- Navigation -->
   <div class="mb-4">
-    <a href="{% url 'pagina3' %}" class="btn btn-primary" style="font-size: 1.1rem; padding: 0.5rem 1.5rem; border-radius: 8px;">
+    <a href="{% url 'pagina3' %}" class="btn btn-primary dashboard-link">
       <i class="bi bi-box-seam me-2"></i>Administrador Stock
     </a>
   </div>
+
   <div class="dashboard-wrapper">
+    <!-- KPI cards -->
     <section class="row g-4">
       <div class="col-12 col-md-4">
         <article class="dash-card metric-card" aria-labelledby="metricPedidosHoy">
@@ -43,7 +42,7 @@
       </div>
     </section>
 
-    <!-- Gráfico de línea y pie -->
+    <!-- Charts -->
     <section class="row g-4">
       <div class="col-12 col-lg-7">
         <article class="dash-card chart-card" aria-labelledby="chartLineTitle">
@@ -68,7 +67,7 @@
       </div>
     </section>
 
-    <!-- Gráfico de barras -->
+    <!-- Revenue chart -->
     <section class="row g-4">
       <div class="col-12">
         <article class="dash-card chart-card" aria-labelledby="chartBarTitle">
@@ -83,7 +82,7 @@
     </section>
   </div>
 
-  <!-- Modal reutilizable -->
+  <!-- Detail modal -->
   <div id="dashModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-head">
@@ -99,7 +98,7 @@
 {% endblock %}
 
 {% block scripts %}
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" integrity="sha384-fu0Sg1KOQGa59RcNy27Rvv58c08LomqKgMBKUQl9RDL7z2b8gk1jsmfl7uO1VtQA" crossorigin="anonymous"></script>
+  <script src="{% static 'chart.js' %}"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const parsed = JSON.parse('{{ data_json|default:"{}"|escapejs }}');
@@ -240,28 +239,28 @@
                 },
               },
             },
-              scales: type === 'pie' || type === 'doughnut' ? {} : {
-                y: {
-                  beginAtZero: true,
-                  ticks: {
-                    font: {
-                      size: 13
-                    },
-                    ...(datasetLabel.toLowerCase().includes('ingreso')
-                      ? {
-                          callback: (val) => currencyFormatter.format(val),
-                        }
-                      : {})
-                  }
-                },
-                x: {
-                  ticks: {
-                    font: {
-                      size: 13
-                    }
-                  }
+            scales: type === 'pie' || type === 'doughnut' ? {} : {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  font: {
+                    size: 13
+                  },
+                  ...(datasetLabel.toLowerCase().includes('ingreso')
+                    ? {
+                        callback: (val) => currencyFormatter.format(val),
+                      }
+                    : {})
                 }
               },
+              x: {
+                ticks: {
+                  font: {
+                    size: 13
+                  }
+                }
+              }
+            },
           },
         });
 
@@ -323,7 +322,7 @@
           scales: {
             y: {
               beginAtZero: true,
-              ticks: { 
+              ticks: {
                 precision: 0,
                 font: {
                   size: 14

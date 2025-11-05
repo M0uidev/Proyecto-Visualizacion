@@ -1,0 +1,35 @@
+.prod-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.prod-thumb {
+  aspect-ratio: 1 / 1;
+  border: 1px solid #eee;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.prod-price {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.prod-price-old {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.badge-sale {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  background: #ffe5e5;
+  border: 1px solid #ffcccc;
+}
+
+@media (max-width: 992px) {
+  .prod-hero {
+    grid-template-columns: 1fr;
+  }
+}

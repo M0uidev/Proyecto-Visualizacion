@@ -13,6 +13,7 @@
   {% block extra_css %}{% endblock %}
 </head>
 <body>
+  <!-- Header -->
   <header>
     <nav class="navbar-sketched" aria-label="Principal">
       <a href="{% url 'index' %}" class="brand-title">Multitienda</a>
@@ -27,6 +28,7 @@
     </nav>
   </header>
 
+  <!-- Mega menu -->
   <div class="collapse menu-panel" id="mainMenu">
     <div class="menu-inner">
       <div class="menu-col">
@@ -58,10 +60,12 @@
     </div>
   </div>
 
+  <!-- Main content -->
   <main class="page-content">
     {% block content %}{% endblock %}
   </main>
 
+  <!-- Footer -->
   <footer class="site-footer">
     © 2025 Multitienda. Todos los derechos reservados.
   </footer>

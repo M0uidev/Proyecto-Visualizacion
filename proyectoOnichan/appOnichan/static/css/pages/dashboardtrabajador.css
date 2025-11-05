@@ -102,6 +102,12 @@ body {
   display: inline-block;
 }
 
+.dashboard-link {
+  font-size: 1.1rem;
+  padding: 0.5rem 1.5rem;
+  border-radius: 8px;
+}
+
 /* Modal styles */
 .modal {
   position: fixed;
