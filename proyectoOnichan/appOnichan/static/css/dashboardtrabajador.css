@@ -5,6 +5,7 @@
   --dash-text: #1f2937;
   --dash-muted: #6b7280;
   --dash-primary: #4f46e5;
+  --dash-card-border: rgba(148, 163, 184, 0.1);
 }
 
 body {
@@ -30,13 +31,10 @@ body {
   border-radius: 18px;
   box-shadow: var(--dash-card-shadow);
   padding: 1.5rem;
-  transition: transform 180ms ease, box-shadow 180ms ease;
+  border: 1px solid var(--dash-card-border);
 }
 
-.dash-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 24px 45px rgba(15, 23, 42, 0.18);
-}
+
 
 .metric-card {
   display: flex;
