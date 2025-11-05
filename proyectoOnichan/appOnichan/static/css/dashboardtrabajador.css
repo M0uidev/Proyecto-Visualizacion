@@ -19,6 +19,12 @@ body {
   gap: 2rem;
 }
 
+.dash-link-btn {
+  font-size: 1.1rem;
+  padding: 0.5rem 1.5rem;
+  border-radius: 8px;
+}
+
 .dash-card {
   background: var(--dash-card-bg);
   border-radius: 18px;
@@ -141,7 +147,7 @@ body {
 }
 
 .modal-head strong {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 600;
 }
 

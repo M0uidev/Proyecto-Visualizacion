@@ -4,91 +4,88 @@
 {% block title %}{{ p.name }} · Multitienda{% endblock %}
 
 {% block extra_css %}
-<style>
-  .prod-hero{display:grid;grid-template-columns:1fr 1fr;gap:2rem}
-  .thumb{aspect-ratio:1/1;border:1px solid #eee;border-radius:.75rem;overflow:hidden}
-  .price{font-size:2rem;font-weight:700}
-  .price-old{text-decoration:line-through;opacity:.6}
-  .badge-sale{padding:.25rem .5rem;border-radius:.5rem;background:#ffe5e5;border:1px solid #ffcccc}
-  @media (max-width: 992px){.prod-hero{grid-template-columns:1fr}}
-</style>
+  <link rel="stylesheet" href="{% static 'css/pages/producto_detalle.css' %}">
 {% endblock %}
 
 {% block content %}
-<nav class="container mb-3">
-  <ol class="breadcrumb mb-0">
-    {% for crumb in d.breadcrumbs %}
-      {% if forloop.last %}
-        <li class="breadcrumb-item active">{{ crumb }}</li>
-      {% else %}
-        <li class="breadcrumb-item"><a href="{% url 'pagina1' %}">{{ crumb }}</a></li>
-      {% endif %}
-    {% endfor %}
-  </ol>
-</nav>
+  <!-- Breadcrumb -->
+  <nav class="container mb-3">
+    <ol class="breadcrumb mb-0">
+      {% for crumb in d.breadcrumbs %}
+        {% if forloop.last %}
+          <li class="breadcrumb-item active">{{ crumb }}</li>
+        {% else %}
+          <li class="breadcrumb-item"><a href="{% url 'pagina1' %}">{{ crumb }}</a></li>
+        {% endif %}
+      {% endfor %}
+    </ol>
+  </nav>
 
-<section class="container prod-hero">
-  <div>
-    <div class="thumb mb-3">
-      <img src="{{ p.image_url }}" alt="{{ p.name }}" class="w-100 h-100 object-fit-cover">
-    </div>
-  </div>
-
-  <div>
-    <div class="d-flex justify-content-between align-items-start">
-      <div>
-        <h1 class="h4 mb-1">{{ p.name }}</h1>
-        <div class="small text-muted">★★★★☆ {{ d.rating }} ({{ d.rating_count }})</div>
+  <!-- Product hero -->
+  <section class="container prod-hero">
+    <div>
+      <div class="product-thumb mb-3">
+        <img src="{{ p.image_url }}" alt="{{ p.name }}" class="w-100 h-100 object-fit-cover">
       </div>
-      <div class="text-muted">ID producto: #{{ p.id }}</div>
     </div>
 
-    <hr>
-
-    {% if d.color %}<p class="mb-1"><strong>Color:</strong> {{ d.color }}</p>{% endif %}
-
-    <div class="d-flex align-items-center gap-3 my-2">
-      <div class="price">${{ p.price }}</div>
-      {% if d.precio_original %}
-        <div class="price-old">${{ d.precio_original }}</div>
-        <span class="badge-sale">{{ d.descuento_pct }}% dcto</span>
-      {% endif %}
-    </div>
-
-    <p class="mb-2">
-      <strong>{{ d.envio }}</strong>{% if d.llega %} · Llega <u>{{ d.llega }}</u>{% endif %}
-    </p>
-
-    {% if d.sizes %}
-      <div class="mb-3">
-        <h2 class="h6 mb-2">Tallas disponibles</h2>
-        <div class="d-flex flex-wrap gap-2">
-          {% for t in d.sizes %}
-            <span class="badge text-bg-light border">{{ t }}</span>
-          {% endfor %}
+    <div>
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h1 class="h4 mb-1">{{ p.name }}</h1>
+          <div class="small text-muted">★★★★☆ {{ d.rating }} ({{ d.rating_count }})</div>
         </div>
+        <div class="text-muted">ID producto: #{{ p.id }}</div>
       </div>
-    {% endif %}
 
-    {% if d.capacity_l %}
-      <p class="mb-2"><strong>Capacidad:</strong> {{ d.capacity_l }} L</p>
-    {% endif %}
+      <hr>
 
-    {% if d.warranty %}
-      <p class="mb-2"><strong>Garantía:</strong> {{ d.warranty }}</p>
-    {% endif %}
+      {% if d.color %}<p class="mb-1"><strong>Color:</strong> {{ d.color }}</p>{% endif %}
 
-    <div class="mb-3">
-      <h2 class="h6">Especificaciones</h2>
-      <ul class="mb-1">
-        {% for s in d.specs %}<li>{{ s }}</li>{% endfor %}
-      </ul>
-      {% if d.care %}
-        <div class="small text-muted">Cuidado: {{ d.care|join:", " }}</div>
+      <div class="d-flex align-items-center gap-3 my-2">
+        <div class="product-price">${{ p.price }}</div>
+        {% if d.precio_original %}
+          <div class="product-price-old">${{ d.precio_original }}</div>
+          <span class="badge-sale">{{ d.descuento_pct }}% dcto</span>
+        {% endif %}
+      </div>
+
+      <p class="mb-2">
+        <strong>{{ d.envio }}</strong>{% if d.llega %} · Llega <u>{{ d.llega }}</u>{% endif %}
+      </p>
+
+      {% if d.sizes %}
+        <div class="mb-3">
+          <h2 class="h6 mb-2">Tallas disponibles</h2>
+          <div class="d-flex flex-wrap gap-2">
+            {% for t in d.sizes %}
+              <span class="badge text-bg-light border">{{ t }}</span>
+            {% endfor %}
+          </div>
+        </div>
       {% endif %}
-    </div>
 
-    <button class="btn btn-dark btn-lg">Agregar al carro</button>
-  </div>
-</section>
+      {% if d.capacity_l %}
+        <p class="mb-2"><strong>Capacidad:</strong> {{ d.capacity_l }} L</p>
+      {% endif %}
+
+      {% if d.warranty %}
+        <p class="mb-2"><strong>Garantía:</strong> {{ d.warranty }}</p>
+      {% endif %}
+
+      <div class="mb-3">
+        <h2 class="h6">Especificaciones</h2>
+        <ul class="mb-1">
+          {% for s in d.specs %}
+            <li>{{ s }}</li>
+          {% endfor %}
+        </ul>
+        {% if d.care %}
+          <div class="small text-muted">Cuidado: {{ d.care|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <button class="btn btn-dark btn-lg">Agregar al carro</button>
+    </div>
+  </section>
 {% endblock %}
