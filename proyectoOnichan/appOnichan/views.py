@@ -1,298 +1,375 @@
 import json
 
-from django.shortcuts import render
-from django.http import Http404
+from django.shortcuts import render, redirect
+from django.http import Http404, HttpResponseForbidden
+from django.db.models import Sum, Count, F
+from django.utils import timezone
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import Group
 
-PRODUCTOS = [
-    {"id": 101, "name": "Polera Oversized Negra",    "price": 14990, "image_url": "/static/images/productos/polera_negra.png",     "is_new": True},
-    {"id": 102, "name": "Zapatillas Urban Classic",   "price": 39990, "image_url": "/static/images/productos/zapatillas_urban.png", "is_new": False},
-    {"id": 103, "name": "Pantalón Cargo Verde",       "price": 29990, "image_url": "/static/images/productos/pantalon_cargo.png",   "is_new": True},
-    {"id": 104, "name": "Chaqueta Denim Azul",        "price": 34990, "image_url": "/static/images/productos/chaqueta_denim.png",   "is_new": False},
-    {"id": 105, "name": "Gorro Beanie Gris",          "price": 9990, "image_url": "/static/images/productos/gorro_gris.png",       "is_new": True},
-    {"id": 106, "name": "Polerón Essential Blanco",   "price": 25990, "image_url": "/static/images/productos/poleron_blanco.png",   "is_new": False},
-    {"id": 107, "name": "Mochila Explorer Negra",     "price": 27990, "image_url": "/static/images/productos/mochila_negra.png",    "is_new": False},
-    {"id": 108, "name": "Botines Urbanos Cuero",      "price": 49990, "image_url": "/static/images/productos/botines_cuero.png",    "is_new": True},
-    {"id": 109, "name": "Cinturón Minimal",           "price": 12990, "image_url": "/static/images/productos/cinturon.png",         "is_new": False},
-    {"id": 110, "name": "Reloj Vintage Metal",        "price": 55990, "image_url": "/static/images/productos/reloj_metal.png",      "is_new": True},
-]
-
-# Detalle con sentido por producto (puedes tunear lo que quieras)
-PRODUCT_DETAILS = {
-    101: {  # Polera
-        "breadcrumbs": ["Home", "Moda", "Poleras"],
-        "rating": 4.6, "rating_count": 384,
-        "color": "Negro",
-        "sizes": ["S", "M", "L", "XL"],
-        "specs": ["Algodón 100% peinado 220 GSM", "Fit oversized unisex", "Cuello reforzado", "No destiñe"],
-        "care": ["Lavar a 30°C", "No cloro", "Planchar tibio del revés"],
-        "descuento_pct": 15, "envio": "Envío gratis", "llega": "Mañana",
-    },
-    102: {  # Zapatillas
-        "breadcrumbs": ["Home", "Calzado", "Zapatillas"],
-        "rating": 4.8, "rating_count": 1207,
-        "color": "Blanco/Negro",
-        "sizes": ["38","39","40","41","42","43","44"],
-        "specs": ["Suela EVA antideslizante", "Plantilla memory foam", "Capellada respirable"],
-        "descuento_pct": 25, "envio": "Retiro hoy en tienda B", "llega": "Jueves",
-    },
-    103: {  # Pantalón cargo
-        "breadcrumbs": ["Home", "Moda", "Pantalones"],
-        "rating": 4.5, "rating_count": 228,
-        "color": "Verde oliva",
-        "sizes": ["28","30","32","34","36"],
-        "specs": ["Tela ripstop stretch", "6 bolsillos funcionales", "Cintura ajustable"],
-        "descuento_pct": 20, "envio": "Envío gratis", "llega": "Mañana",
-    },
-    104: {  # Chaqueta
-        "breadcrumbs": ["Home", "Moda", "Chaquetas"],
-        "rating": 4.7, "rating_count": 312,
-        "color": "Azul índigo",
-        "sizes": ["S","M","L","XL"],
-        "specs": ["Denim 12 oz", "Costuras reforzadas", "Botones metálicos"],
-        "descuento_pct": 10, "envio": "Despacho programado", "llega": "Viernes",
-    },
-    105: {  # Beanie
-        "breadcrumbs": ["Home", "Accesorios", "Gorros"],
-        "rating": 4.4, "rating_count": 97,
-        "color": "Gris",
-        "specs": ["Tejido acrílico hipoalergénico", "Unisex", "Talla única"],
-        "descuento_pct": 0, "envio": "Retiro hoy en tienda A", "llega": "Mañana",
-    },
-    106: {  # Polerón
-        "breadcrumbs": ["Home", "Moda", "Polerones"],
-        "rating": 4.6, "rating_count": 541,
-        "color": "Blanco",
-        "sizes": ["S","M","L","XL"],
-        "specs": ["French terry 300 GSM", "Capucha forrada", "Bolsillo canguro"],
-        "descuento_pct": 18, "envio": "Envío gratis", "llega": "Mañana",
-    },
-    107: {  # Mochila
-        "breadcrumbs": ["Home", "Accesorios", "Mochilas"],
-        "rating": 4.7, "rating_count": 660,
-        "color": "Negro",
-        "capacity_l": 22,
-        "specs": ["Compartimento laptop 15.6\"", "Tela repelente al agua", "Bolsillo oculto"],
-        "descuento_pct": 12, "envio": "Envío a domicilio", "llega": "Jueves",
-    },
-    108: {  # Botines
-        "breadcrumbs": ["Home", "Calzado", "Botines"],
-        "rating": 4.9, "rating_count": 188,
-        "color": "Cuero café",
-        "sizes": ["39","40","41","42","43"],
-        "specs": ["Cuero legítimo", "Suela antideslizante", "Forro respirable"],
-        "descuento_pct": 30, "envio": "Envío gratis", "llega": "Mañana",
-    },
-    109: {  # Cinturón
-        "breadcrumbs": ["Home", "Accesorios", "Cinturones"],
-        "rating": 4.3, "rating_count": 75,
-        "color": "Negro",
-        "sizes": ["S (80-90)","M (90-100)","L (100-110)"],
-        "specs": ["Cuero sintético premium", "Hebilla metálica mate"],
-        "descuento_pct": 5, "envio": "Retiro en tienda C", "llega": "Viernes",
-    },
-    110: {  # Reloj
-        "breadcrumbs": ["Home", "Accesorios", "Relojes"],
-        "rating": 4.8, "rating_count": 420,
-        "color": "Acero",
-        "specs": ["Cuarzo japonés", "Resistencia al agua 5 ATM", "Malla de acero"],
-        "warranty": "12 meses",
-        "descuento_pct": 22, "envio": "Envío asegurado", "llega": "Miércoles",
-    },
-}
+from .models import (
+    Product,
+    ProductDetail,
+    ProductSize,
+    ProductSpec,
+    ProductCare,
+    ProductBreadcrumb,
+    Customer,
+    Order,
+    OrderItem,
+)
 
 def index(request):
     return pagina1(request)
 
 def pagina1(request):
-    return render(request, "pagina1.html", {"productos": PRODUCTOS})
+    productos = Product.objects.all().order_by("id")
+    return render(request, "pagina1.html", {"productos": productos})
 
-def iniciosesionadmin(request):
-    return render(request, "iniciosesionadmin.html")
+def login_view(request):
+    """Login unificado para admin, trabajador y cliente.
 
+    - Admin: redirige a dashboardadmin/
+    - Trabajador: redirige a dashboardtrabajador/
+    - Cliente: redirige a pagina1/
+    """
+    if request.method == "POST":
+        username = request.POST.get("username", "").strip()
+        password = request.POST.get("password", "").strip()
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            # Decide redirección por rol
+            if user.is_superuser or user.is_staff or user.groups.filter(name__iexact="admin").exists():
+                return redirect("dashboardadmin")
+            if user.groups.filter(name__iexact="trabajador").exists():
+                return redirect("dashboardtrabajador")
+            # default: cliente
+            return redirect("pagina1")
+        else:
+            return render(request, "login.html", {"error": "Usuario o contraseña inválidos."})
+
+    return render(request, "login.html")
+
+
+def logout_view(request):
+    logout(request)
+    return redirect("pagina1")
+
+@login_required
 def pagina3(request):
     return render(request, "pagina3.html")
 
+@login_required
 def dashboardadmin(request):
+    # Solo administradores
+    user = request.user
+    if not (user.is_superuser or user.is_staff or user.groups.filter(name__iexact="admin").exists()):
+        return HttpResponseForbidden("No autorizado")
+    # KPIs
+    today = timezone.localdate()
+    last7 = today - timezone.timedelta(days=6)
+
+    pedidos_hoy = Order.objects.filter(fecha=today).count()
+    pendientes = Order.objects.filter(estado="Pendiente").count()
+    ingresos_7d = (
+        Order.objects.filter(fecha__gte=last7, fecha__lte=today).aggregate(total=Sum("total")).get("total")
+        or 0
+    )
+
+    # Line chart by weekday name (Mon-Sun in Spanish abbreviations)
+    weekday_labels = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+    day_counts = {label: 0 for label in weekday_labels}
+    delivered_counts = {label: 0 for label in weekday_labels}
+    pending_counts = {label: 0 for label in weekday_labels}
+
+    orders_7d = Order.objects.filter(fecha__gte=last7, fecha__lte=today)
+    for o in orders_7d:
+        # Python's weekday(): Monday=0 ... Sunday=6
+        idx = o.fecha.weekday()
+        label = weekday_labels[idx]
+        day_counts[label] += 1
+        if o.estado == "Entregado":
+            delivered_counts[label] += 1
+        elif o.estado == "Pendiente":
+            pending_counts[label] += 1
+
+    line_labels = weekday_labels
+    line_values = [day_counts[l] for l in line_labels]
+    line_detalles = {
+        l: {"Entregados": delivered_counts[l], "Pendientes": pending_counts[l]} for l in line_labels
+    }
+
+    # Top products by units sold (last 30 days)
+    last30 = today - timezone.timedelta(days=30)
+    top = (
+        OrderItem.objects.filter(order__fecha__gte=last30)
+        .values("product__name")
+        .annotate(units=Sum("cantidad"))
+        .order_by("-units")[:4]
+    )
+    top_labels = [t["product__name"] for t in top]
+    top_values = [t["units"] for t in top]
+    detalles_top = {}
+    # Breakdown by size/color (using size field) for each top product
+    for label in top_labels:
+        qs = (
+            OrderItem.objects.filter(order__fecha__gte=last30, product__name=label)
+            .values("size")
+            .annotate(units=Sum("cantidad"))
+            .order_by("-units")
+        )
+        detalles_top[label] = { (r["size"] or "Único"): r["units"] for r in qs }
+
+    # Revenue by category (last 30 days) + online/tienda split
+    cat_rows = (
+        OrderItem.objects.filter(order__fecha__gte=last30)
+        .values("product__category__name", "order__channel")
+        .annotate(revenue=Sum(F("cantidad") * F("price")))
+    )
+    cat_totals = {}
+    cat_details = {}
+    for r in cat_rows:
+        cat = r["product__category__name"] or "Otros"
+        ch = r["order__channel"] or "Online"
+        rev = r["revenue"] or 0
+        cat_totals[cat] = cat_totals.get(cat, 0) + rev
+        det = cat_details.get(cat, {})
+        det[ch] = det.get(ch, 0) + rev
+        cat_details[cat] = det
+
+    cat_labels = list(cat_totals.keys())
+    cat_values = [cat_totals[c] for c in cat_labels]
+
     dashboard_data = {
         "kpis": {
-            "pedidos_hoy": {"value": 28, "trend": "+4 vs. ayer"},
-            "pendientes": {"value": 12, "trend": "-2 respecto a la semana pasada"},
-            "ingresos_7d": {"value": 1987500, "trend": "+6% semana previa", "isCurrency": True},
+            "pedidos_hoy": {"value": pedidos_hoy, "trend": ""},
+            "pendientes": {"value": pendientes, "trend": ""},
+            "ingresos_7d": {"value": ingresos_7d, "trend": "", "isCurrency": True},
         },
         "lineChart": {
-            "labels": ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
-            "values": [20, 24, 21, 27, 32, 34, 26],
-            "detalles": {
-                "Lun": {"Entregados": 16, "Pendientes": 4},
-                "Mar": {"Entregados": 19, "Pendientes": 5},
-                "Mié": {"Entregados": 17, "Pendientes": 4},
-                "Jue": {"Entregados": 22, "Pendientes": 5},
-                "Vie": {"Entregados": 26, "Pendientes": 6},
-                "Sáb": {"Entregados": 28, "Pendientes": 6},
-                "Dom": {"Entregados": 21, "Pendientes": 5},
-            },
+            "labels": line_labels,
+            "values": line_values,
+            "detalles": line_detalles,
         },
         "topProducts": {
-            "labels": ["Polera Oversized", "Zapatillas Urban", "Chaqueta Azul", "Mochila Explorer"],
-            "values": [48, 39, 31, 24],
-            "detalles": {
-                "Polera Oversized": {"Negro / M": 16, "Negro / L": 14, "Blanco / M": 10, "Blanco / L": 8},
-                "Zapatillas Urban": {"41": 13, "42": 11, "43": 9, "44": 6},
-                "Chaqueta Azul": {"S": 8, "M": 10, "L": 7, "XL": 6},
-                "Mochila Explorer": {"Negro": 11, "Gris": 7, "Arena": 6},
-            },
+            "labels": top_labels,
+            "values": top_values,
+            "detalles": detalles_top,
         },
         "categoryRevenue": {
-            "labels": ["Ropa", "Calzado", "Accesorios", "Equipaje"],
-            "values": [580000, 436500, 208000, 160500],
-            "detalles": {
-                "Ropa": {"Online": 350000, "Tienda": 230000},
-                "Calzado": {"Online": 260000, "Tienda": 176500},
-                "Accesorios": {"Online": 125000, "Tienda": 83000},
-                "Equipaje": {"Online": 90500, "Tienda": 70000},
-            },
+            "labels": cat_labels,
+            "values": cat_values,
+            "detalles": cat_details,
         },
     }
 
-    context = {
-        "data_json": json.dumps(dashboard_data),
-    }
-
+    context = {"data_json": json.dumps(dashboard_data)}
     return render(request, "dashboardadmin.html", context)
 
+
+@login_required
+def dashboardtrabajador(request):
+    """Dashboard para trabajador: gráfico de pie con ventas del día por producto."""
+    user = request.user
+    # Restringir a trabajadores y administradores (admin también puede ver)
+    if not (
+        user.groups.filter(name__iexact="trabajador").exists()
+        or user.is_staff
+        or user.is_superuser
+        or user.groups.filter(name__iexact="admin").exists()
+    ):
+        return HttpResponseForbidden("No autorizado")
+
+    today = timezone.localdate()
+    rows = (
+        OrderItem.objects.filter(order__fecha=today)
+        .values("product__name")
+        .annotate(units=Sum("cantidad"))
+        .order_by("product__name")
+    )
+    labels = [r["product__name"] for r in rows]
+    values = [r["units"] for r in rows]
+
+    data = {"labels": labels, "values": values, "date": today.isoformat()}
+    return render(request, "dashboardtrabajador.html", {"data_json": json.dumps(data)})
+
+@login_required
 def pagina3(request):
-    orders_data = {
-        "orders": [
-            {
-                "id": "PED-001",
-                "fecha": "2025-11-03",
-                "cliente": "Juan Pérez",
-                "total": 54990,
-                "estado": "Pendiente",
-                "productos": [
-                    {"nombre": "Polera Oversized Negra", "cantidad": 2},
-                    {"nombre": "Gorro Beanie Gris", "cantidad": 1}
-                ]
-            },
-            {
-                "id": "PED-002",
-                "fecha": "2025-11-03",
-                "cliente": "María González",
-                "total": 89980,
-                "estado": "Despachado",
-                "productos": [
-                    {"nombre": "Zapatillas Urban Classic", "cantidad": 1},
-                    {"nombre": "Cinturón Minimal", "cantidad": 2}
-                ]
-            },
-            {
-                "id": "PED-003",
-                "fecha": "2025-11-02",
-                "cliente": "Carlos Rodríguez",
-                "total": 34990,
-                "estado": "Entregado",
-                "productos": [
-                    {"nombre": "Chaqueta Denim Azul", "cantidad": 1}
-                ]
-            }
-        ],
-        "estadisticas": {
-            "total_pedidos": 3,
-            "pendientes": 1,
-            "despachados": 1,
-            "entregados": 1,
-            "cancelados": 0
-        }
-    }
-    
-    return render(request, "pagina3.html", {"data": json.dumps(orders_data)})
+    # Solo trabajadores y administradores
+    user = request.user
+    if not (
+        user.groups.filter(name__iexact="trabajador").exists()
+        or user.is_staff
+        or user.is_superuser
+        or user.groups.filter(name__iexact="admin").exists()
+    ):
+        return HttpResponseForbidden("No autorizado")
+    # Obtener pedidos desde la BD y devolver la misma estructura JSON usada por el front
+    orders = []
+    for o in Order.objects.select_related("cliente").prefetch_related("items__product").order_by("-fecha", "code"):
+        productos = [
+            {"nombre": it.product.name, "cantidad": it.cantidad}
+            for it in o.items.all()
+        ]
+        orders.append({
+            "id": o.code,
+            "fecha": o.fecha.isoformat(),
+            "cliente": o.cliente.name,
+            "total": o.total,
+            "estado": o.estado,
+            "productos": productos,
+        })
 
-def pagina3(request):
-    # Generar 20 pedidos de ejemplo
-    pedidos = []
-    estados = ["Pendiente", "Despachado", "Entregado", "Cancelado"]
-    nombres = ["Juan Pérez", "María González", "Carlos Rodríguez", "Ana Silva", "Luis Torres", 
-              "Carmen Ruiz", "Diego Muñoz", "Patricia Lagos", "Roberto Vera", "Isabel Ortiz"]
-    productos = [
-        {"nombre": "Polera Oversized Negra", "precio": 14990},
-        {"nombre": "Zapatillas Urban Classic", "precio": 39990},
-        {"nombre": "Pantalón Cargo Verde", "precio": 29990},
-        {"nombre": "Chaqueta Denim Azul", "precio": 34990},
-        {"nombre": "Gorro Beanie Gris", "precio": 9990},
-        {"nombre": "Polerón Essential Blanco", "precio": 25990},
-        {"nombre": "Mochila Explorer Negra", "precio": 27990},
-        {"nombre": "Botines Urbanos Cuero", "precio": 49990},
-    ]
-    
-    import random
-    from datetime import datetime, timedelta
-
-    for i in range(1, 21):
-        # Generar fecha aleatoria en los últimos 7 días
-        dias_atras = random.randint(0, 7)
-        fecha = datetime.now() - timedelta(days=dias_atras)
-        
-        # Seleccionar productos aleatorios para el pedido
-        productos_pedido = []
-        num_productos = random.randint(1, 3)
-        productos_seleccionados = random.sample(productos, num_productos)
-        total = 0
-        
-        for producto in productos_seleccionados:
-            cantidad = random.randint(1, 3)
-            productos_pedido.append({
-                "nombre": producto["nombre"],
-                "cantidad": cantidad
-            })
-            total += producto["precio"] * cantidad
-
-        pedido = {
-            "id": f"PED-{i:03d}",
-            "fecha": fecha.strftime("%Y-%m-%d"),
-            "cliente": random.choice(nombres),
-            "total": total,
-            "estado": random.choice(estados),
-            "productos": productos_pedido
-        }
-        pedidos.append(pedido)
-    
-    # Ordenar por fecha más reciente primero
-    pedidos.sort(key=lambda x: x["fecha"], reverse=True)
-    
-    # Calcular estadísticas
     estadisticas = {
-        "total_pedidos": len(pedidos),
-        "pendientes": sum(1 for p in pedidos if p["estado"] == "Pendiente"),
-        "despachados": sum(1 for p in pedidos if p["estado"] == "Despachado"),
-        "entregados": sum(1 for p in pedidos if p["estado"] == "Entregado"),
-        "cancelados": sum(1 for p in pedidos if p["estado"] == "Cancelado"),
-        "total_ventas": sum(p["total"] for p in pedidos)
+        "total_pedidos": len(orders),
+        "pendientes": sum(1 for p in orders if p["estado"] == "Pendiente"),
+        "despachados": sum(1 for p in orders if p["estado"] == "Despachado"),
+        "entregados": sum(1 for p in orders if p["estado"] == "Entregado"),
+        "cancelados": sum(1 for p in orders if p["estado"] == "Cancelado"),
+        "total_ventas": sum(p["total"] for p in orders),
     }
-    
-    orders_data = {
-        "orders": pedidos,
-        "estadisticas": estadisticas
-    }
-    
-    return render(request, "pagina3.html", {"data": json.dumps(orders_data)})
+
+    data = {"orders": orders, "estadisticas": estadisticas}
+    return render(request, "pagina3.html", {"data": json.dumps(data)})
 
 def producto_detalle(request, pid: int):
-    producto = next((p for p in PRODUCTOS if p["id"] == pid), None)
-    if not producto:
+    try:
+        p = Product.objects.get(pk=pid)
+    except Product.DoesNotExist:
         raise Http404("Producto no encontrado")
 
-    # Detalle específico si existe, si no, uno base.
-    d = PRODUCT_DETAILS.get(pid, {
-        "breadcrumbs": ["Home", "Productos"],
-        "rating": 4.5, "rating_count": 100,
-        "color": "Único",
-        "specs": ["Producto de alta calidad"],
-        "descuento_pct": 0, "envio": "Envío a todo Chile", "llega": "Próxima semana",
-    })
+    # Construir el diccionario de detalle desde las tablas normalizadas
+    det = getattr(p, "detail", None)
+    d = {
+        "breadcrumbs": [b.label for b in p.breadcrumbs.all()],
+        "rating": float(det.rating) if det else 4.5,
+        "rating_count": det.rating_count if det else 0,
+        "color": det.color if det else "",
+        "sizes": [s.label for s in p.sizes.all()],
+        "specs": [s.text for s in p.specs.all()],
+        "care": [c.text for c in p.care.all()],
+        "descuento_pct": det.descuento_pct if det else 0,
+        "envio": det.envio if det else "",
+        "llega": det.llega if det else "",
+        "warranty": det.warranty if det else "",
+        "capacity_l": det.capacity_l if det else None,
+    }
 
-    # Precio original si hay descuento
-    precio = producto["price"]
-    descuento = d.get("descuento_pct", 0)
-    d["precio_original"] = round(precio / (1 - descuento/100)) if descuento else None
+    descuento = d.get("descuento_pct", 0) or 0
+    d["precio_original"] = round(p.price / (1 - descuento / 100)) if descuento else None
 
-    return render(request, "producto_detalle.html", {"p": producto, "d": d})
+    return render(request, "producto_detalle.html", {"p": p, "d": d})
+
+
+@login_required
+def pos_view(request):
+    """Caja (POS) para trabajador: construir pedido y finalizar venta presencial."""
+    user = request.user
+    if not (
+        user.groups.filter(name__iexact="trabajador").exists()
+        or user.is_staff
+        or user.is_superuser
+        or user.groups.filter(name__iexact="admin").exists()
+    ):
+        return HttpResponseForbidden("No autorizado")
+
+    # Carrito en sesión: {product_id: cantidad}
+    cart = request.session.get("pos_cart", {})
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "add":
+            pid = request.POST.get("product_id")
+            qty = int(request.POST.get("qty", 1) or 1)
+            if pid and Product.objects.filter(pk=pid).exists():
+                cart[str(pid)] = cart.get(str(pid), 0) + max(qty, 1)
+                request.session["pos_cart"] = cart
+            return redirect("pos")
+
+        if action == "remove":
+            pid = request.POST.get("product_id")
+            if pid and str(pid) in cart:
+                cart.pop(str(pid), None)
+                request.session["pos_cart"] = cart
+            return redirect("pos")
+
+        if action == "clear":
+            request.session["pos_cart"] = {}
+            return redirect("pos")
+
+        if action == "finalize":
+            if not cart:
+                return redirect("pos")
+
+            today = timezone.localdate()
+            # Cliente genérico de mostrador
+            cliente, _ = Customer.objects.get_or_create(name="Mostrador")
+
+            # Generar código único simple POSYYYYMMDD-XXXX
+            base = today.strftime("POS%Y%m%d")
+            seq = 1
+            while True:
+                code = f"{base}-{seq:04d}"
+                if not Order.objects.filter(code=code).exists():
+                    break
+                seq += 1
+
+            order = Order.objects.create(
+                code=code,
+                fecha=today,
+                cliente=cliente,
+                total=0,
+                estado="Entregado",
+                channel="Tienda",  # presencial
+            )
+
+            total = 0
+            for pid, qty in cart.items():
+                try:
+                    p = Product.objects.get(pk=int(pid))
+                except Product.DoesNotExist:
+                    continue
+                qty = int(qty)
+                item = OrderItem.objects.create(
+                    order=order,
+                    product=p,
+                    cantidad=qty,
+                    price=p.price,
+                    size="",
+                )
+                total += item.subtotal
+
+            order.total = total
+            order.save()
+
+            # Vaciar carrito
+            request.session["pos_cart"] = {}
+
+            return redirect("dashboardtrabajador")
+
+    # Preparar datos de vista
+    productos = Product.objects.all().order_by("id")
+    cart_items = []
+    cart_total = 0
+    for pid, qty in cart.items():
+        try:
+            p = Product.objects.get(pk=int(pid))
+        except Product.DoesNotExist:
+            continue
+        subtotal = p.price * int(qty)
+        cart_total += subtotal
+        cart_items.append({
+            "id": p.id,
+            "name": p.name,
+            "price": p.price,
+            "qty": int(qty),
+            "subtotal": subtotal,
+        })
+
+    return render(
+        request,
+        "pos.html",
+        {"productos": productos, "cart_items": cart_items, "cart_total": cart_total},
+    )

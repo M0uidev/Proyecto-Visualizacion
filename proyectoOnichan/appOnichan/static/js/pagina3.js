@@ -326,6 +326,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const statusText = product.status;
       const statusClass = getStatusClass(statusText);
 
+      const actions = [
+        `<button class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${product.code}">
+              <i class="bi bi-pencil"></i>
+            </button>`
+      ];
+      if (window.IS_ADMIN) {
+        actions.push(`
+            <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${product.code}">
+              <i class="bi bi-trash"></i>
+            </button>`);
+      }
+
       return (
       `<tr>
         <td>${product.code}</td>
@@ -336,12 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <td><span class="badge bg-${statusClass}">${statusText}</span></td>
         <td>
           <div class="btn-group">
-            <button class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${product.code}">
-              <i class="bi bi-pencil"></i>
-            </button>
-            <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${product.code}">
-              <i class="bi bi-trash"></i>
-            </button>
+            ${actions.join('')}
           </div>
         </td>
       </tr>`
@@ -387,9 +394,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const productId = button.dataset.id;
 
     if (action === 'edit') {
-      alert(`Editar producto ${productId}`);
+      const product = PRODUCTS.find(p => p.code === productId);
+      if (!product) return;
+      const newVal = prompt(`Nueva cantidad para ${product.name}`, String(product.stock));
+      if (newVal === null) return;
+      const parsed = parseInt(newVal, 10);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        alert('Cantidad inválida');
+        return;
+      }
+      product.stock = parsed;
+      product.status = updateStockStatus(product);
+      renderTable();
     } else if (action === 'delete') {
-      alert(`Eliminar producto ${productId}`);
+      if (!window.IS_ADMIN) return;
+      const idx = PRODUCTS.findIndex(p => p.code === productId);
+      if (idx >= 0) {
+        PRODUCTS.splice(idx, 1);
+        renderTable();
+      }
     }
   });
 

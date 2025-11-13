@@ -1,8 +1,20 @@
 {% extends "base.html" %}
 
+{% load roles %}
 {% block nav_right %}
-  <a href="#" class="nav-link"><i class="bi bi-person"></i>Iniciar Sesión</a>
-  <a href="#" class="nav-link" aria-label="Carrito"><i class="bi bi-cart"></i>Carrito</a>
+  {% if user.is_authenticated %}
+    {% if user.is_staff or user.is_superuser or user|has_group:'admin' %}
+      <a href="{% url 'dashboardadmin' %}" class="nav-link"><i class="bi bi-speedometer2"></i>Admin</a>
+      <a href="{% url 'stock' %}" class="nav-link"><i class="bi bi-box-seam"></i>Stock</a>
+    {% elif user|has_group:'trabajador' %}
+      <a href="{% url 'dashboardtrabajador' %}" class="nav-link"><i class="bi bi-speedometer2"></i>Trabajador</a>
+      <a href="{% url 'stock' %}" class="nav-link"><i class="bi bi-box-seam"></i>Stock</a>
+      <a href="{% url 'pos' %}" class="nav-link"><i class="bi bi-cash"></i>Caja</a>
+    {% endif %}
+    <a href="{% url 'logout' %}" class="nav-link"><i class="bi bi-box-arrow-right"></i>Salir</a>
+  {% else %}
+    <a href="{% url 'login' %}" class="nav-link"><i class="bi bi-person"></i>Iniciar Sesión</a>
+  {% endif %}
 {% endblock %}
 
 {% block nav_left %}

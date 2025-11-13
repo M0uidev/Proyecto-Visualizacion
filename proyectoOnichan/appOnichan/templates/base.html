@@ -1,4 +1,5 @@
 {% load static %}
+{% load roles %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -21,7 +22,24 @@
         <a href="#mainMenu" class="nav-link" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="mainMenu">
           <i class="bi bi-list"></i>Menú
         </a>
-        {% block nav_right %}{% endblock %}
+        {% block nav_right %}
+          {% if user.is_authenticated %}
+            {% if user.is_staff or user.is_superuser or user|has_group:'admin' %}
+              <a href="{% url 'dashboardadmin' %}" class="nav-link"><i class="bi bi-speedometer2"></i>Admin</a>
+              <a href="{% url 'stock' %}" class="nav-link"><i class="bi bi-box-seam"></i>Stock</a>
+              <a href="{% url 'logout' %}" class="nav-link"><i class="bi bi-box-arrow-right"></i>Salir</a>
+            {% elif user|has_group:'trabajador' %}
+              <a href="{% url 'dashboardtrabajador' %}" class="nav-link"><i class="bi bi-speedometer2"></i>Trabajador</a>
+              <a href="{% url 'stock' %}" class="nav-link"><i class="bi bi-box-seam"></i>Stock</a>
+              <a href="{% url 'pos' %}" class="nav-link"><i class="bi bi-cash"></i>Caja</a>
+              <a href="{% url 'logout' %}" class="nav-link"><i class="bi bi-box-arrow-right"></i>Salir</a>
+            {% else %}
+              <a href="{% url 'logout' %}" class="nav-link"><i class="bi bi-box-arrow-right"></i>Salir</a>
+            {% endif %}
+          {% else %}
+            <a href="{% url 'login' %}" class="nav-link"><i class="bi bi-person"></i>Iniciar Sesión</a>
+          {% endif %}
+        {% endblock %}
       </div>
     </nav>
   </header>
@@ -54,7 +72,15 @@
         <a href="#">Sucursales</a>
         <a href="#">Envíos y devoluciones</a>
         <a href="#">Términos y privacidad</a>
-        <a href="{% url 'iniciosesionadmin' %}">Acceso administrador</a>
+        {% if user.is_authenticated %}
+          {% if user.is_staff or user.is_superuser or user|has_group:'admin' %}
+            <a href="{% url 'dashboardadmin' %}">Dashboard admin</a>
+          {% elif user|has_group:'trabajador' %}
+            <a href="{% url 'dashboardtrabajador' %}">Dashboard trabajador</a>
+          {% endif %}
+        {% else %}
+          <a href="{% url 'login' %}">Iniciar sesión</a>
+        {% endif %}
       </div>
     </div>
   </div>

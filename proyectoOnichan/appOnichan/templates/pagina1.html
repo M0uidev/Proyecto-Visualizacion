@@ -25,9 +25,6 @@
             <div class="card-body">
               <div class="d-flex align-items-start justify-content-between mb-2">
                 <h2 class="h6 product-title mb-0">{{ producto.name }}</h2>
-                {% if producto.is_new %}
-                  <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">Nuevo</span>
-                {% endif %}
               </div>
               <div class="product-price fs-5 fw-semibold">${{ producto.price }}</div>
             </div>

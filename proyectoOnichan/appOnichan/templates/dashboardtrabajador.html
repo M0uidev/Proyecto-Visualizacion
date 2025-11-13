@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard Trabajador{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/dashboardtrabajador.css' %}">
+{% endblock %}
+
+{% block content %}
+  <main class="container py-4">
+    <header class="d-flex justify-content-between align-items-center mb-4">
+      <h1 class="h4 mb-0">Ventas de hoy</h1>
+      <div class="d-flex gap-2">
+        <a href="{% url 'stock' %}" class="btn btn-outline-primary"><i class="bi bi-box-seam me-2"></i>Stock</a>
+        <a href="{% url 'pos' %}" class="btn btn-primary"><i class="bi bi-cash me-2"></i>Caja</a>
+      </div>
+    </header>
+
+    <section class="dash-card">
+      <header>
+        <h3 class="h5">Ventas por producto (hoy)</h3>
+      </header>
+      <div class="chart-wrapper" style="height: 380px;">
+        <canvas id="pieToday"></canvas>
+      </div>
+    </section>
+  </main>
+{% endblock %}
+
+{% block scripts %}
+  <script type="application/json" id="worker-data">{{ data_json|default:'{}'|safe }}</script>
+  <script src="{% static 'chart.js' %}"></script>
+  <script>
+    (function(){
+      const el = document.getElementById('worker-data');
+      let data = {labels: [], values: []};
+      try { data = JSON.parse(el.textContent || '{}'); } catch(e){}
+      const ctx = document.getElementById('pieToday').getContext('2d');
+      const palette = ['#4f46e5','#22c55e','#f97316','#0ea5e9','#ec4899','#f59e0b','#8b5cf6','#06b6d4'];
+      new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: data.labels,
+          datasets: [{
+            data: data.values,
+            backgroundColor: data.labels.map((_,i)=>palette[i%palette.length]),
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right' },
+            tooltip: { callbacks: { label: (ctx)=> `${ctx.label}: ${ctx.formattedValue} u.` } }
+          }
+        }
+      });
+    })();
+  </script>
+{% endblock %}

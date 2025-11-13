@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load roles %}
 
 {% block title %}Administración de Stock{% endblock %}
 
@@ -26,10 +27,17 @@
   </div>
 
   <main class="container-fluid py-4">
-    <div class="mb-4">
+    <div class="mb-4 d-flex gap-2">
+      {% if user.is_staff or user.is_superuser or user|has_group:"admin" %}
       <a href="{% url 'dashboardadmin' %}" class="btn btn-primary dash-link-btn">
         <i class="bi bi-graph-up me-2"></i>Dashboard Administrador
       </a>
+      {% endif %}
+      {% if user|has_group:"trabajador" %}
+      <a href="{% url 'dashboardtrabajador' %}" class="btn btn-outline-primary dash-link-btn">
+        <i class="bi bi-speedometer2 me-2"></i>Dashboard Trabajador
+      </a>
+      {% endif %}
     </div>
 
     <div class="dashboard-wrapper">
@@ -39,9 +47,11 @@
           <button id="btnRefresh" class="btn btn-primary">
             <i class="bi bi-arrow-clockwise me-2"></i>Actualizar
           </button>
-          <button id="btnAdd" class="btn btn-success">
-            <i class="bi bi-plus-lg me-2"></i>Nuevo Producto
-          </button>
+          {% if user.is_staff or user.is_superuser or user|has_group:"admin" %}
+            <button id="btnAdd" class="btn btn-success">
+              <i class="bi bi-plus-lg me-2"></i>Nuevo Producto
+            </button>
+          {% endif %}
         </div>
       </div>
 
