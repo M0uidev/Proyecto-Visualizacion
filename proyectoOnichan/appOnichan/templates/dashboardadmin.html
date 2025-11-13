@@ -9,17 +9,45 @@
 
 {% block content %}
   <main class="container-fluid py-4">
-    <div class="mb-4">
-      <a href="{% url 'stock' %}" class="btn btn-primary dash-link-btn">
-        <i class="bi bi-box-seam me-2"></i>Administrador Stock
-      </a>
+    <div class="mb-4 d-flex flex-wrap gap-2 align-items-center justify-content-between">
+      <div class="d-flex gap-2">
+      </div>
+      <form method="get" class="d-flex align-items-center gap-2">
+        <a class="btn btn-outline-secondary" href="{{ prev_url }}" title="Anterior">⟵</a>
+        <div class="input-group">
+          <span class="input-group-text">Periodo</span>
+          <select name="period" class="form-select">
+            <option value="week" {% if period == 'week' %}selected{% endif %}>Semana</option>
+            <option value="month" {% if period == 'month' %}selected{% endif %}>Mes</option>
+            <option value="year" {% if period == 'year' %}selected{% endif %}>Año</option>
+          </select>
+        </div>
+        {% if period == 'week' %}
+          <div class="input-group">
+            <span class="input-group-text">Semana</span>
+            <input type="date" class="form-control" name="week" value="{{ ref_value|default:'' }}" />
+          </div>
+        {% elif period == 'month' %}
+          <div class="input-group">
+            <span class="input-group-text">Mes</span>
+            <input type="month" class="form-control" name="month" value="{{ ref_value|default:'' }}" />
+          </div>
+        {% else %}
+          <div class="input-group">
+            <span class="input-group-text">Año</span>
+            <input type="number" class="form-control" name="year" value="{{ ref_value|default:'' }}" />
+          </div>
+        {% endif %}
+        <button class="btn btn-outline-primary" type="submit">Ver</button>
+        <a class="btn btn-outline-secondary" href="{{ next_url }}" title="Siguiente">⟶</a>
+      </form>
     </div>
 
     <div class="dashboard-wrapper">
       <section class="row g-4">
         <div class="col-12 col-md-4">
           <article class="dash-card metric-card" aria-labelledby="metricPedidosHoy">
-            <span class="metric-label" id="metricPedidosHoy">Pedidos hoy</span>
+            <span class="metric-label" id="metricPedidosHoy">Ventas hoy</span>
             <span class="metric-value" data-kpi="pedidos_hoy">--</span>
             <span class="metric-trend" data-kpi-trend="pedidos_hoy">&nbsp;</span>
           </article>
@@ -33,7 +61,7 @@
         </div>
         <div class="col-12 col-md-4">
           <article class="dash-card metric-card" aria-labelledby="metricIngresos">
-            <span class="metric-label" id="metricIngresos">Ingresos (7d)</span>
+            <span class="metric-label" id="metricIngresos">Ingresos ({{ period_title }})</span>
             <span class="metric-value" data-kpi="ingresos_7d">--</span>
             <span class="metric-trend" data-kpi-trend="ingresos_7d">&nbsp;</span>
           </article>
@@ -45,7 +73,7 @@
         <div class="col-12 col-lg-7">
           <article class="dash-card chart-card" aria-labelledby="chartLineTitle">
             <header>
-              <h3 id="chartLineTitle">Pedidos por día (7d)</h3>
+              <h3 id="chartLineTitle">{{ title_text }}</h3>
             </header>
             <div class="chart-wrapper">
               <canvas id="ordersLineChart" aria-describedby="chartLineTitle"></canvas>

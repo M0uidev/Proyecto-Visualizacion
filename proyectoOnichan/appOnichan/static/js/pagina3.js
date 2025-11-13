@@ -12,40 +12,25 @@ document.addEventListener('DOMContentLoaded', () => {
     dataset = {};
   }
 
-  const orders = dataset.orders || [];
-  const stats = dataset.estadisticas || {};
+  const productsPayload = dataset.products || [];
+  const adminMeta = document.getElementById('stock-meta');
+  window.IS_ADMIN = adminMeta ? adminMeta.getAttribute('data-admin') === 'true' : false;
 
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
   const peso = (value) => value.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' });
 
-  const PRODUCTS = [];
-  const seenProducts = new Set();
-
-  orders.forEach((order) => {
-    order.productos.forEach((product) => {
-      const key = product.nombre;
-      if (seenProducts.has(key)) {
-        return;
-      }
-
-      seenProducts.add(key);
-      const units = order.productos.reduce((acc, current) => acc + current.cantidad, 0);
-      const price = units ? order.total / units : 0;
-
-      PRODUCTS.push({
-        code: key.toLowerCase().replace(/\s+/g, '-'),
-        name: product.nombre,
-        price: Math.round(price),
-        category: product.nombre.includes('Polera') || product.nombre.includes('Pantalón') || product.nombre.includes('Chaqueta') || product.nombre.includes('Polerón')
-          ? 'Ropa'
-          : product.nombre.includes('Zapatillas') || product.nombre.includes('Botines')
-            ? 'Calzado'
-            : 'Accesorios',
-        stock: Math.floor(Math.random() * 100),
-        status: 'Disponible',
-      });
-    });
+  const PRODUCTS = productsPayload.map(p => {
+    const prod = {
+      code: String(p.code),
+      name: p.name,
+      price: p.price,
+      category: p.category || 'Otros',
+      stock: p.stock || 0,
+      status: 'Disponible',
+    };
+    prod.status = updateStockStatus(prod);
+    return prod;
   });
 
   const CATEGORIES = [...new Set(PRODUCTS.map((product) => product.category))];
@@ -178,14 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const category = productsByCategory[index].category;
           const productsInCategory = PRODUCTS.filter((product) => product.category === category).sort((a, b) => b.stock - a.stock);
 
-          const sales = {};
-          orders.forEach((order) => {
-            order.productos.forEach((product) => {
-              if (productsInCategory.find((item) => item.name === product.nombre)) {
-                sales[product.nombre] = (sales[product.nombre] || 0) + product.cantidad;
-              }
-            });
-          });
+          const sales = {}; // opcional: sin dataset de ventas aquí
 
           if (modalChartInstance) {
             modalChartInstance.destroy();
@@ -380,9 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#btnRefresh')?.addEventListener('click', () => window.location.reload());
-  $('#btnAdd')?.addEventListener('click', () => {
-    alert('Funcionalidad de agregar producto pendiente');
-  });
+  // btnAdd abre modal via data-bs-toggle (no JS extra)
 
   $('#stockTable')?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-action]');
@@ -403,16 +379,29 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('Cantidad inválida');
         return;
       }
-      product.stock = parsed;
-      product.status = updateStockStatus(product);
-      renderTable();
+
+      // Persistir en backend
+      const csrftoken = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
+      fetch(window.location.href, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+          'X-CSRFToken': csrftoken || ''
+        },
+        body: new URLSearchParams({ action: 'update_stock', product_id: product.code, stock: String(parsed) })
+      })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(() => {
+        product.stock = parsed;
+        product.status = updateStockStatus(product);
+        renderTable();
+      })
+      .catch(() => alert('No se pudo actualizar el stock'));
     } else if (action === 'delete') {
       if (!window.IS_ADMIN) return;
+      // Nota: eliminación no persistente en UI (opcionalmente implementar en backend)
       const idx = PRODUCTS.findIndex(p => p.code === productId);
-      if (idx >= 0) {
-        PRODUCTS.splice(idx, 1);
-        renderTable();
-      }
+      if (idx >= 0) { PRODUCTS.splice(idx, 1); renderTable(); }
     }
   });
 

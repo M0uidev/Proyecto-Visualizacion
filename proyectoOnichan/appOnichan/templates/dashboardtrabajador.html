@@ -10,16 +10,47 @@
 {% block content %}
   <main class="container py-4">
     <header class="d-flex justify-content-between align-items-center mb-4">
-      <h1 class="h4 mb-0">Ventas de hoy</h1>
-      <div class="d-flex gap-2">
-        <a href="{% url 'stock' %}" class="btn btn-outline-primary"><i class="bi bi-box-seam me-2"></i>Stock</a>
-        <a href="{% url 'pos' %}" class="btn btn-primary"><i class="bi bi-cash me-2"></i>Caja</a>
-      </div>
+      <h1 class="h4 mb-0">Dashboard Trabajador</h1>
+      <form method="get" class="d-flex align-items-center gap-2">
+        <a class="btn btn-outline-secondary" href="{{ prev_url }}" title="Anterior">⟵</a>
+        <div class="input-group">
+          <span class="input-group-text">Periodo</span>
+          <select name="period" class="form-select">
+            <option value="day" {% if period == 'day' %}selected{% endif %}>Día</option>
+            <option value="week" {% if period == 'week' %}selected{% endif %}>Semana</option>
+            <option value="month" {% if period == 'month' %}selected{% endif %}>Mes</option>
+            <option value="year" {% if period == 'year' %}selected{% endif %}>Año</option>
+          </select>
+        </div>
+        {% if period == 'day' %}
+          <div class="input-group">
+            <span class="input-group-text">Fecha</span>
+            <input type="date" class="form-control" name="date" value="{{ ref_value|default:'' }}" />
+          </div>
+        {% elif period == 'week' %}
+          <div class="input-group">
+            <span class="input-group-text">Semana</span>
+            <input type="date" class="form-control" name="week" value="{{ ref_value|default:'' }}" />
+          </div>
+        {% elif period == 'month' %}
+          <div class="input-group">
+            <span class="input-group-text">Mes</span>
+            <input type="month" class="form-control" name="month" value="{{ ref_value|default:'' }}" />
+          </div>
+        {% else %}
+          <div class="input-group">
+            <span class="input-group-text">Año</span>
+            <input type="number" class="form-control" name="year" value="{{ ref_value|default:'' }}" />
+          </div>
+        {% endif %}
+        <button class="btn btn-outline-primary" type="submit">Ver</button>
+        <a class="btn btn-outline-secondary" href="{{ next_url }}" title="Siguiente">⟶</a>
+      </form>
     </header>
 
     <section class="dash-card">
       <header>
-        <h3 class="h5">Ventas por producto (hoy)</h3>
+        <h3 class="h5">{{ title_text }}</h3>
       </header>
       <div class="chart-wrapper" style="height: 380px;">
         <canvas id="pieToday"></canvas>

@@ -19,6 +19,7 @@ class Product(models.Model):
 	price = models.PositiveIntegerField(help_text="Precio en CLP (entero)")
 	image_url = models.CharField(max_length=300)
 	category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
+	stock = models.PositiveIntegerField(default=0)
 
 	def __str__(self) -> str:  # pragma: no cover
 		return f"{self.name} (${self.price})"
