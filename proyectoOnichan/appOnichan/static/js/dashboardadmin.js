@@ -193,6 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const lineCtx = document.getElementById('ordersLineChart');
   const pieCtx = document.getElementById('topProductsPieChart');
   const barCtx = document.getElementById('categoryRevenueBarChart');
+  const multiPieCtx = document.getElementById('multiSeriesPieChart');
 
   if (!lineCtx || !pieCtx || !barCtx) {
     return;
@@ -201,6 +202,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const lineData = data.lineChart ?? fallback.lineChart;
   const pieData = data.topProducts ?? fallback.topProducts;
   const barData = data.categoryRevenue ?? fallback.categoryRevenue;
+  const multiPieData = data.multiSeriesPie; // no fallback; se muestra sólo si existe
+  console.log('[Dashboard] multiSeriesPie data:', multiPieData);
 
   const ordersLineChart = new Chart(lineCtx, {
     type: 'line',
@@ -368,4 +371,138 @@ document.addEventListener('DOMContentLoaded', () => {
       },
     },
   });
+
+  if (multiPieCtx && multiPieData && multiPieData.labels && multiPieData.datasets) {
+    const labels = multiPieData.labels;
+    const categoriesData = multiPieData.datasets.categories;
+    const productsData = multiPieData.datasets.products;
+    const categories = multiPieData.categories || [];
+    const productCategoryMap = multiPieData.productCategoryMap || {};
+
+    // Colores base para categorías
+    const baseColors = ['#2563eb', '#16a34a', '#dc2626', '#9333ea', '#f59e0b', '#0d9488', '#6d28d9', '#ea580c'];
+    const categoryColorMap = {};
+    categories.forEach((c, i) => { categoryColorMap[c] = baseColors[i % baseColors.length]; });
+
+    function tint(hex, factor = 0.3) {
+      const h = hex.replace('#', '');
+      const r = parseInt(h.substring(0, 2), 16);
+      const g = parseInt(h.substring(2, 4), 16);
+      const b = parseInt(h.substring(4, 6), 16);
+      const nr = Math.min(255, Math.round(r + (255 - r) * factor));
+      const ng = Math.min(255, Math.round(g + (255 - g) * factor));
+      const nb = Math.min(255, Math.round(b + (255 - b) * factor));
+      return `rgb(${nr},${ng},${nb})`;
+    }
+
+    const categoryBackground = labels.map((lbl, idx) => {
+      if (idx < categories.length) {
+        return categoryColorMap[lbl] || '#9ca3af';
+      }
+      return 'rgba(0,0,0,0)';
+    });
+    const productBackground = labels.map((lbl, idx) => {
+      if (idx >= categories.length) {
+        const cat = productCategoryMap[lbl];
+        const base = categoryColorMap[cat] || '#6b7280';
+        return tint(base, 0.45);
+      }
+      return 'rgba(0,0,0,0)';
+    });
+
+    const multiSeriesPieChart = new Chart(multiPieCtx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Categorías',
+            data: categoriesData,
+            backgroundColor: categoryBackground,
+            borderWidth: 1,
+            spacing: 2,
+            weight: 0.6,
+          },
+          {
+            label: 'Productos',
+            data: productsData,
+            backgroundColor: productBackground,
+            borderWidth: 1,
+            spacing: 1,
+            weight: 1.2,
+          },
+        ],
+      },
+      options: {
+        maintainAspectRatio: false,
+        cutout: '40%',
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const val = ctx.parsed;
+                if (ctx.dataset.label === 'Categorías') {
+                  return `${ctx.label}: ${val} u.`;
+                }
+                if (ctx.dataset.label === 'Productos') {
+                  const cat = productCategoryMap[ctx.label] || '—';
+                  return `${ctx.label} (${cat}): ${val} u.`;
+                }
+                return `${ctx.label}: ${val}`;
+              },
+            },
+          },
+          legend: { display: false },
+        },
+        onClick: (evt, els) => {
+          if (!els.length) return;
+          const el = els[0];
+          const idx = el.index;
+          const dsLabel = el.dataset.label;
+          if (dsLabel === 'Categorías' && idx < categories.length) {
+            const cat = labels[idx];
+            // Drill-down: productos de esa categoría
+            const productLabels = Object.keys(productCategoryMap).filter(p => productCategoryMap[p] === cat);
+            const productValues = productLabels.map(p => {
+              const pIndex = labels.indexOf(p);
+              return pIndex >= 0 ? productsData[pIndex] : 0;
+            });
+            openModal({ title: `Productos · ${cat}`, labels: productLabels, values: productValues, datasetLabel: 'Unidades', type: 'bar' });
+          } else if (dsLabel === 'Productos' && idx >= categories.length) {
+            const prod = labels[idx];
+            const cat = productCategoryMap[prod] || '—';
+            openModal({ title: `${prod} · ${cat}`, labels: [prod], values: [productsData[idx]], datasetLabel: 'Unidades', type: 'bar' });
+          }
+        },
+      },
+    });
+
+    // Leyenda manual (categorías y conteo)
+    const multiLegend = document.getElementById('multiSeriesPieLegend');
+    if (multiLegend) {
+      multiLegend.innerHTML = '';
+      categories.forEach(cat => {
+        const span = document.createElement('span');
+        const marker = document.createElement('i');
+        marker.style.backgroundColor = categoryColorMap[cat];
+        const text = document.createElement('span');
+        text.textContent = cat;
+        span.appendChild(marker);
+        span.appendChild(text);
+        multiLegend.appendChild(span);
+      });
+    }
+  } else if (multiPieCtx) {
+    // Fallback visual cuando no hay datos para el gráfico multi series
+    const wrapper = multiPieCtx.parentElement;
+    if (wrapper) {
+      const msg = document.createElement('div');
+      msg.style.padding = '1rem';
+      msg.style.fontSize = '0.9rem';
+      msg.style.color = '#6b7280';
+      msg.textContent = 'Sin datos para multi-series (multiSeriesPie no presente).';
+      wrapper.appendChild(msg);
+    }
+    console.warn('[Dashboard] multiSeriesPie no disponible o vacío.');
+  }
 });

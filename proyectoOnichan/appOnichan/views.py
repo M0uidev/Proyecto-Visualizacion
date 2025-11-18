@@ -13,11 +13,6 @@ from datetime import date as dt_date
 
 from .models import (
     Product,
-    ProductDetail,
-    ProductSize,
-    ProductSpec,
-    ProductCare,
-    ProductBreadcrumb,
     Customer,
     Order,
     OrderItem,
@@ -32,12 +27,6 @@ def pagina1(request):
     return render(request, "pagina1.html", {"productos": productos})
 
 def login_view(request):
-    """Login unificado para admin, trabajador y cliente.
-
-    - Admin: redirige a dashboardadmin/
-    - Trabajador: redirige a dashboardtrabajador/
-    - Cliente: redirige a pagina1/
-    """
     if request.method == "POST":
         username = request.POST.get("username", "").strip()
         password = request.POST.get("password", "").strip()
@@ -76,7 +65,7 @@ def dashboardadmin(request):
     period = (request.GET.get("period", "week") or "week").lower()
     period = period if period in ("week", "month", "year") else "week"
 
-    # Determinar rango de fechas y metadata de navegación
+    # Determinar rango de fechas
     period_title = "semana" if period == "week" else ("mes" if period == "month" else "año")
     if period == "week":
         ref_str = request.GET.get("week", "").strip()
@@ -233,6 +222,33 @@ def dashboardadmin(request):
     cat_labels = list(cat_totals.keys())
     cat_values = [cat_totals[c] for c in cat_labels]
 
+    # Multi Series Pie (categorías vs productos por unidades vendidas en el periodo)
+    sales_rows = (
+        OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date)
+        .values("product__category__name", "product__name")
+        .annotate(units=Sum("cantidad"))
+        .order_by("product__category__name", "product__name")
+    )
+    category_units = {}
+    product_units = []
+    for r in sales_rows:
+        cat_name = r["product__category__name"] or "Otros"
+        prod_name = r["product__name"] or "(Sin nombre)"
+        units = r["units"] or 0
+        category_units[cat_name] = category_units.get(cat_name, 0) + units
+        product_units.append((cat_name, prod_name, units))
+
+    multi_categories = list(category_units.keys())
+    multi_products = [p for (_, p, _) in product_units]
+    # Labels combinadas: primero categorías luego productos
+    multi_labels = multi_categories + multi_products
+    # Dataset interno (categorías): valores en posiciones de categorías, cero en productos
+    categories_data = [category_units[c] for c in multi_categories] + [0] * len(multi_products)
+    # Dataset externo (productos): cero en categorías, valor en posición de cada producto
+    products_data = [0] * len(multi_categories) + [u for (_, _, u) in product_units]
+    # Mapa producto -> categoría (para color/leyenda)
+    product_category_map = {p: c for (c, p, _) in product_units}
+
     dashboard_data = {
         "kpis": {
             "pedidos_hoy": {"value": pedidos_hoy, "trend": ""},
@@ -253,6 +269,15 @@ def dashboardadmin(request):
             "labels": cat_labels,
             "values": cat_values,
             "detalles": cat_details,
+        },
+        "multiSeriesPie": {
+            "labels": multi_labels,
+            "datasets": {
+                "categories": categories_data,
+                "products": products_data,
+            },
+            "categories": multi_categories,
+            "productCategoryMap": product_category_map,
         },
     }
 
