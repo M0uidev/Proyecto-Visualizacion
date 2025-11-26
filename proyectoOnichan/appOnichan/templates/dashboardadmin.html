@@ -250,8 +250,9 @@
       // Initialize map centered on Chile
       const map = L.map('chileMap', {
           center: [-35.675147, -71.542969],
-          zoom: 4,
-          minZoom: 3,
+          zoom: 5.0,
+          zoomSnap: 0.5,
+          minZoom: 4,
           zoomControl: true,
           attributionControl: false
       });
@@ -265,14 +266,13 @@
       }
 
       function getColor(d) {
-          return d > 1000000 ? '#800026' :
-                 d > 500000  ? '#BD0026' :
-                 d > 200000  ? '#E31A1C' :
-                 d > 100000  ? '#FC4E2A' :
-                 d > 50000   ? '#FD8D3C' :
-                 d > 20000   ? '#FEB24C' :
-                 d > 10000   ? '#FED976' :
-                            '#FFEDA0';
+          // Escala de Verde (menos compras) a Rojo (más compras)
+          return d > 20 ? '#d73027' : // Rojo intenso
+                 d > 15 ? '#fc8d59' : // Naranja
+                 d > 10 ? '#fee08b' : // Amarillo
+                 d > 5  ? '#d9ef8b' : // Verde claro
+                 d > 0  ? '#91cf60' : // Verde
+                          '#1a9850';  // Verde oscuro (0)
       }
 
       let regionLookup = {}; 
@@ -292,10 +292,11 @@
              data = apiData[regionName.replace("Región del ", "").trim()];
           }
           
-          const sales = data ? data.ventas_totales : 0;
+          // Usar cantidad de pedidos (pedidos_unicos) para el color
+          const orders = data ? data.pedidos_unicos : 0;
 
           return {
-              fillColor: getColor(sales),
+              fillColor: getColor(orders),
               weight: 2,
               opacity: 1,
               color: 'white',
@@ -307,10 +308,10 @@
       function highlightFeature(e) {
           var layer = e.target;
           layer.setStyle({
-              weight: 5,
+              weight: 2,
               color: '#666',
               dashArray: '',
-              fillOpacity: 0.7
+              fillOpacity: 0.8
           });
           layer.bringToFront();
       }

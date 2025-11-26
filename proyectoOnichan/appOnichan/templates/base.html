@@ -106,8 +106,48 @@
   </main>
 
   <!-- Footer -->
-  <footer class="site-footer">
-    © 2025 Multitienda. Todos los derechos reservados.
+  <footer class="site-footer pt-5 pb-4" style="background-color: var(--bg-surface); border-top: 1px solid rgba(0,0,0,0.05);">
+    <div class="container">
+      <div class="row g-4 text-start">
+        <div class="col-lg-4 col-md-6">
+          <h5 class="fw-bold mb-3" style="color: var(--color-primary-dark);">Multitienda</h5>
+          <p class="text-muted small">Tu tienda de confianza para encontrar lo mejor en tecnología, hogar y moda. Calidad y estilo en un solo lugar.</p>
+          <div class="d-flex gap-3 mt-3">
+            <a href="#" class="text-muted fs-5"><i class="bi bi-facebook"></i></a>
+            <a href="#" class="text-muted fs-5"><i class="bi bi-instagram"></i></a>
+            <a href="#" class="text-muted fs-5"><i class="bi bi-twitter-x"></i></a>
+          </div>
+        </div>
+        <div class="col-lg-2 col-md-6">
+          <h6 class="fw-bold mb-3">Tienda</h6>
+          <ul class="list-unstyled text-muted small d-flex flex-column gap-2">
+            <li><a href="{% url 'pagina1' %}">Inicio</a></li>
+            <li><a href="{% url 'pagina1' %}?sort=newest">Novedades</a></li>
+            <li><a href="{% url 'pagina1' %}?sort=price_asc">Ofertas</a></li>
+          </ul>
+        </div>
+        <div class="col-lg-2 col-md-6">
+          <h6 class="fw-bold mb-3">Ayuda</h6>
+          <ul class="list-unstyled text-muted small d-flex flex-column gap-2">
+            <li><a href="#">Centro de ayuda</a></li>
+            <li><a href="#">Seguimiento de compra</a></li>
+            <li><a href="#">Envíos y devoluciones</a></li>
+            <li><a href="#">Términos y condiciones</a></li>
+          </ul>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <h6 class="fw-bold mb-3">Contacto</h6>
+          <ul class="list-unstyled text-muted small d-flex flex-column gap-2">
+            <li><i class="bi bi-envelope me-2"></i> contacto@multitienda.cl</li>
+            <li><i class="bi bi-telephone me-2"></i> +56 9 1234 5678</li>
+            <li><i class="bi bi-geo-alt me-2"></i> Av. Principal 123, Santiago</li>
+          </ul>
+        </div>
+      </div>
+      <div class="border-top mt-5 pt-4 text-center text-muted small">
+        <p class="mb-0">© 2025 Multitienda. Todos los derechos reservados.</p>
+      </div>
+    </div>
   </footer>
 
   <!-- Toast Container -->
