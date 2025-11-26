@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Boleta {{ order.code }}</title>
+    <style>
+        body { font-family: Helvetica, sans-serif; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .total { text-align: right; font-weight: bold; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Comprobante de Pago</h1>
+        <p>Multitienda Onichan</p>
+        <p>Fecha: {{ order.fecha }}</p>
+        <p>Pedido: {{ order.code }}</p>
+        <p>Cliente: {{ order.cliente.name }}</p>
+        <p>Email: {{ order.contact_email }} | Tel: {{ order.contact_phone }}</p>
+        <p>Método de Entrega: {{ order.delivery_method }}</p>
+        {% if order.delivery_method == "Despacho" %}
+        <p>Dirección: {{ order.shipping_address }}, {{ order.shipping_commune }}, {{ order.shipping_region }}</p>
+        {% endif %}
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Precio Unit.</th>
+                <th>Cantidad</th>
+                <th>Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.product.name }}</td>
+                <td>${{ item.price }}</td>
+                <td>{{ item.cantidad }}</td>
+                <td>${{ item.subtotal }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="total">
+        <p>Total Pagado: ${{ order.total }}</p>
+    </div>
+</body>
+</html>

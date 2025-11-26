@@ -5,6 +5,7 @@
 
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'css/dashboardtrabajador.css' %}">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 {% endblock %}
 
 {% block content %}
@@ -13,7 +14,7 @@
       <div class="d-flex gap-2">
       </div>
       <form method="get" class="d-flex align-items-center gap-2">
-        <a class="btn btn-outline-secondary" href="{{ prev_url }}" title="Anterior">⟵</a>
+        <a class="btn btn-pastel-secondary" href="{{ prev_url }}" title="Anterior">⟵</a>
         <div class="input-group">
           <span class="input-group-text">Periodo</span>
           <select name="period" class="form-select">
@@ -38,29 +39,30 @@
             <input type="number" class="form-control" name="year" value="{{ ref_value|default:'' }}" />
           </div>
         {% endif %}
-        <button class="btn btn-outline-primary" type="submit">Ver</button>
-        <a class="btn btn-outline-secondary" href="{{ next_url }}" title="Siguiente">⟶</a>
+        <button class="btn btn-pastel" type="submit">Ver</button>
+        <a class="btn btn-pastel-secondary" href="{{ next_url }}" title="Siguiente">⟶</a>
       </form>
     </div>
 
-    <div class="dashboard-wrapper">
-      <section class="row g-4">
+    <div class="dashboard-wrapper card-pastel p-4">
+      <!-- KPIs Section (Always Visible) -->
+      <section class="row g-4 mb-4">
         <div class="col-12 col-md-4">
-          <article class="dash-card metric-card" aria-labelledby="metricPedidosHoy">
+          <article class="card-pastel metric-card" aria-labelledby="metricPedidosHoy">
             <span class="metric-label" id="metricPedidosHoy">Ventas hoy</span>
             <span class="metric-value" data-kpi="pedidos_hoy">--</span>
             <span class="metric-trend" data-kpi-trend="pedidos_hoy">&nbsp;</span>
           </article>
         </div>
         <div class="col-12 col-md-4">
-          <article class="dash-card metric-card" aria-labelledby="metricPendientes">
-            <span class="metric-label" id="metricPendientes">Pendientes</span>
+          <article class="card-pastel metric-card" aria-labelledby="metricPendientes">
+            <span class="metric-label" id="metricPendientes">Pedidos Pendientes</span>
             <span class="metric-value" data-kpi="pendientes">--</span>
             <span class="metric-trend" data-kpi-trend="pendientes">&nbsp;</span>
           </article>
         </div>
         <div class="col-12 col-md-4">
-          <article class="dash-card metric-card" aria-labelledby="metricIngresos">
+          <article class="card-pastel metric-card" aria-labelledby="metricIngresos">
             <span class="metric-label" id="metricIngresos">Ingresos ({{ period_title }})</span>
             <span class="metric-value" data-kpi="ingresos_7d">--</span>
             <span class="metric-trend" data-kpi-trend="ingresos_7d">&nbsp;</span>
@@ -68,59 +70,116 @@
         </div>
       </section>
 
-      <!-- Grafico de lineas y pastel -->
-      <section class="row g-4">
-        <div class="col-12 col-lg-7">
-          <article class="dash-card chart-card" aria-labelledby="chartLineTitle">
-            <header>
-              <h3 id="chartLineTitle">{{ title_text }}</h3>
-            </header>
-            <div class="chart-wrapper">
-              <canvas id="ordersLineChart" aria-describedby="chartLineTitle"></canvas>
-            </div>
-          </article>
-        </div>
-        <div class="col-12 col-lg-5">
-          <article class="dash-card chart-card" aria-labelledby="chartPieTitle">
-            <header>
-              <h3 id="chartPieTitle">Top productos</h3>
-            </header>
-            <div class="chart-wrapper">
-              <canvas id="topProductsPieChart" aria-describedby="chartPieTitle"></canvas>
-            </div>
-            <div class="chart-legend" id="topProductsLegend" aria-hidden="true"></div>
-          </article>
-        </div>
-      </section>
+      <!-- Tabs Navigation -->
+      <ul class="nav nav-tabs mb-4" id="dashboardTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="ventas-tab" data-bs-toggle="tab" data-bs-target="#ventas" type="button" role="tab" aria-controls="ventas" aria-selected="true">Ventas</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="mapa-tab" data-bs-toggle="tab" data-bs-target="#mapa" type="button" role="tab" aria-controls="mapa" aria-selected="false">Análisis Regional</button>
+        </li>
+      </ul>
 
-      <!-- Grafico de barras -->
-      <section class="row g-4">
-        <div class="col-12">
-          <article class="dash-card chart-card" aria-labelledby="chartBarTitle">
-            <header>
-              <h3 id="chartBarTitle">Ingresos por categoría</h3>
-            </header>
-            <div class="chart-wrapper">
-              <canvas id="categoryRevenueBarChart" aria-describedby="chartBarTitle"></canvas>
+      <!-- Tab Content -->
+      <div class="tab-content" id="dashboardTabsContent">
+        
+        <!-- Ventas Tab -->
+        <div class="tab-pane fade show active" id="ventas" role="tabpanel" aria-labelledby="ventas-tab">
+          <!-- Grafico de lineas y pastel -->
+          <section class="row g-4">
+            <div class="col-12 col-lg-7">
+              <article class="card-pastel chart-card" aria-labelledby="chartLineTitle">
+                <header>
+                  <h3 id="chartLineTitle">{{ title_text }}</h3>
+                </header>
+                <div class="chart-wrapper" style="height: 400px;">
+                  <canvas id="ordersLineChart" aria-describedby="chartLineTitle"></canvas>
+                </div>
+              </article>
             </div>
-          </article>
-        </div>
-      </section>
+            <div class="col-12 col-lg-5">
+              <article class="dash-card chart-card" aria-labelledby="chartPieTitle">
+                <header>
+                  <h3 id="chartPieTitle">Top productos</h3>
+                </header>
+                <div class="chart-wrapper" style="height: 400px;">
+                  <canvas id="topProductsPieChart" aria-describedby="chartPieTitle"></canvas>
+                </div>
+                <div class="chart-legend" id="topProductsLegend" aria-hidden="true"></div>
+              </article>
+            </div>
+          </section>
 
-      <!-- Multi Series Pie: Categorías (anillo interno) / Productos (anillo externo) -->
-      <section class="row g-4">
-        <div class="col-12">
-          <article class="dash-card chart-card" aria-labelledby="multiSeriesPieTitle">
-            <header>
-              <h3 id="multiSeriesPieTitle">Distribución de ventas: Categorías y Productos</h3>
-            </header>
-            <div class="chart-wrapper">
-              <canvas id="multiSeriesPieChart" aria-describedby="multiSeriesPieTitle"></canvas>
+          <!-- Grafico de barras -->
+          <section class="row g-4 mt-2">
+            <div class="col-12">
+              <article class="dash-card chart-card" aria-labelledby="chartBarTitle">
+                <header>
+                  <h3 id="chartBarTitle">Ingresos por categoría</h3>
+                </header>
+                <div class="chart-wrapper" style="height: 400px;">
+                  <canvas id="categoryRevenueBarChart" aria-describedby="chartBarTitle"></canvas>
+                </div>
+              </article>
             </div>
-            <div class="chart-legend" id="multiSeriesPieLegend" aria-hidden="true"></div>
-          </article>
+          </section>
+
+          <!-- Multi Series Pie: Categorías (anillo interno) / Productos (anillo externo) -->
+          <section class="row g-4 mt-2">
+            <div class="col-12">
+              <article class="dash-card chart-card" aria-labelledby="multiSeriesPieTitle">
+                <header>
+                  <h3 id="multiSeriesPieTitle">Distribución de ventas: Categorías y Productos</h3>
+                </header>
+                <div class="chart-wrapper" style="height: 400px;">
+                  <canvas id="multiSeriesPieChart" aria-describedby="multiSeriesPieTitle"></canvas>
+                </div>
+                <div class="chart-legend" id="multiSeriesPieLegend" aria-hidden="true"></div>
+              </article>
+            </div>
+          </section>
         </div>
-      </section>
+
+        <!-- Mapa Tab -->
+        <div class="tab-pane fade" id="mapa" role="tabpanel" aria-labelledby="mapa-tab">
+          <section class="row g-4">
+            <!-- Map Column -->
+            <div class="col-12 col-lg-8">
+              <article class="dash-card chart-card" aria-labelledby="chartMapTitle">
+                <header>
+                  <h3 id="chartMapTitle">Ventas por Región</h3>
+                </header>
+                <div class="chart-wrapper d-flex justify-content-center bg-white" style="height: auto; min-height: 600px;">
+                  <div id="chileMap" style="width: 100%; max-width: 800px; aspect-ratio: 1/1; background-color: #f8f9fa;"></div>
+                </div>
+              </article>
+            </div>
+            
+            <!-- Table Column -->
+            <div class="col-12 col-lg-4">
+              <article class="dash-card chart-card" aria-labelledby="tableMapTitle">
+                <header>
+                  <h3 id="tableMapTitle">Detalle Regional</h3>
+                </header>
+                <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                  <table class="table table-hover" id="regionSalesTable">
+                    <thead>
+                      <tr>
+                        <th>Región</th>
+                        <th class="text-end">Ventas</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <!-- Populated by JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+            </div>
+          </section>
+        </div>
+
+      </div>
     </div>
 
     <!-- Modal -->
@@ -135,6 +194,43 @@
         </div>
       </div>
     </div>
+
+    <!-- Region Detail Modal -->
+    <div class="modal fade" id="regionModal" tabindex="-1" aria-labelledby="regionModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="regionModalLabel">Detalle Regional</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <h4 id="modalRegionName" class="mb-3"></h4>
+            <ul class="list-group">
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                Ventas Totales
+                <span class="badge bg-primary rounded-pill" id="modalSales"></span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                Categoría Top
+                <span class="badge bg-success rounded-pill" id="modalCategory"></span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                Pedidos Únicos
+                <span class="badge bg-info rounded-pill" id="modalOrders"></span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                Productos Distintos
+                <span class="badge bg-warning rounded-pill" id="modalProducts"></span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                Ticket Promedio
+                <span class="badge bg-secondary rounded-pill" id="modalTicket"></span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 {% endblock %}
 
@@ -142,4 +238,215 @@
   <script type="application/json" id="dashboard-data">{{ data_json|default:"{}"|safe }}</script>
   <script src="{% static 'chart.js' %}"></script>
   <script src="{% static 'js/dashboardadmin.js' %}"></script>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const dashboardDataEl = document.getElementById('dashboard-data');
+      if (!dashboardDataEl) return;
+      const dashboardData = JSON.parse(dashboardDataEl.textContent);
+      const mapData = dashboardData.mapData || {};
+
+      // Initialize map centered on Chile
+      const map = L.map('chileMap', {
+          center: [-35.675147, -71.542969],
+          zoom: 4,
+          minZoom: 3,
+          zoomControl: true,
+          attributionControl: false
+      });
+
+      // Fix map size when tab is shown
+      const tabEl = document.querySelector('button[data-bs-target="#mapa"]');
+      if (tabEl) {
+        tabEl.addEventListener('shown.bs.tab', function (event) {
+          map.invalidateSize();
+        });
+      }
+
+      function getColor(d) {
+          return d > 1000000 ? '#800026' :
+                 d > 500000  ? '#BD0026' :
+                 d > 200000  ? '#E31A1C' :
+                 d > 100000  ? '#FC4E2A' :
+                 d > 50000   ? '#FD8D3C' :
+                 d > 20000   ? '#FEB24C' :
+                 d > 10000   ? '#FED976' :
+                            '#FFEDA0';
+      }
+
+      let regionLookup = {}; 
+      let apiData = {};
+
+      function style(feature) {
+          const props = feature.properties;
+          const regionId = props.codregion;
+          const regionName = regionLookup[regionId] || props.Region || "Desconocida";
+          
+          // Match logic
+          let data = apiData[regionName];
+          if (!data && regionName.startsWith("Región de ")) {
+             data = apiData[regionName.replace("Región de ", "").trim()];
+          }
+          if (!data && regionName.startsWith("Región del ")) {
+             data = apiData[regionName.replace("Región del ", "").trim()];
+          }
+          
+          const sales = data ? data.ventas_totales : 0;
+
+          return {
+              fillColor: getColor(sales),
+              weight: 2,
+              opacity: 1,
+              color: 'white',
+              dashArray: '3',
+              fillOpacity: 0.7
+          };
+      }
+
+      function highlightFeature(e) {
+          var layer = e.target;
+          layer.setStyle({
+              weight: 5,
+              color: '#666',
+              dashArray: '',
+              fillOpacity: 0.7
+          });
+          layer.bringToFront();
+      }
+
+      function resetHighlight(e) {
+          geojson.resetStyle(e.target);
+      }
+
+      function onEachFeature(feature, layer) {
+          layer.on({
+              mouseover: highlightFeature,
+              mouseout: resetHighlight,
+              click: function(e) {
+                  const props = feature.properties;
+                  const regionId = props.codregion;
+                  const regionName = regionLookup[regionId] || props.Region || "Desconocida";
+                  
+                  let data = apiData[regionName];
+                  if (!data && regionName.startsWith("Región de ")) {
+                     data = apiData[regionName.replace("Región de ", "").trim()];
+                  }
+                  if (!data && regionName.startsWith("Región del ")) {
+                     data = apiData[regionName.replace("Región del ", "").trim()];
+                  }
+                  
+                  if (data) {
+                      document.getElementById('modalRegionName').innerText = regionName;
+                      document.getElementById('modalSales').innerText = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(data.ventas_totales);
+                      document.getElementById('modalCategory').innerText = data.categoria_top;
+                      document.getElementById('modalOrders').innerText = data.pedidos_unicos;
+                      document.getElementById('modalProducts').innerText = data.productos_distintos;
+                      document.getElementById('modalTicket').innerText = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(data.ticket_promedio);
+                      
+                      new bootstrap.Modal(document.getElementById('regionModal')).show();
+                  }
+              }
+          });
+          
+          const props = feature.properties;
+          const regionId = props.codregion;
+          const regionName = regionLookup[regionId] || props.Region || "Desconocida";
+          
+          let data = apiData[regionName];
+          if (!data && regionName.startsWith("Región de ")) {
+             data = apiData[regionName.replace("Región de ", "").trim()];
+          }
+          if (!data && regionName.startsWith("Región del ")) {
+             data = apiData[regionName.replace("Región del ", "").trim()];
+          }
+          
+          const sales = data ? data.ventas_totales : 0;
+          const formattedSales = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(sales);
+          
+          let tooltipContent = `<strong>${regionName}</strong><br>Ventas: ${formattedSales}`;
+          if (data) {
+              tooltipContent += `<br>Top Categoría: ${data.categoria_top}`;
+          }
+          layer.bindTooltip(tooltipContent);
+      }
+
+      let geojson;
+
+      // Fetch all data
+      const apiParams = window.location.search; // Pass current filters
+      Promise.all([
+          fetch("{% static 'chile-regiones-2025.json' %}").then(r => r.json()),
+          fetch("{% static 'regiones_chile.geojson' %}").then(r => r.json()),
+          fetch("{% url 'regional_analysis_api' %}" + apiParams).then(r => r.json())
+      ]).then(([regionsMeta, geoData, salesData]) => {
+          
+          // 1. Process Metadata
+          regionsMeta.forEach(r => {
+              regionLookup[r.id_region] = r.nombre_region;
+          });
+
+          // 2. Store API Data
+          apiData = salesData;
+
+          // 3. Render Map
+          geojson = L.geoJson(geoData, {
+              style: style,
+              onEachFeature: onEachFeature
+          }).addTo(map);
+          
+          if (geojson.getBounds().isValid()) {
+              map.fitBounds(geojson.getBounds());
+          }
+
+          // 4. Render Table
+          const tableBody = document.querySelector('#regionSalesTable tbody');
+          if (tableBody) {
+              tableBody.innerHTML = ''; // Clear existing
+              let rows = [];
+              
+              // Iterate over API results or Regions Metadata? 
+              // Better to iterate over Metadata to ensure all regions are listed even with 0 sales
+              regionsMeta.forEach(r => {
+                  const regionName = r.nombre_region;
+                  let data = apiData[regionName];
+                  
+                  // Fallback logic
+                  if (!data && regionName.startsWith("Región de ")) {
+                      data = apiData[regionName.replace("Región de ", "").trim()];
+                  }
+                  if (!data && regionName.startsWith("Región del ")) {
+                      data = apiData[regionName.replace("Región del ", "").trim()];
+                  }
+                  
+                  rows.push({
+                      name: regionName,
+                      sales: data ? data.ventas_totales : 0,
+                      orders: data ? data.pedidos_unicos : 0,
+                      top: data ? data.categoria_top : '-'
+                  });
+              });
+
+              rows.sort((a, b) => b.sales - a.sales);
+
+              rows.forEach(item => {
+                  const tr = document.createElement('tr');
+                  const formattedSales = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(item.sales);
+                  tr.innerHTML = `
+                      <td>
+                          <div class="fw-bold">${item.name}</div>
+                          <small class="text-muted">Top Categoría: ${item.top}</small>
+                      </td>
+                      <td class="text-end">
+                          <div class="fw-bold">${formattedSales}</div>
+                          <small class="text-muted">${item.orders} pedidos</small>
+                      </td>
+                  `;
+                  tableBody.appendChild(tr);
+              });
+          }
+
+      }).catch(err => console.error("Error loading regional data:", err));
+    });
+  </script>
 {% endblock %}

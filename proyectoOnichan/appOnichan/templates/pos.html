@@ -11,7 +11,7 @@
   <main class="container py-4">
     <header class="d-flex justify-content-between align-items-center mb-4">
       <h1 class="h4 mb-0">Caja - Venta presencial</h1>
-      <a href="{% url 'dashboardtrabajador' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-2"></i>Volver</a>
+      <a href="{% url 'dashboardtrabajador' %}" class="btn btn-pastel-secondary"><i class="bi bi-arrow-left me-2"></i>Volver</a>
     </header>
 
     {% if pos_errors %}
@@ -27,7 +27,7 @@
 
     <div class="row g-4">
       <section class="col-12 col-lg-7">
-        <article class="dash-card">
+        <article class="card-pastel">
           <header><h3 class="h5 mb-0">Productos</h3></header>
           <div class="p-3">
             <div class="row row-cols-2 row-cols-md-3 g-3">
@@ -46,7 +46,7 @@
                         <input type="hidden" name="action" value="add">
                         <input type="hidden" name="product_id" value="{{ p.id }}">
                         <input type="number" name="qty" value="1" min="1" class="form-control form-control-sm" style="width:90px;">
-                        <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Agregar</button>
+                        <button class="btn btn-sm btn-pastel"><i class="bi bi-plus-lg me-1"></i>Agregar</button>
                       </form>
                     </div>
                   </div>
@@ -58,13 +58,13 @@
       </section>
 
       <section class="col-12 col-lg-5">
-        <article class="dash-card">
+        <article class="card-pastel">
           <header class="d-flex justify-content-between align-items-center">
             <h3 class="h5 mb-0">Carrito</h3>
             <form method="post">
               {% csrf_token %}
               <input type="hidden" name="action" value="clear">
-              <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Vaciar</button>
+              <button class="btn btn-sm btn-pastel-danger"><i class="bi bi-trash me-1"></i>Vaciar</button>
             </form>
           </header>
           <div class="p-3">
@@ -84,7 +84,7 @@
                       {% csrf_token %}
                       <input type="hidden" name="action" value="remove">
                       <input type="hidden" name="product_id" value="{{ it.id }}">
-                      <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-x"></i></button>
+                      <button class="btn btn-sm btn-pastel-secondary"><i class="bi bi-x"></i></button>
                     </form>
                   </li>
                 {% endfor %}
@@ -97,7 +97,7 @@
                 {% csrf_token %}
                 <input type="hidden" name="action" value="finalize">
                 <input type="hidden" id="order_date" name="order_date" value="{{ today|default:'' }}">
-                <button class="btn btn-success w-100"><i class="bi bi-check2-circle me-2"></i>Finalizar venta</button>
+                <button class="btn btn-pastel w-100"><i class="bi bi-check2-circle me-2"></i>Finalizar venta</button>
               </form>
             {% else %}
               <p class="text-muted">Agrega productos para iniciar una venta.</p>

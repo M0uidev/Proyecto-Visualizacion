@@ -1,0 +1,15 @@
+{% extends "basecliente.html" %}
+{% block title %}Compra Exitosa{% endblock %}
+
+{% block content %}
+<div class="container mt-4 text-center">
+    <h2 class="text-success">¡Pago Exitoso!</h2>
+    <p>Gracias por tu compra. Tu pedido ha sido procesado correctamente.</p>
+    <p>Código de pedido: <strong>{{ order.code }}</strong></p>
+    
+    <div class="mt-4">
+        <a href="{% url 'download_receipt' order.code %}" class="btn btn-pastel btn-lg">Descargar Boleta (PDF)</a>
+        <a href="{% url 'pagina1' %}" class="btn btn-pastel-secondary btn-lg">Volver a la tienda</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,94 +1,121 @@
 {% extends "basecliente.html" %}
 {% load static %}
+{% load roles %}
 
 {% block title %}{{ p.name }} · Multitienda{% endblock %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/dashboardtrabajador.css' %}">
-  <link rel="stylesheet" href="{% static 'css/pages/producto_detalle.css' %}">
+  <!-- Removed legacy css links to rely on base.css -->
 {% endblock %}
 
 {% block content %}
-  <nav class="container mb-3">
-    <ol class="breadcrumb mb-0">
+  <nav class="container mb-4">
+    <ol class="breadcrumb mb-0 small text-muted">
+      <li class="breadcrumb-item"><a href="{% url 'pagina1' %}">Inicio</a></li>
       {% for crumb in d.breadcrumbs %}
         {% if forloop.last %}
           <li class="breadcrumb-item active">{{ crumb }}</li>
         {% else %}
-          <li class="breadcrumb-item"><a href="{% url 'pagina1' %}">{{ crumb }}</a></li>
+          <li class="breadcrumb-item"><a href="#">{{ crumb }}</a></li>
         {% endif %}
       {% endfor %}
     </ol>
   </nav>
 
-  <section class="container prod-hero">
-    <article class="dash-card prod-hero-card">
-      <div class="prod-hero-grid">
-        <div>
-          <div class="product-thumb mb-3">
-            <img src="{{ p.image_url }}" alt="{{ p.name }}" class="w-100 h-100 object-fit-cover">
-          </div>
+  <section class="container">
+    <div class="row g-5">
+      <!-- Product Image -->
+      <div class="col-md-6">
+        <div class="bg-white rounded-4 p-4 shadow-sm border border-light">
+          <img src="{{ p.image_url }}" alt="{{ p.name }}" class="img-fluid rounded-3 w-100 object-fit-cover">
         </div>
+      </div>
 
-        <div>
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <h1 class="h4 mb-1">{{ p.name }}</h1>
-              <div class="small text-muted">★★★★☆ {{ d.rating }} ({{ d.rating_count }})</div>
+      <!-- Product Details -->
+      <div class="col-md-6">
+        <div class="ps-lg-4">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h1 class="display-6 fw-bold mb-0 text-dark">{{ p.name }}</h1>
+            <div class="d-flex gap-2 align-items-center">
+              {% if user.is_staff or user.is_superuser or user|has_group:"admin" %}
+                <a href="{% url 'edit_product' p.id %}" class="btn btn-sm btn-outline-primary">
+                  <i class="bi bi-pencil"></i> Editar
+                </a>
+              {% endif %}
+              <span class="badge bg-light text-dark border">ID: #{{ p.id }}</span>
             </div>
-            <div class="text-muted">ID producto: #{{ p.id }}</div>
+          </div>
+          
+          <div class="d-flex align-items-center gap-2 mb-4">
+            <div class="text-warning">
+              <i class="bi bi-star-fill"></i>
+              <i class="bi bi-star-fill"></i>
+              <i class="bi bi-star-fill"></i>
+              <i class="bi bi-star-fill"></i>
+              <i class="bi bi-star-half"></i>
+            </div>
+            <span class="text-muted small">({{ d.rating_count }} reseñas)</span>
           </div>
 
-          <hr>
-
-          {% if d.color %}<p class="mb-1"><strong>Color:</strong> {{ d.color }}</p>{% endif %}
-
-          <div class="d-flex align-items-center gap-3 my-2">
-            <div class="product-price">${{ p.price }}</div>
-            {% if d.precio_original %}
-              <div class="product-price-old">${{ d.precio_original }}</div>
-              <span class="badge-sale">{{ d.descuento_pct }}% dcto</span>
-            {% endif %}
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-3">
+              <span class="display-6 fw-bold text-primary">${{ p.price }}</span>
+              {% if d.precio_original %}
+                <span class="text-decoration-line-through text-muted fs-5">${{ d.precio_original }}</span>
+                <span class="badge bg-danger-subtle text-danger rounded-pill px-3">{{ d.descuento_pct }}% OFF</span>
+              {% endif %}
+            </div>
           </div>
 
-          <p class="mb-2">
-            <strong>{{ d.envio }}</strong>{% if d.llega %} · Llega <u>{{ d.llega }}</u>{% endif %}
-          </p>
+          <div class="mb-4">
+            <p class="text-muted">{{ p.description|default:"Descripción del producto no disponible." }}</p>
+          </div>
 
           {% if d.sizes %}
-            <div class="mb-3">
-              <h2 class="h6 mb-2">Tallas disponibles</h2>
+            <div class="mb-4">
+              <label class="form-label fw-semibold">Talla</label>
               <div class="d-flex flex-wrap gap-2">
                 {% for t in d.sizes %}
-                  <span class="badge text-bg-light border">{{ t }}</span>
+                  <input type="radio" class="btn-check" name="size" id="size-{{ forloop.counter }}" autocomplete="off">
+                  <label class="btn btn-pastel-secondary rounded-pill px-4" for="size-{{ forloop.counter }}">{{ t }}</label>
                 {% endfor %}
               </div>
             </div>
           {% endif %}
 
-          {% if d.capacity_l %}
-            <p class="mb-2"><strong>Capacidad:</strong> {{ d.capacity_l }} L</p>
-          {% endif %}
-
-          {% if d.warranty %}
-            <p class="mb-2"><strong>Garantía:</strong> {{ d.warranty }}</p>
-          {% endif %}
-
-          <div class="mb-3">
-            <h2 class="h6">Especificaciones</h2>
-            <ul class="mb-1">
-              {% for s in d.specs %}
-                <li>{{ s }}</li>
-              {% endfor %}
-            </ul>
-            {% if d.care %}
-              <div class="small text-muted">Cuidado: {{ d.care|join:", " }}</div>
-            {% endif %}
+          <div class="d-grid gap-3 d-md-flex mb-5">
+            <a href="{% url 'add_to_cart' p.id %}" class="btn btn-pastel btn-lg px-5 rounded-pill flex-grow-1 add-to-cart-btn" data-product-id="{{ p.id }}">
+              Agregar al Carrito
+            </a>
+            <button class="btn btn-pastel-secondary btn-lg rounded-circle" aria-label="Agregar a favoritos">
+              <i class="bi bi-heart"></i>
+            </button>
           </div>
 
-          <button class="btn btn-dark btn-lg">Agregar al carro</button>
+          <div class="bg-soft rounded-3 p-4">
+            <h3 class="h6 fw-bold mb-3">Características</h3>
+            <div class="row g-3 small">
+              {% if d.color %}
+                <div class="col-6">
+                  <span class="text-muted d-block">Color</span>
+                  <span class="fw-medium">{{ d.color }}</span>
+                </div>
+              {% endif %}
+              {% if d.capacity_l %}
+                <div class="col-6">
+                  <span class="text-muted d-block">Capacidad</span>
+                  <span class="fw-medium">{{ d.capacity_l }} L</span>
+                </div>
+              {% endif %}
+              <div class="col-12">
+                <span class="text-muted d-block">Envío</span>
+                <span class="fw-medium">{{ d.envio }} {% if d.llega %}(Llega el {{ d.llega }}){% endif %}</span>
+              </div>
+            </div>
+          </div>
+          
         </div>
       </div>
-    </article>
+    </div>
   </section>
 {% endblock %}

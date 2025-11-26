@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Registrarse{% endblock %}
+
+{% block content %}
+  <section class="d-flex align-items-center justify-content-center min-vh-100 py-5" style="background: var(--bg-body);">
+    <div class="card-pastel p-4 p-md-5" style="max-width: 600px; width: 100%;">
+      <div class="text-center mb-4">
+        <h1 class="h3 fw-bold mb-1" style="color: var(--text-main);">Crear Cuenta</h1>
+        <p class="text-muted">Regístrate para comprar y ganar puntos</p>
+      </div>
+
+      {% if error %}
+        <div class="alert alert-danger rounded-3 small" role="alert">
+          <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+        </div>
+      {% endif %}
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="form-floating mb-3">
+                  <input type="text" class="form-control rounded-3" id="username" name="username" placeholder="Usuario" required>
+                  <label for="username">Usuario</label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-floating mb-3">
+                  <input type="email" class="form-control rounded-3" id="email" name="email" placeholder="Email" required>
+                  <label for="email">Email</label>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="form-floating mb-3">
+                  <input type="password" class="form-control rounded-3" id="password" name="password" placeholder="Contraseña" required>
+                  <label for="password">Contraseña</label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-floating mb-3">
+                  <input type="text" class="form-control rounded-3" id="first_name" name="first_name" placeholder="Nombre" required>
+                  <label for="first_name">Nombre</label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-floating mb-3">
+                  <input type="text" class="form-control rounded-3" id="last_name" name="last_name" placeholder="Apellido" required>
+                  <label for="last_name">Apellido</label>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="form-floating mb-3">
+                  <input type="tel" class="form-control rounded-3" id="phone" name="phone" placeholder="Teléfono" required>
+                  <label for="phone">Teléfono</label>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="form-floating mb-3">
+                  <input type="text" class="form-control rounded-3" id="address" name="address" placeholder="Dirección" required>
+                  <label for="address">Dirección</label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-floating mb-3">
+                  <select class="form-select rounded-3" id="regionSelect" name="region" required>
+                    <option value="">Seleccione Región...</option>
+                  </select>
+                  <label for="regionSelect">Región</label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-floating mb-3">
+                  <select class="form-select rounded-3" id="communeSelect" name="commune" required disabled>
+                    <option value="">Seleccione Comuna...</option>
+                  </select>
+                  <label for="communeSelect">Comuna</label>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-pastel w-100 btn-lg mt-4">
+          Registrarse
+        </button>
+        
+        <div class="text-center mt-3">
+          <a href="{% url 'login' %}" class="small text-muted text-decoration-none">¿Ya tienes cuenta? Inicia sesión</a>
+        </div>
+      </form>
+    </div>
+  </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const regionSelect = document.getElementById('regionSelect');
+    const communeSelect = document.getElementById('communeSelect');
+    let regionsData = [];
+
+    // Cargar JSON de regiones
+    fetch("{% static 'chile-regiones-2025.json' %}")
+        .then(response => response.json())
+        .then(data => {
+            regionsData = data;
+            regionsData.forEach(region => {
+                const option = document.createElement('option');
+                option.value = region.nombre_region;
+                option.textContent = region.nombre_region;
+                regionSelect.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error cargando regiones:', error));
+
+    // Evento cambio de región
+    regionSelect.addEventListener('change', function() {
+        const selectedRegionName = this.value;
+        communeSelect.innerHTML = '<option value="">Seleccione Comuna...</option>';
+        communeSelect.disabled = true;
+
+        if (selectedRegionName) {
+            const region = regionsData.find(r => r.nombre_region === selectedRegionName);
+            if (region && region.provincias) {
+                const comunas = [];
+                region.provincias.forEach(provincia => {
+                    if (provincia.comunas) {
+                        provincia.comunas.forEach(comuna => {
+                            comunas.push(comuna.nombre_comuna);
+                        });
+                    }
+                });
+                
+                // Ordenar alfabéticamente
+                comunas.sort();
+
+                comunas.forEach(comunaName => {
+                    const option = document.createElement('option');
+                    option.value = comunaName;
+                    option.textContent = comunaName;
+                    communeSelect.appendChild(option);
+                });
+                communeSelect.disabled = false;
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

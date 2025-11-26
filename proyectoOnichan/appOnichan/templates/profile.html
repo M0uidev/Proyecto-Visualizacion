@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Mi Perfil{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-body p-5">
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 64px; height: 64px; font-size: 24px;">
+                            {{ profile.user.first_name|first }}{{ profile.user.last_name|first }}
+                        </div>
+                        <div>
+                            <h2 class="h4 mb-0">{{ profile.user.get_full_name }}</h2>
+                            <p class="text-muted mb-0">@{{ profile.user.username }}</p>
+                        </div>
+                        <div class="ms-auto text-end">
+                            <div class="badge bg-warning text-dark p-2 rounded-pill mb-2 d-block">
+                                <i class="bi bi-star-fill me-1"></i>
+                                {{ profile.points }} Puntos
+                            </div>
+                            <a href="{% url 'edit_profile' %}" class="btn btn-sm btn-outline-primary rounded-pill">
+                                <i class="bi bi-pencil-square me-1"></i>Editar Perfil
+                            </a>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <h5 class="mb-3">Información de Contacto</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="small text-muted">Email</label>
+                            <p class="fw-medium">{{ profile.user.email }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small text-muted">Teléfono</label>
+                            <p class="fw-medium">{{ profile.phone }}</p>
+                        </div>
+                    </div>
+
+                    <h5 class="mb-3 mt-4">Dirección de Envío</h5>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="small text-muted">Dirección</label>
+                            <p class="fw-medium">{{ profile.address }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small text-muted">Comuna</label>
+                            <p class="fw-medium">{{ profile.commune }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small text-muted">Región</label>
+                            <p class="fw-medium">{{ profile.region }}</p>
+                        </div>
+                    </div>
+
+                    <h5 class="mb-3 mt-4">Historial de Pedidos</h5>
+                    {% if orders %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Fecha</th>
+                                    <th>Total</th>
+                                    <th>Estado</th>
+                                    <th>Boleta</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in orders %}
+                                <tr>
+                                    <td class="fw-bold text-primary">#{{ order.code }}</td>
+                                    <td>{{ order.fecha|date:"d/m/Y" }}</td>
+                                    <td>${{ order.total }}</td>
+                                    <td>
+                                        <span class="badge {% if order.estado == 'Entregado' %}bg-success{% elif order.estado == 'Pendiente' %}bg-warning text-dark{% else %}bg-secondary{% endif %} rounded-pill">
+                                            {{ order.estado }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'download_receipt' order.code %}" class="btn btn-sm btn-outline-danger rounded-pill" title="Descargar Boleta">
+                                            <i class="bi bi-file-earmark-pdf-fill me-1"></i>PDF
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-light border rounded-3 text-center py-4">
+                        <i class="bi bi-bag-x display-6 text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No tienes pedidos registrados aún.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

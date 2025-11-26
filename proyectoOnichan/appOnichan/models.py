@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 class Category(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -38,6 +39,7 @@ class Product(models.Model):
         related_name="products",
         verbose_name="Categoría"
     )
+    description = models.TextField(blank=True, verbose_name="Descripción")
     stock = models.PositiveIntegerField(default=0, verbose_name="Stock")
 
     class Meta:
@@ -178,6 +180,14 @@ class Order(models.Model):
     total = models.PositiveIntegerField(default=0, verbose_name="Total")
     estado = models.CharField(max_length=20, choices=STATUS_CHOICES, verbose_name="Estado")
     channel = models.CharField(max_length=10, choices=CHANNEL_CHOICES, default="Online", verbose_name="Canal")
+    
+    # Nuevos campos para despacho y contacto
+    delivery_method = models.CharField(max_length=20, default="Despacho", verbose_name="Método de Entrega")
+    contact_phone = models.CharField(max_length=20, blank=True, verbose_name="Teléfono")
+    contact_email = models.EmailField(blank=True, verbose_name="Email")
+    shipping_address = models.CharField(max_length=255, blank=True, verbose_name="Dirección")
+    shipping_commune = models.CharField(max_length=100, blank=True, verbose_name="Comuna")
+    shipping_region = models.CharField(max_length=100, blank=True, verbose_name="Región")
 
     class Meta:
         db_table = 'apponichan_order'
@@ -217,4 +227,20 @@ class OrderItem(models.Model):
     @property
     def subtotal(self) -> int:
         return self.cantidad * self.price
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    phone = models.CharField(max_length=20, blank=True, verbose_name="Teléfono")
+    address = models.CharField(max_length=255, blank=True, verbose_name="Dirección")
+    commune = models.CharField(max_length=100, blank=True, verbose_name="Comuna")
+    region = models.CharField(max_length=100, blank=True, verbose_name="Región")
+    points = models.PositiveIntegerField(default=0, verbose_name="Puntos Acumulados")
+
+    class Meta:
+        verbose_name = "Perfil de Usuario"
+        verbose_name_plural = "Perfiles de Usuarios"
+
+    def __str__(self):
+        return f"Perfil de {self.user.username}"
 

@@ -1,13 +1,15 @@
 import json
 
 from django.shortcuts import render, redirect
-from django.http import Http404, HttpResponseForbidden, JsonResponse
+from django.http import Http404, HttpResponseForbidden, JsonResponse, HttpResponse
+from django.template.loader import get_template
+from xhtml2pdf import pisa
 from django.db.models import Sum, Count, F
 from django.utils import timezone
 from datetime import date as dt_date, timedelta
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, User
 from django.utils.text import slugify
 from datetime import date as dt_date
 
@@ -17,14 +19,49 @@ from .models import (
     Order,
     OrderItem,
     Category,
+    UserProfile,
 )
+from .services import get_regional_stats
 
 def index(request):
     return pagina1(request)
 
 def pagina1(request):
-    productos = Product.objects.all().order_by("id")
-    return render(request, "pagina1.html", {"productos": productos})
+    # Obtener parámetros de filtro y orden
+    category_slug = request.GET.get("category", "")
+    sort_by = request.GET.get("sort", "")
+    query = request.GET.get("q", "").strip()
+
+    # Base query
+    productos = Product.objects.all()
+
+    # Filtrar por búsqueda
+    if query:
+        productos = productos.filter(name__icontains=query)
+
+    # Filtrar por categoría
+    if category_slug:
+        productos = productos.filter(category__slug=category_slug)
+
+    # Ordenar
+    if sort_by == "price_asc":
+        productos = productos.order_by("price")
+    elif sort_by == "price_desc":
+        productos = productos.order_by("-price")
+    elif sort_by == "newest":
+        productos = productos.order_by("-id") # Asumiendo ID más alto es más nuevo
+    else:
+        productos = productos.order_by("id")
+
+    categories = Category.objects.all()
+
+    context = {
+        "productos": productos,
+        "categories": categories,
+        "current_category": category_slug,
+        "current_sort": sort_by
+    }
+    return render(request, "pagina1.html", context)
 
 def login_view(request):
     if request.method == "POST":
@@ -46,13 +83,50 @@ def login_view(request):
     return render(request, "login.html")
 
 
+def register(request):
+    if request.method == "POST":
+        username = request.POST.get("username", "").strip()
+        email = request.POST.get("email", "").strip()
+        password = request.POST.get("password", "").strip()
+        first_name = request.POST.get("first_name", "").strip()
+        last_name = request.POST.get("last_name", "").strip()
+        
+        # Profile fields
+        phone = request.POST.get("phone", "").strip()
+        address = request.POST.get("address", "").strip()
+        commune = request.POST.get("commune", "").strip()
+        region = request.POST.get("region", "").strip()
+
+        if User.objects.filter(username=username).exists():
+            return render(request, "register.html", {"error": "El nombre de usuario ya existe."})
+        
+        user = User.objects.create_user(username=username, email=email, password=password)
+        user.first_name = first_name
+        user.last_name = last_name
+        user.save()
+
+        # Create profile
+        UserProfile.objects.create(
+            user=user,
+            phone=phone,
+            address=address,
+            commune=commune,
+            region=region
+        )
+
+        login(request, user)
+        return redirect("pagina1")
+
+    return render(request, "register.html")
+
+
 def logout_view(request):
     logout(request)
     return redirect("pagina1")
 
 @login_required
-def pagina3(request):
-    return render(request, "pagina3.html")
+def stock(request):
+    return render(request, "stock.html")
 
 @login_required
 def dashboardadmin(request):
@@ -249,12 +323,23 @@ def dashboardadmin(request):
     # Mapa producto -> categoría (para color/leyenda)
     product_category_map = {p: c for (c, p, _) in product_units}
 
+    # Mapa de Chile: Ventas por región
+    region_sales_qs = (
+        Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date)
+        .exclude(shipping_region__isnull=True)
+        .exclude(shipping_region="")
+        .values("shipping_region")
+        .annotate(total=Sum("total"))
+    )
+    map_data = {item["shipping_region"]: item["total"] for item in region_sales_qs}
+
     dashboard_data = {
         "kpis": {
             "pedidos_hoy": {"value": pedidos_hoy, "trend": ""},
             "pendientes": {"value": pendientes, "trend": ""},
             "ingresos_7d": {"value": ingresos_7d, "trend": "", "isCurrency": True},
         },
+        "mapData": map_data,
         "lineChart": {
             "labels": line_labels,
             "values": line_values,
@@ -400,7 +485,7 @@ def dashboardtrabajador(request):
     return render(request, "dashboardtrabajador.html", context)
 
 @login_required
-def pagina3(request):
+def stock(request):
     # Solo trabajadores y administradores
     user = request.user
     is_worker = user.groups.filter(name__iexact="trabajador").exists()
@@ -432,9 +517,10 @@ def pagina3(request):
             price = int(request.POST.get("price", "0") or 0)
             image_url = request.POST.get("image_url", "").strip()
             category_name = request.POST.get("category", "").strip()
+            description = request.POST.get("description", "").strip()
             initial_stock = int(request.POST.get("initial_stock", "0") or 0)
             if not (name and price > 0 and image_url and category_name):
-                return render(request, "pagina3.html", {"error": "Datos inválidos", "data": json.dumps(_products_payload())})
+                return render(request, "stock.html", {"error": "Datos inválidos", "data": json.dumps(_products_payload())})
 
             cat, _ = Category.objects.get_or_create(name=category_name, defaults={"slug": slugify(category_name)})
             # Generar nuevo id
@@ -446,13 +532,14 @@ def pagina3(request):
                 price=price,
                 image_url=image_url,
                 category=cat,
+                description=description,
                 stock=initial_stock,
             )
             return redirect("stock")
 
     # GET: construir dataset de productos para el front
     payload = _products_payload()
-    return render(request, "pagina3.html", {"data": json.dumps(payload)})
+    return render(request, "stock.html", {"data": json.dumps(payload)})
 
 
 from django.db.models import Max
@@ -658,3 +745,311 @@ def pos_view(request):
         "pos.html",
         {"productos": productos, "cart_items": cart_items, "cart_total": cart_total, "today": timezone.localdate().isoformat()},
     )
+
+def add_to_cart(request, pid):
+    cart = request.session.get("cart", {})
+    cart[str(pid)] = cart.get(str(pid), 0) + 1
+    request.session["cart"] = cart
+    
+    # Check for AJAX request
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == '1':
+        total_items = sum(cart.values())
+        return JsonResponse({'status': 'ok', 'cart_count': total_items})
+        
+    return redirect(request.META.get('HTTP_REFERER', 'pagina1'))
+
+def remove_from_cart(request, pid):
+    cart = request.session.get("cart", {})
+    if str(pid) in cart:
+        del cart[str(pid)]
+        request.session["cart"] = cart
+    return redirect("cart_view")
+
+def cart_view(request):
+    cart = request.session.get("cart", {})
+    items = []
+    total = 0
+    
+    products = Product.objects.filter(id__in=cart.keys())
+    product_map = {str(p.id): p for p in products}
+    
+    for pid, qty in cart.items():
+        product = product_map.get(pid)
+        if product:
+            subtotal = product.price * qty
+            total += subtotal
+            items.append({
+                "product": product,
+                "qty": qty,
+                "subtotal": subtotal
+            })
+            
+    user_profile = None
+    if request.user.is_authenticated:
+        try:
+            user_profile = request.user.profile
+        except UserProfile.DoesNotExist:
+            pass
+
+    return render(request, "cart.html", {"items": items, "total": total, "user_profile": user_profile})
+
+def checkout_webpay(request):
+    if request.method == "POST":
+        cart = request.session.get("cart", {})
+        if not cart:
+            return redirect("cart_view")
+            
+        # Obtener datos del formulario
+        first_name = request.POST.get("first_name", "").strip()
+        last_name = request.POST.get("last_name", "").strip()
+        email = request.POST.get("email", "").strip()
+        phone = request.POST.get("phone", "").strip()
+        delivery_method = request.POST.get("delivery_method", "Despacho")
+        
+        shipping_address = ""
+        shipping_commune = ""
+        shipping_region = ""
+        
+        if delivery_method == "Despacho":
+            shipping_address = request.POST.get("address", "").strip()
+            shipping_commune = request.POST.get("commune", "").strip()
+            shipping_region = request.POST.get("region", "").strip()
+            
+        full_name = f"{first_name} {last_name}".strip()
+        if not full_name:
+            full_name = "Cliente Web"
+
+        # Crear o actualizar cliente (simple logic)
+        if request.user.is_authenticated:
+            customer = Customer.objects.filter(name=request.user.username).first()
+            if not customer:
+                customer = Customer.objects.create(name=request.user.username)
+        else:
+            # Para usuarios anónimos, podríamos crear un cliente nuevo o usar uno genérico
+            # Aquí creamos uno con el nombre proporcionado para el registro
+            customer, _ = Customer.objects.get_or_create(name=full_name)
+        
+        today = timezone.localdate()
+        base = today.strftime("WEB%Y%m%d")
+        
+        # Generar código único
+        last_order = Order.objects.filter(code__startswith=base).order_by('code').last()
+        if last_order:
+            try:
+                last_seq = int(last_order.code.split('-')[-1])
+                seq = last_seq + 1
+            except ValueError:
+                seq = 1
+        else:
+            seq = 1
+            
+        code = f"{base}-{seq:04d}"
+        
+        order = Order.objects.create(
+            code=code,
+            fecha=today,
+            cliente=customer,
+            total=0,
+            estado="Entregado", # Simular pago exitoso
+            channel="Online",
+            delivery_method=delivery_method,
+            contact_phone=phone,
+            contact_email=email,
+            shipping_address=shipping_address,
+            shipping_commune=shipping_commune,
+            shipping_region=shipping_region
+        )
+        
+        total = 0
+        products = Product.objects.filter(id__in=cart.keys())
+        product_map = {str(p.id): p for p in products}
+        
+        for pid, qty in cart.items():
+            product = product_map.get(pid)
+            if product:
+                # Descontar stock
+                if product.stock >= qty:
+                    product.stock -= qty
+                    product.save()
+                
+                OrderItem.objects.create(
+                    order=order,
+                    product=product,
+                    cantidad=qty,
+                    price=product.price
+                )
+                total += product.price * qty
+                
+        order.total = total
+        order.save()
+        
+        # Award points
+        if request.user.is_authenticated:
+            try:
+                profile = request.user.profile
+                points_earned = int(total / 100)
+                profile.points += points_earned
+                profile.save()
+            except UserProfile.DoesNotExist:
+                pass
+        
+        request.session["cart"] = {}
+        
+        return render(request, "checkout_success.html", {"order": order})
+        
+    return redirect("cart_view")
+
+def download_receipt(request, order_code):
+    try:
+        order = Order.objects.get(code=order_code)
+    except Order.DoesNotExist:
+        raise Http404("Pedido no encontrado")
+        
+    items = OrderItem.objects.filter(order=order)
+    
+    template_path = 'receipt_pdf.html'
+    context = {'order': order, 'items': items}
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="boleta_{order_code}.pdf"'
+    
+    template = get_template(template_path)
+    html = template.render(context)
+    
+    pisa_status = pisa.CreatePDF(html, dest=response)
+       
+    if pisa_status.err:
+       return HttpResponse('Error al generar PDF <pre>' + html + '</pre>')
+    return response
+
+def update_cart_quantity(request, pid, action):
+    cart = request.session.get("cart", {})
+    pid_str = str(pid)
+    
+    if pid_str in cart:
+        if action == "increment":
+            cart[pid_str] += 1
+        elif action == "decrement":
+            cart[pid_str] -= 1
+            if cart[pid_str] <= 0:
+                del cart[pid_str]
+        
+        request.session["cart"] = cart
+        
+    return redirect("cart_view")
+
+@login_required
+def regional_analysis_api(request):
+    user = request.user
+    if not (user.is_superuser or user.is_staff or user.groups.filter(name__iexact="admin").exists()):
+        return HttpResponseForbidden("No autorizado")
+
+    today = timezone.localdate()
+    period = (request.GET.get("period", "week") or "week").lower()
+    period = period if period in ("week", "month", "year") else "week"
+
+    if period == "week":
+        ref_str = request.GET.get("week", "").strip()
+        try:
+            ref_date = dt_date.fromisoformat(ref_str) if ref_str else today
+        except Exception:
+            ref_date = today
+        start_date = ref_date - timedelta(days=ref_date.weekday())
+        end_date = start_date + timedelta(days=6)
+    elif period == "month":
+        month_str = request.GET.get("month", "").strip()
+        try:
+            if month_str:
+                y, m = month_str.split("-")
+                ref_date = dt_date(int(y), int(m), 1)
+            else:
+                ref_date = dt_date(today.year, today.month, 1)
+        except Exception:
+            ref_date = dt_date(today.year, today.month, 1)
+        start_date = ref_date
+        if ref_date.month == 12:
+            next_month_start = dt_date(ref_date.year + 1, 1, 1)
+        else:
+            next_month_start = dt_date(ref_date.year, ref_date.month + 1, 1)
+        end_date = next_month_start - timedelta(days=1)
+    else:  # year
+        year_str = request.GET.get("year", "").strip()
+        try:
+            year_i = int(year_str) if year_str else today.year
+        except Exception:
+            year_i = today.year
+        start_date = dt_date(year_i, 1, 1)
+        end_date = dt_date(year_i, 12, 31)
+
+    data = get_regional_stats(start_date, end_date)
+    return JsonResponse(data)
+
+@login_required
+def profile(request):
+    user = request.user
+    # Ensure profile exists
+    profile, created = UserProfile.objects.get_or_create(user=user)
+    
+    # Fetch orders
+    # Assuming Customer.name matches User.username as per checkout logic
+    customer = Customer.objects.filter(name=user.username).first()
+    orders = []
+    if customer:
+        orders = Order.objects.filter(cliente=customer).order_by('-fecha', '-id')
+    
+    return render(request, "profile.html", {"profile": profile, "orders": orders})
+
+@login_required
+def edit_profile(request):
+    user = request.user
+    profile, created = UserProfile.objects.get_or_create(user=user)
+
+    if request.method == "POST":
+        user.first_name = request.POST.get("first_name", "").strip()
+        user.last_name = request.POST.get("last_name", "").strip()
+        user.email = request.POST.get("email", "").strip()
+        user.save()
+
+        profile.phone = request.POST.get("phone", "").strip()
+        profile.address = request.POST.get("address", "").strip()
+        profile.commune = request.POST.get("commune", "").strip()
+        profile.region = request.POST.get("region", "").strip()
+        profile.save()
+
+        return redirect("profile")
+
+    return render(request, "edit_profile.html", {"profile": profile})
+
+@login_required
+def edit_product(request, pid):
+    user = request.user
+    if not (user.is_staff or user.is_superuser or user.groups.filter(name__iexact="admin").exists()):
+        return HttpResponseForbidden("No autorizado")
+    
+    try:
+        product = Product.objects.get(pk=pid)
+    except Product.DoesNotExist:
+        raise Http404("Producto no encontrado")
+
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        price = int(request.POST.get("price", "0") or 0)
+        description = request.POST.get("description", "").strip()
+        image_url = request.POST.get("image_url", "").strip()
+        category_name = request.POST.get("category", "").strip()
+        stock = int(request.POST.get("stock", "0") or 0)
+
+        if name and price > 0:
+            product.name = name
+            product.price = price
+            product.description = description
+            product.image_url = image_url
+            product.stock = stock
+            
+            if category_name:
+                cat, _ = Category.objects.get_or_create(name=category_name, defaults={"slug": slugify(category_name)})
+                product.category = cat
+            
+            product.save()
+            return redirect("producto_detalle", pid=product.id)
+    
+    return render(request, "edit_product.html", {"product": product})
