@@ -93,57 +93,10 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/regions.js' %}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const regionSelect = document.getElementById('regionSelect');
-    const communeSelect = document.getElementById('communeSelect');
-    let regionsData = [];
-
-    // Cargar JSON de regiones
-    fetch("{% static 'chile-regiones-2025.json' %}")
-        .then(response => response.json())
-        .then(data => {
-            regionsData = data;
-            regionsData.forEach(region => {
-                const option = document.createElement('option');
-                option.value = region.nombre_region;
-                option.textContent = region.nombre_region;
-                regionSelect.appendChild(option);
-            });
-        })
-        .catch(error => console.error('Error cargando regiones:', error));
-
-    // Evento cambio de región
-    regionSelect.addEventListener('change', function() {
-        const selectedRegionName = this.value;
-        communeSelect.innerHTML = '<option value="">Seleccione Comuna...</option>';
-        communeSelect.disabled = true;
-
-        if (selectedRegionName) {
-            const region = regionsData.find(r => r.nombre_region === selectedRegionName);
-            if (region && region.provincias) {
-                const comunas = [];
-                region.provincias.forEach(provincia => {
-                    if (provincia.comunas) {
-                        provincia.comunas.forEach(comuna => {
-                            comunas.push(comuna.nombre_comuna);
-                        });
-                    }
-                });
-                
-                // Ordenar alfabéticamente
-                comunas.sort();
-
-                comunas.forEach(comunaName => {
-                    const option = document.createElement('option');
-                    option.value = comunaName;
-                    option.textContent = comunaName;
-                    communeSelect.appendChild(option);
-                });
-                communeSelect.disabled = false;
-            }
-        }
-    });
+    initRegionSelector("{% static 'chile-regiones-2025.json' %}");
 });
 </script>
 {% endblock %}

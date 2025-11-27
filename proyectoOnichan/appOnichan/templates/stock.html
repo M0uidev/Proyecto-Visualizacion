@@ -49,7 +49,7 @@
             </div>
             <div class="mb-3">
               <label class="form-label">URL de imagen</label>
-              <input type="url" class="form-control" name="image_url" required />
+              <input type="text" class="form-control" name="image_url" required />
             </div>
             <div class="mb-3">
               <label class="form-label">Categoría</label>
@@ -63,6 +63,22 @@
               <label class="form-label">Stock inicial</label>
               <input type="number" class="form-control" name="initial_stock" min="0" value="0" required />
             </div>
+            <div class="mb-3 form-check">
+              <input type="checkbox" class="form-check-input" id="addHasSizes" name="has_sizes">
+              <label class="form-check-label" for="addHasSizes">¿Tiene Tallas?</label>
+            </div>
+            <div class="mb-3" id="sizeScaleContainer" style="display:none;">
+              <label class="form-label">Escala de Tallas</label>
+              <select class="form-select" name="size_scale">
+                <option value="none">Seleccionar...</option>
+                <option value="s_xl">S - XL (S, M, L, XL)</option>
+                <option value="numbers">Números (36-44)</option>
+                <option value="custom">Personalizado (Manual)</option>
+              </select>
+              <div id="customSizeInput" class="mt-2" style="display:none;">
+                 <input type="text" class="form-control" name="custom_sizes" placeholder="Ej: XS, S, M, L, XL">
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-pastel-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -72,15 +88,107 @@
       </div>
     </div>
   </div>
+  <!-- Modal Editar Producto (solo admin) -->
+  <div class="modal" id="editProductModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Editar Producto</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="editProductForm">
+          <input type="hidden" name="action" value="update_product_details">
+          <input type="hidden" name="product_id" id="editProductId">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Nombre</label>
+              <input type="text" class="form-control" name="name" id="editName" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Precio (CLP)</label>
+              <input type="number" class="form-control" name="price" id="editPrice" min="1" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">URL de imagen</label>
+              <input type="text" class="form-control" name="image_url" id="editImageUrl" required />
+              <small class="text-muted">Debe comenzar con /static/images/productos/ y terminar en .png o .jpg</small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Categoría</label>
+              <input type="text" class="form-control" name="category" id="editCategory" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Descripción</label>
+              <textarea class="form-control" name="description" id="editDescription" rows="3"></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Stock</label>
+              <input type="number" class="form-control" name="stock" id="editStock" min="0" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Tallas (separadas por coma)</label>
+              <input type="text" class="form-control" name="sizes" id="editSizes" placeholder="Ej: S, M, L, XL" />
+              <small class="text-muted">Dejar vacío si no tiene tallas.</small>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-pastel-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-pastel">Guardar Cambios</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
   {% endif %}
+
+  <!-- Modal Ajustar Stock (Trabajador) -->
+  <div class="modal" id="adjustStockModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Ajustar Stock</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="adjustStockForm">
+          <input type="hidden" name="action" value="update_stock_only">
+          <input type="hidden" name="product_id" id="adjustStockId">
+          <input type="hidden" id="currentStockValue">
+          
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Producto: <strong id="adjustStockName"></strong></label>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Stock Actual: <span id="displayCurrentStock"></span></label>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Cantidad a Agregar/Quitar</label>
+              <div class="input-group">
+                <button class="btn btn-outline-secondary" type="button" id="btnDecrease">-</button>
+                <input type="number" class="form-control text-center" id="stockAdjustment" value="0">
+                <button class="btn btn-outline-secondary" type="button" id="btnIncrease">+</button>
+              </div>
+              <small class="text-muted">Use números negativos para quitar stock.</small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Stock Final Resultante: <strong id="finalStockPreview"></strong></label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar Ajuste</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
   <main class="container-fluid py-4">
     <div class="mb-4 d-flex gap-2">
     </div>
 
-    <div class="dashboard-wrapper">
+    <div class="dashboard-wrapper card-pastel p-4">
       <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="h4 mb-0">Administración de Stock</h2>
         <div class="d-flex gap-2">
           {% if user.is_staff or user.is_superuser or user|has_group:"admin" %}
             <button id="btnAdd" class="btn btn-pastel" data-bs-toggle="modal" data-bs-target="#addProductModal">
@@ -91,7 +199,51 @@
       </div>
 
       <div class="row g-4">
-        <div class="col-12 col-lg-5">
+        <div class="col-12">
+          <section class="dash-card">
+            <header class="d-flex justify-content-between align-items-center">
+              <h3 class="h5 mb-0">Inventario</h3>
+              <span class="text-muted" id="tableStats">0 productos</span>
+            </header>
+
+            <div class="p-4">
+              <!-- Search and Filter -->
+              <div class="row g-2 mb-4">
+                  <div class="col-md-6">
+                      <input type="text" id="productSearch" class="form-control" placeholder="Buscar producto por nombre o ID...">
+                  </div>
+                  <div class="col-md-3">
+                      <select id="categoryFilter" class="form-select">
+                          <option value="all">Todas las Categorías</option>
+                      </select>
+                  </div>
+                  <div class="col-md-3">
+                      <select id="sortFilter" class="form-select">
+                          <option value="name_asc">Nombre (A-Z)</option>
+                          <option value="stock_desc">Stock: Mayor a Menor</option>
+                          <option value="stock_asc">Stock: Menor a Mayor</option>
+                          <option value="recent">Añadido Recientemente</option>
+                      </select>
+                  </div>
+              </div>
+
+              <!-- Grid Container -->
+              <div id="productsGrid" class="d-flex flex-wrap gap-3 justify-content-start">
+                  <!-- JS will populate this -->
+              </div>
+              
+              <!-- Fallback/Empty State -->
+              <div id="emptyState" class="text-center text-muted mt-5" style="display: none;">
+                  <i class="bi bi-search display-4"></i>
+                  <p class="mt-2">No se encontraron productos.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div class="row g-4 mt-2">
+        <div class="col-12">
           <article class="card-pastel">
             <header>
               <h3>Inventario por Categoría</h3>
@@ -100,42 +252,6 @@
               <canvas id="stockByCategory"></canvas>
             </div>
           </article>
-        </div>
-
-        <div class="col-12 col-lg-7">
-          <section class="dash-card">
-            <header class="d-flex justify-content-between align-items-center">
-              <h3 class="h5 mb-0">Inventario</h3>
-              <span class="text-muted" id="tableStats">0 productos</span>
-            </header>
-
-            <div class="p-4">
-              <div class="d-flex flex-wrap gap-2 mb-4">
-                <button class="chip active" data-filter="all">Todos</button>
-                <button class="chip" data-filter="category:Ropa">Ropa</button>
-                <button class="chip" data-filter="category:Calzado">Calzado</button>
-                <button class="chip" data-filter="category:Accesorios">Accesorios</button>
-                <button class="chip" data-filter="stock:bajo">Stock Bajo</button>
-              </div>
-
-              <div class="table-responsive">
-                <table class="table table-hover align-middle" id="stockTable">
-                  <thead>
-                    <tr>
-                      <th>Código</th>
-                      <th>Producto</th>
-                      <th>Categoría</th>
-                      <th>Stock</th>
-                      <th>Precio</th>
-                      <th>Estado</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody></tbody>
-                </table>
-              </div>
-            </div>
-          </section>
         </div>
       </div>
     </div>

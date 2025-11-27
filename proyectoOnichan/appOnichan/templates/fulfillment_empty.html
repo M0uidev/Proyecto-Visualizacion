@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'order_list' %}">Listado de Pedidos</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link active" aria-current="page" href="#">Preparación</a>
+        </li>
+    </ul>
+
+    <div class="text-center">
+        <div class="card shadow-lg border-0 p-5">
+            <div class="card-body">
+                <div class="display-1 text-success mb-4">
+                    <i class="fas fa-check-double"></i>
+                </div>
+                <h1 class="display-4 mb-3">¡Todo listo!</h1>
+                <p class="lead text-muted mb-5">No hay pedidos pendientes por procesar en este momento.</p>
+                <a href="{% url 'order_list' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-arrow-left me-2"></i> Volver a Pedidos
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

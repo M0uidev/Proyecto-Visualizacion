@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 class Category(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -41,6 +42,7 @@ class Product(models.Model):
     )
     description = models.TextField(blank=True, verbose_name="Descripción")
     stock = models.PositiveIntegerField(default=0, verbose_name="Stock")
+    has_sizes = models.BooleanField(default=False, verbose_name="Tiene Tallas")
 
     class Meta:
         db_table = 'apponichan_product'
@@ -75,6 +77,23 @@ class ProductDetail(models.Model):
 
     def __str__(self):
         return f"Detalle de {self.product.name}"
+
+    @property
+    def discount_percentage(self):
+        # Calculate discount dynamically from active Bulk Offers
+        # Ignoring self.descuento_pct as requested
+        from django.db.models import Max
+        active_offers = self.product.bulk_offers.filter(active=True)
+        if active_offers.exists():
+            return active_offers.aggregate(Max('discount_percentage'))['discount_percentage__max'] or 0
+        return 0
+
+    @property
+    def discounted_price(self):
+        pct = self.discount_percentage
+        if pct > 0:
+            return int(self.product.price * (1 - pct / 100))
+        return self.product.price
 
 
 class ProductSize(models.Model):
@@ -159,8 +178,11 @@ class ProductBreadcrumb(models.Model):
 class Order(models.Model):
     STATUS_CHOICES = [
         ("Pendiente", "Pendiente"),
+        ("Procesado", "Procesado"),
+        ("En camino", "En camino"),
         ("Despachado", "Despachado"),
         ("Entregado", "Entregado"),
+        ("Fallido", "Fallido"),
         ("Cancelado", "Cancelado"),
     ]
     CHANNEL_CHOICES = [
@@ -178,6 +200,7 @@ class Order(models.Model):
         verbose_name="Cliente"
     )
     total = models.PositiveIntegerField(default=0, verbose_name="Total")
+    discount_amount = models.PositiveIntegerField(default=0, verbose_name="Descuento Aplicado")
     estado = models.CharField(max_length=20, choices=STATUS_CHOICES, verbose_name="Estado")
     channel = models.CharField(max_length=10, choices=CHANNEL_CHOICES, default="Online", verbose_name="Canal")
     
@@ -243,4 +266,129 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"Perfil de {self.user.username}"
+
+
+class Coupon(models.Model):
+    code = models.CharField(max_length=50, unique=True, verbose_name="Código")
+    discount_percentage = models.PositiveIntegerField(verbose_name="Porcentaje de Descuento", help_text="Porcentaje entre 1 y 100")
+    valid_from = models.DateTimeField(verbose_name="Válido Desde")
+    valid_to = models.DateTimeField(verbose_name="Válido Hasta")
+    active = models.BooleanField(default=True, verbose_name="Activo")
+    usage_limit = models.PositiveIntegerField(default=0, verbose_name="Límite de Uso", help_text="0 para ilimitado")
+    times_used = models.PositiveIntegerField(default=0, verbose_name="Veces Usado")
+    batch_name = models.CharField(max_length=100, blank=True, null=True, verbose_name="Lote / Grupo") # Added batch_name
+
+    class Meta:
+        verbose_name = "Cupón"
+        verbose_name_plural = "Cupones"
+
+    def __str__(self):
+        return f"{self.code} - {self.discount_percentage}%"
+
+    def is_valid(self):
+        now = timezone.now()
+        if not self.active:
+            return False
+        if self.valid_from > now or self.valid_to < now:
+            return False
+        if self.usage_limit > 0 and self.times_used >= self.usage_limit:
+            return False
+        return True
+
+
+class UserCoupon(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wallet_coupons', verbose_name="Usuario")
+    coupon = models.ForeignKey(Coupon, on_delete=models.CASCADE, related_name='user_coupons', verbose_name="Cupón")
+    acquired_at = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Adquisición")
+    is_used = models.BooleanField(default=False, verbose_name="Usado")
+
+    class Meta:
+        verbose_name = "Cupón de Usuario"
+        verbose_name_plural = "Cupones de Usuarios"
+        unique_together = ('user', 'coupon')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.coupon.code}"
+
+
+class BulkOffer(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Nombre de la Oferta")
+    discount_percentage = models.PositiveIntegerField(verbose_name="Porcentaje")
+    products = models.ManyToManyField(Product, related_name="bulk_offers", verbose_name="Productos Afectados")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")
+    active = models.BooleanField(default=True, verbose_name="Activa")
+
+    class Meta:
+        verbose_name = "Oferta Masiva"
+        verbose_name_plural = "Ofertas Masivas"
+
+    def __str__(self):
+        return f"{self.name} ({self.discount_percentage}%)"
+
+
+class PointReward(models.Model):
+    TYPE_CHOICES = [
+        ('COUPON', 'Cupón de Descuento'),
+        ('PRODUCT', 'Producto Gratis'),
+    ]
+    
+    name = models.CharField(max_length=100, verbose_name="Nombre del Canje")
+    description = models.TextField(blank=True, verbose_name="Descripción")
+    points_cost = models.PositiveIntegerField(verbose_name="Costo en Puntos")
+    reward_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='PRODUCT', verbose_name="Tipo de Recompensa")
+    
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Producto a Canjear")
+    coupon = models.ForeignKey(Coupon, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Cupón Asociado")
+    
+    image_url = models.CharField(max_length=300, blank=True, verbose_name="URL Imagen (Opcional)")
+    active = models.BooleanField(default=True, verbose_name="Activo")
+    valid_until = models.DateTimeField(null=True, blank=True, verbose_name="Válido Hasta")
+    coupon_batch_name = models.CharField(max_length=100, blank=True, null=True, verbose_name="Lote de Cupones")
+    stock = models.PositiveIntegerField(default=0, verbose_name="Stock Disponible")
+    
+    class Meta:
+        verbose_name = "Recompensa por Puntos"
+        verbose_name_plural = "Recompensas por Puntos"
+
+    def __str__(self):
+        return f"{self.name} ({self.points_cost} pts)"
+
+    def get_image(self):
+        if self.image_url:
+            return self.image_url
+        if self.product:
+            return self.product.image_url
+        return "https://via.placeholder.com/300?text=Recompensa"
+
+    @property
+    def available_quantity(self):
+        if self.reward_type == 'PRODUCT':
+            return self.stock
+        elif self.reward_type == 'COUPON' and self.coupon_batch_name:
+            # Calculate remaining coupons in batch
+            # We need to import UserCoupon here if it wasn't defined before, but it is.
+            # However, to be safe from circular dependency issues if moved:
+            from django.apps import apps
+            UserCoupon = apps.get_model('appOnichan', 'UserCoupon')
+            Coupon = apps.get_model('appOnichan', 'Coupon')
+            
+            batch_coupons = Coupon.objects.filter(batch_name=self.coupon_batch_name, active=True)
+            assigned_count = UserCoupon.objects.filter(coupon__in=batch_coupons).count()
+            return batch_coupons.count() - assigned_count
+        return None
+
+
+class RedemptionHistory(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='redemptions', verbose_name="Usuario")
+    reward = models.ForeignKey(PointReward, on_delete=models.SET_NULL, null=True, verbose_name="Recompensa")
+    points_spent = models.PositiveIntegerField(verbose_name="Puntos Gastados")
+    redeemed_at = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Canje")
+    
+    class Meta:
+        verbose_name = "Historial de Canje"
+        verbose_name_plural = "Historial de Canjes"
+        ordering = ['-redeemed_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.reward.name if self.reward else 'Borrado'}"
 

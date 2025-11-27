@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load roles %}
+
+{% block content %}
+<div class="container mt-4">
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link active" aria-current="page" href="#">Listado de Pedidos</a>
+        </li>
+        {% if user|has_group:'trabajador' %}
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'fulfillment_game' %}">Preparación</a>
+        </li>
+        {% endif %}
+    </ul>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h2 class="card-title mb-4">Pedidos Online</h2>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Código</th>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Total</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td><strong>{{ order.code }}</strong></td>
+                            <td>{{ order.fecha|date:"d/m/Y" }}</td>
+                            <td>{{ order.cliente.name }}</td>
+                            <td>${{ order.total }}</td>
+                            <td>
+                                {% if order.estado == 'Pendiente' %}
+                                    <span class="badge bg-warning text-dark">{{ order.estado }}</span>
+                                {% elif order.estado == 'Procesado' %}
+                                    <span class="badge bg-info text-dark">{{ order.estado }}</span>
+                                {% elif order.estado == 'Entregado' %}
+                                    <span class="badge bg-success">{{ order.estado }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ order.estado }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" disabled>Ver Detalle</button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4">No hay pedidos registrados.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

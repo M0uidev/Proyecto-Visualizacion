@@ -1,0 +1,737 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Marketing y Ofertas{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Panel de Marketing y Ofertas</h1>
+
+    {% if messages %}
+    <div class="toast-container position-fixed bottom-0 start-0 p-3" style="z-index: 1100;">
+        {% for message in messages %}
+            <div class="toast message-toast align-items-center text-bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        {% if message.tags == 'success' %}
+                            <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        {% elif message.tags == 'error' %}
+                            <i class="bi bi-exclamation-circle-fill text-danger me-2"></i>
+                        {% endif %}
+                        {{ message }}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var toastElList = [].slice.call(document.querySelectorAll('.message-toast'))
+            var toastList = toastElList.map(function(toastEl) {
+                return new bootstrap.Toast(toastEl)
+            })
+            toastList.forEach(toast => toast.show());
+        });
+    </script>
+    {% endif %}
+
+    <ul class="nav nav-tabs mb-4" id="marketingTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'coupons' %}active{% endif %}" id="coupons-tab" data-bs-toggle="tab" data-bs-target="#coupons" type="button" role="tab">Gestión de Cupones</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'bulk' %}active{% endif %}" id="bulk-tab" data-bs-toggle="tab" data-bs-target="#bulk" type="button" role="tab">Ofertas Masivas</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'generator' %}active{% endif %}" id="generator-tab" data-bs-toggle="tab" data-bs-target="#generator" type="button" role="tab">Generador de Cupones</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'rewards' %}active{% endif %}" id="rewards-tab" data-bs-toggle="tab" data-bs-target="#rewards" type="button" role="tab">Puntos y Recompensas</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="marketingTabContent">
+        <!-- Pestaña Cupones -->
+        <div class="tab-pane fade {% if active_tab == 'coupons' %}show active{% endif %}" id="coupons" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3>Lotes de Cupones</h3>
+                <a href="{% url 'coupon_create' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Nuevo Cupón Individual
+                </a>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Lote / Grupo</th>
+                            <th>Total Cupones</th>
+                            <th>Activos</th>
+                            <th>Usados (Total)</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for batch in coupon_batches %}
+                        <tr>
+                            <td><strong>{{ batch.batch_name|default:"Sin Lote (Manual)" }}</strong></td>
+                            <td>{{ batch.total_count }}</td>
+                            <td>{{ batch.active_count }}</td>
+                            <td>{{ batch.used_count|default:0 }}</td>
+                            <td>
+                                {% if batch.batch_name %}
+                                <button class="btn btn-sm btn-info text-white me-1" onclick="viewBatchCoupons('{{ batch.batch_name }}')">
+                                    <i class="bi bi-eye"></i> Ver/Copiar
+                                </button>
+                                <a href="{% url 'delete_coupon_batch' %}?batch_name={{ batch.batch_name }}" class="btn btn-sm btn-danger" onclick="return confirm('¿Estás seguro de eliminar TODOS los cupones de este lote? Esta acción no se puede deshacer.');">
+                                    <i class="bi bi-trash"></i> Eliminar Lote
+                                </a>
+                                {% else %}
+                                <span class="text-muted small">Gestionar individualmente</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center">No hay cupones registrados.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pestaña Ofertas Masivas -->
+        <div class="tab-pane fade {% if active_tab == 'bulk' %}show active{% endif %}" id="bulk" role="tabpanel">
+            
+            <!-- Historial de Ofertas -->
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0 h5">Ofertas Activas e Historial</h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Descuento</th>
+                                    <th>Fecha</th>
+                                    <th>Estado</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for offer in bulk_offers %}
+                                <tr>
+                                    <td>{{ offer.name }}</td>
+                                    <td>{{ offer.discount_percentage }}%</td>
+                                    <td>{{ offer.created_at|date:"d/m/Y H:i" }}</td>
+                                    <td>
+                                        {% if offer.active %}
+                                            <span class="badge bg-success">Activa</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Revertida/Inactiva</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'bulk_offer_detail' offer.id %}" class="btn btn-sm btn-info text-white me-1">
+                                            <i class="bi bi-eye"></i> Detalle
+                                        </a>
+                                        {% if offer.active %}
+                                            <a href="{% url 'revert_bulk_offer' offer.id %}" class="btn btn-sm btn-warning" onclick="return confirm('¿Revertir esta oferta? Se quitará el descuento a los productos asociados.');">
+                                                <i class="bi bi-arrow-counterclockwise"></i> Revertir
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="5" class="text-center text-muted">No hay historial de ofertas masivas.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Nueva Oferta Masiva</h3>
+                    <p class="text-muted">Selecciona productos para aplicar o quitar descuentos en lote.</p>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="bulk_discount" value="1">
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">{{ bulk_form.name.label }}</label>
+                                {{ bulk_form.name }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ bulk_form.discount_percentage.label }}</label>
+                                {{ bulk_form.discount_percentage }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ bulk_form.action.label }}</label>
+                                {{ bulk_form.action }}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Selección de Productos</label>
+                            
+                            <!-- Filtros -->
+                            <div class="row g-2 mb-3">
+                                <div class="col-md-8">
+                                    <input type="text" id="productSearch" class="form-control" placeholder="Buscar producto por nombre...">
+                                </div>
+                                <div class="col-md-4">
+                                    <select id="categoryFilter" class="form-select">
+                                        <option value="">Todas las Categorías</option>
+                                        {% for cat in categories %}
+                                            <option value="{{ cat.name }}">{{ cat.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Grid Container -->
+                            <div id="productsGrid" class="d-flex flex-wrap gap-3 p-3 border rounded bg-light" style="max-height: 500px; overflow-y: auto;">
+                                <!-- JS will populate this -->
+                            </div>
+                            
+                            <!-- Hidden original field to maintain Django form logic -->
+                            <div class="d-none">
+                                {{ bulk_form.products }}
+                            </div>
+                            
+                            <div class="mt-2 d-flex justify-content-between align-items-center">
+                                <small class="text-muted">Haz clic en los productos para seleccionarlos.</small>
+                                <span class="badge bg-primary" id="selectedCount">0 seleccionados</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success">Ejecutar Acción</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pestaña Generador -->
+        <div class="tab-pane fade {% if active_tab == 'generator' %}show active{% endif %}" id="generator" role="tabpanel">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Generador de Cupones Aleatorios</h3>
+                    <p class="text-muted">Genera múltiples cupones únicos automáticamente.</p>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="generate_coupons" value="1">
+                        
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">{{ gen_form.quantity.label }}</label>
+                                {{ gen_form.quantity }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ gen_form.discount_percentage.label }}</label>
+                                {{ gen_form.discount_percentage }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ gen_form.valid_days.label }}</label>
+                                {{ gen_form.valid_days }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ gen_form.usage_limit.label }}</label>
+                                {{ gen_form.usage_limit }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ gen_form.prefix.label }}</label>
+                                {{ gen_form.prefix }}
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label">{{ gen_form.batch_name.label }}</label>
+                                {{ gen_form.batch_name }}
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">Generar Cupones</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <!-- Pestaña Puntos y Recompensas -->
+        <div class="tab-pane fade {% if active_tab == 'rewards' %}show active{% endif %}" id="rewards" role="tabpanel">
+            
+            <!-- Sección 1: Recompensas Activas (Grid) -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3>Recompensas Activas</h3>
+            </div>
+
+            <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4 mb-5">
+                {% for reward in rewards %}
+                <div class="col">
+                    <div class="card h-100 shadow-sm border-0 {% if not reward.active %}opacity-75{% endif %}">
+                        <div class="position-relative">
+                            <img src="{{ reward.get_image }}" class="card-img-top object-fit-cover" alt="{{ reward.name }}" style="height: 180px;">
+                            <span class="position-absolute top-0 end-0 m-2 badge {% if reward.active %}bg-success{% else %}bg-secondary{% endif %}">
+                                {% if reward.active %}Activo{% else %}Inactivo{% endif %}
+                            </span>
+                            <span class="position-absolute bottom-0 start-0 m-2 badge bg-warning text-dark shadow-sm">
+                                {{ reward.points_cost }} pts
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title h6 fw-bold text-truncate" title="{{ reward.name }}">{{ reward.name }}</h5>
+                            <p class="card-text small text-muted mb-2">
+                                {% if reward.reward_type == 'COUPON' %}
+                                    <i class="bi bi-ticket-perforated"></i> Cupón: {{ reward.coupon.code }}
+                                {% else %}
+                                    <i class="bi bi-box-seam"></i> Producto
+                                {% endif %}
+                            </p>
+                            <p class="card-text small text-primary mb-2">
+                                <i class="bi bi-bag-check"></i> Vendidos: 
+                                {{ reward.redemptionhistory_set.count }}
+                                {% if reward.reward_type == 'PRODUCT' and reward.stock > 0 %}
+                                    / {{ reward.redemptionhistory_set.count|add:reward.stock }}
+                                {% elif reward.reward_type == 'COUPON' and reward.coupon_batch_name %}
+                                    / {{ reward.available_quantity|add:reward.redemptionhistory_set.count }}
+                                {% endif %}
+                            </p>
+                            {% if reward.valid_until %}
+                                <p class="card-text x-small text-danger mb-0">
+                                    <i class="bi bi-clock"></i> Expira: {{ reward.valid_until|date:"d/m/Y" }}
+                                </p>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer bg-white border-top-0 d-flex justify-content-between">
+                            <a href="{% url 'toggle_reward_status' reward.id %}" class="btn btn-sm btn-outline-secondary" title="Activar/Desactivar">
+                                <i class="bi bi-power"></i>
+                            </a>
+                            <a href="{% url 'delete_reward' reward.id %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Eliminar esta recompensa?')" title="Eliminar">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-light text-center border border-dashed p-5">
+                        <p class="text-muted mb-0">No hay recompensas activas. Selecciona un producto abajo para crear una.</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <hr class="my-5">
+
+            <!-- Sección 2: Productos Disponibles (Grid con Filtros) -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3">
+                <h3 class="mb-0">Agregar Nueva Recompensa</h3>
+                <button class="btn btn-outline-primary" onclick="openCouponRewardModal()">
+                    <i class="bi bi-ticket-perforated"></i> Crear Recompensa de Cupón
+                </button>
+                <div class="d-flex gap-2 w-100 w-md-auto">
+                    <input type="text" id="rewardSearch" class="form-control" placeholder="Buscar producto...">
+                    <select id="rewardCategoryFilter" class="form-select w-auto">
+                        <option value="all">Todas las categorías</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.slug }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="row row-cols-2 row-cols-md-4 row-cols-lg-5 g-3" id="rewardProductsGrid">
+                {% for p in all_products %}
+                <div class="col reward-product-item" data-name="{{ p.name|lower }}" data-category="{{ p.category.slug }}">
+                    <div class="card h-100 border-0 shadow-sm product-card-hover">
+                        <div class="ratio ratio-1x1 position-relative">
+                            <img src="{{ p.image_url }}" class="card-img-top object-fit-cover rounded-top" alt="{{ p.name }}">
+                            <button class="btn btn-success rounded-circle position-absolute bottom-0 end-0 m-2 shadow d-flex align-items-center justify-content-center" 
+                                    style="width: 32px; height: 32px;"
+                                    onclick="openRewardModal('{{ p.id }}', '{{ p.name|escapejs }}', '{{ p.image_url|escapejs }}')">
+                                <i class="bi bi-plus text-white"></i>
+                            </button>
+                        </div>
+                        <div class="card-body p-2">
+                            <h6 class="card-title text-truncate small mb-1" title="{{ p.name }}">{{ p.name }}</h6>
+                            <p class="card-text x-small text-muted mb-0">Stock: {{ p.stock }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Agregar Recompensa (Simplificado) -->
+<div class="modal fade" id="addRewardModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Configurar Recompensa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{% url 'create_reward' %}" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="reward_type" id="modalRewardType" value="PRODUCT">
+                <input type="hidden" name="product_id" id="modalProductId">
+                <input type="hidden" name="image_url" id="modalProductImage">
+                
+                <div class="modal-body">
+                    <!-- Product Preview Section -->
+                    <div id="productPreviewSection" class="text-center mb-4">
+                        <img id="modalProductPreview" src="" class="rounded mb-2" style="width: 80px; height: 80px; object-fit: cover;">
+                        <h6 id="modalProductName" class="fw-bold"></h6>
+                        
+                        <div class="mt-3 text-start">
+                             <label class="form-label">Cantidad Disponible (Stock Recompensa) <span class="text-danger">*</span></label>
+                             <input type="number" class="form-control" name="stock" min="1" value="10" required>
+                             <div class="form-text">Cantidad de unidades que se destinarán a recompensas.</div>
+                        </div>
+                    </div>
+
+                    <!-- Coupon Generator Section -->
+                    <div id="couponSelectSection" class="mb-3" style="display: none;">
+                        <h6 class="text-primary border-bottom pb-2 mb-3">Generador de Cupones</h6>
+                        
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small">Cantidad</label>
+                                <input type="number" class="form-control" name="gen_quantity" min="1" value="50">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">% Descuento</label>
+                                <input type="number" class="form-control" name="gen_discount" min="1" max="100" value="10">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">Días Validez</label>
+                                <input type="number" class="form-control" name="gen_days" min="1" value="30">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">Prefijo</label>
+                                <input type="text" class="form-control" name="gen_prefix" placeholder="Ej: REWARD" value="REWARD">
+                            </div>
+                        </div>
+                        <div class="form-text mt-2">
+                            Se generarán cupones únicos. La recompensa se desactivará automáticamente cuando se agoten.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Costo en Puntos <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" name="points_cost" min="1" required placeholder="Ej: 500">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Nombre Personalizado (Opcional)</label>
+                        <input type="text" class="form-control" name="name" placeholder="Dejar vacío para usar nombre del producto/cupón">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Válido Hasta (Opcional)</label>
+                        <input type="datetime-local" class="form-control" name="valid_until">
+                        <div class="form-text">Si se deja vacío, no expira.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear Recompensa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openRewardModal(id, name, image) {
+    document.getElementById('modalRewardType').value = 'PRODUCT';
+    document.getElementById('modalProductId').value = id;
+    document.getElementById('modalProductImage').value = image;
+    document.getElementById('modalProductName').textContent = name;
+    document.getElementById('modalProductPreview').src = image;
+    
+    document.getElementById('productPreviewSection').style.display = 'block';
+    document.getElementById('couponSelectSection').style.display = 'none';
+    
+    // Enable stock validation
+    const stockInput = document.querySelector('input[name="stock"]');
+    if(stockInput) stockInput.required = true;
+    
+    new bootstrap.Modal(document.getElementById('addRewardModal')).show();
+}
+
+function openCouponRewardModal() {
+    document.getElementById('modalRewardType').value = 'COUPON';
+    document.getElementById('productPreviewSection').style.display = 'none';
+    document.getElementById('couponSelectSection').style.display = 'block';
+    
+    // Disable stock validation
+    const stockInput = document.querySelector('input[name="stock"]');
+    if(stockInput) stockInput.required = false;
+    
+    new bootstrap.Modal(document.getElementById('addRewardModal')).show();
+}
+
+// Filter Logic for Reward Products
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('rewardSearch');
+    const categorySelect = document.getElementById('rewardCategoryFilter');
+    const items = document.querySelectorAll('.reward-product-item');
+
+    function filterItems() {
+        const term = searchInput.value.toLowerCase();
+        const cat = categorySelect.value;
+
+        items.forEach(item => {
+            const name = item.getAttribute('data-name');
+            const category = item.getAttribute('data-category');
+            
+            const matchesSearch = name.includes(term);
+            const matchesCategory = cat === 'all' || category === cat;
+
+            if (matchesSearch && matchesCategory) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    if(searchInput && categorySelect) {
+        searchInput.addEventListener('input', filterItems);
+        categorySelect.addEventListener('change', filterItems);
+    }
+});
+</script>
+
+
+
+<!-- Modal para Ver/Copiar Cupones -->
+<div class="modal fade" id="couponBatchModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Cupones del Lote: <span id="modalBatchName"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+            <label for="formatSelect" class="form-label">Formato de Copia:</label>
+            <select class="form-select" id="formatSelect" onchange="updateCouponFormat()">
+                <option value="python">Lista de Python (['A', 'B'])</option>
+                <option value="json">JSON (["A", "B"])</option>
+                <option value="csv">CSV (A,B,C)</option>
+                <option value="text">Texto Plano (Uno por línea)</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <textarea class="form-control" id="couponTextArea" rows="10" readonly></textarea>
+        </div>
+        <div class="d-flex justify-content-end">
+            <button class="btn btn-primary" onclick="copyToClipboard()">
+                <i class="bi bi-clipboard"></i> Copiar al Portapapeles
+            </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentCoupons = [];
+
+function viewBatchCoupons(batchName) {
+    document.getElementById('modalBatchName').innerText = batchName;
+    const modal = new bootstrap.Modal(document.getElementById('couponBatchModal'));
+    
+    // Show loading state
+    document.getElementById('couponTextArea').value = "Cargando cupones...";
+    modal.show();
+
+    fetch(`{% url 'get_coupon_batch' %}?batch_name=${encodeURIComponent(batchName)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            currentCoupons = data.coupons;
+            updateCouponFormat();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('couponTextArea').value = "Error al cargar cupones.";
+        });
+}
+
+function updateCouponFormat() {
+    const format = document.getElementById('formatSelect').value;
+    const textArea = document.getElementById('couponTextArea');
+    
+    if (!currentCoupons || currentCoupons.length === 0) {
+        textArea.value = "No hay cupones en este lote.";
+        return;
+    }
+
+    let formattedText = "";
+    
+    switch(format) {
+        case 'python':
+            // Python list format: ['CODE1', 'CODE2']
+            formattedText = "[" + currentCoupons.map(c => `'${c}'`).join(", ") + "]";
+            break;
+        case 'json':
+            // JSON format: ["CODE1", "CODE2"]
+            formattedText = JSON.stringify(currentCoupons);
+            break;
+        case 'csv':
+            // CSV format: CODE1,CODE2
+            formattedText = currentCoupons.join(",");
+            break;
+        case 'text':
+            // Plain text: One per line
+            formattedText = currentCoupons.join("\n");
+            break;
+    }
+    
+    textArea.value = formattedText;
+}
+
+function copyToClipboard() {
+    const textArea = document.getElementById('couponTextArea');
+    textArea.select();
+    document.execCommand('copy'); // Fallback for older browsers
+    
+    // Modern API
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(textArea.value).then(() => {
+            alert("¡Cupones copiados al portapapeles!");
+        });
+    } else {
+        alert("¡Cupones copiados al portapapeles!");
+    }
+}
+
+// Product Grid Logic
+const productsData = JSON.parse('{{ products_json|escapejs|default:"[]" }}');
+const gridContainer = document.getElementById('productsGrid');
+const searchInput = document.getElementById('productSearch');
+const categoryFilter = document.getElementById('categoryFilter');
+const selectedCountSpan = document.getElementById('selectedCount');
+    
+// Map to track selected IDs
+let selectedIds = new Set();
+
+function renderGrid() {
+    gridContainer.innerHTML = '';
+    const searchTerm = searchInput.value.toLowerCase();
+    const selectedCategory = categoryFilter.value;
+
+    productsData.forEach(product => {
+        // Filter logic
+        if (searchTerm && !product.name.toLowerCase().includes(searchTerm)) return;
+        if (selectedCategory && product.category !== selectedCategory) return;
+
+        // Check if disabled (already has an active offer)
+        const isDisabled = !!product.active_offer;
+
+        // Create Card
+        const card = document.createElement('div');
+        card.className = `card product-card ${selectedIds.has(product.id) ? 'border-primary ring-2' : ''} ${isDisabled ? 'opacity-75 bg-light' : ''}`;
+        card.style.width = '160px';
+        card.style.cursor = isDisabled ? 'not-allowed' : 'pointer';
+        card.style.transition = 'all 0.2s';
+            
+        // Visual selection style
+        if (selectedIds.has(product.id)) {
+            card.style.boxShadow = '0 0 0 3px #0d6efd';
+            card.style.transform = 'scale(1.02)';
+        }
+
+        // Active Offer Badge
+        let badgeHtml = '';
+        if (product.active_offer) {
+            badgeHtml = `<span class="position-absolute top-0 end-0 badge rounded-pill bg-warning text-dark m-1" style="font-size: 0.7rem;">${product.active_offer}</span>`;
+        }
+
+        card.innerHTML = `
+            <div class="position-relative">
+                <img src="${product.image_url}" class="card-img-top" alt="${product.name}" style="height: 120px; object-fit: cover; ${isDisabled ? 'filter: grayscale(50%);' : ''}">
+                ${badgeHtml}
+            </div>
+            <div class="card-body p-2">
+                <h6 class="card-title text-truncate small mb-1" title="${product.name}">${product.name}</h6>
+                <p class="card-text small text-muted mb-1">${product.category}</p>
+                <p class="card-text fw-bold text-primary small">$${product.price}</p>
+            </div>
+        `;
+
+        // Click Event
+        if (!isDisabled) {
+            card.onclick = () => toggleSelection(product.id, card);
+        } else {
+            card.title = `Este producto ya tiene una oferta activa: ${product.active_offer}`;
+        }
+        
+        gridContainer.appendChild(card);
+    });
+}
+
+function toggleSelection(pid, cardElement) {
+    // Toggle Set
+    if (selectedIds.has(pid)) {
+        selectedIds.delete(pid);
+        cardElement.style.boxShadow = 'none';
+        cardElement.style.transform = 'none';
+    } else {
+        selectedIds.add(pid);
+        cardElement.style.boxShadow = '0 0 0 3px #0d6efd';
+        cardElement.style.transform = 'scale(1.02)';
+    }
+    
+    updateHiddenInputs();
+    updateCount();
+}
+
+function updateHiddenInputs() {
+    // Sync with the hidden Django form widget
+    // The widget renders checkboxes with name="products" and value=ID
+    // We need to check/uncheck them based on our Set
+    const checkboxes = document.querySelectorAll('input[name="products"]');
+    checkboxes.forEach(cb => {
+        const val = parseInt(cb.value);
+        cb.checked = selectedIds.has(val);
+    });
+}
+    
+function updateCount() {
+    selectedCountSpan.textContent = `${selectedIds.size} seleccionados`;
+}
+
+// Event Listeners
+searchInput.addEventListener('input', renderGrid);
+categoryFilter.addEventListener('change', renderGrid);
+
+// Initial Render
+document.addEventListener('DOMContentLoaded', () => {
+    renderGrid();
+    // Initialize selectedIds from form state if page reloaded (optional, but good for UX)
+    const checkboxes = document.querySelectorAll('input[name="products"]');
+    checkboxes.forEach(cb => {
+        if (cb.checked) selectedIds.add(parseInt(cb.value));
+    });
+    updateCount();
+    renderGrid(); // Re-render to show initial selection
+});
+</script>
+{% endblock %}

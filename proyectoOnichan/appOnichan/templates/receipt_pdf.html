@@ -4,51 +4,211 @@
     <meta charset="utf-8">
     <title>Boleta {{ order.code }}</title>
     <style>
-        body { font-family: Helvetica, sans-serif; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .total { text-align: right; font-weight: bold; margin-top: 20px; }
+        @page {
+            size: letter;
+            margin: 2cm;
+            @frame footer_frame {
+                -pdf-frame-content: footerContent;
+                bottom: 1cm;
+                margin-left: 2cm;
+                margin-right: 2cm;
+                height: 1cm;
+            }
+        }
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 10pt;
+            color: #333;
+            line-height: 1.4;
+        }
+        .header-container {
+            border-bottom: 2px solid #0dcaf0;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .company-name {
+            font-size: 24pt;
+            font-weight: bold;
+            color: #0dcaf0;
+            margin-bottom: 5px;
+        }
+        .company-details {
+            font-size: 9pt;
+            color: #666;
+        }
+        .invoice-title {
+            font-size: 18pt;
+            font-weight: bold;
+            text-align: right;
+            color: #555;
+        }
+        .invoice-details {
+            text-align: right;
+            font-size: 10pt;
+            margin-top: 10px;
+        }
+        .columns {
+            width: 100%;
+            margin-bottom: 30px;
+        }
+        .col-left {
+            width: 50%;
+            vertical-align: top;
+        }
+        .col-right {
+            width: 50%;
+            vertical-align: top;
+            text-align: right;
+        }
+        .section-title {
+            font-weight: bold;
+            color: #0dcaf0;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+            display: block;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th {
+            background-color: #f8f9fa;
+            color: #495057;
+            font-weight: bold;
+            padding: 10px;
+            text-align: left;
+            border-bottom: 2px solid #dee2e6;
+        }
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #dee2e6;
+            vertical-align: top;
+        }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .totals-container {
+            width: 100%;
+            margin-top: 20px;
+        }
+        .totals-table {
+            width: 40%;
+            margin-left: 60%;
+        }
+        .totals-table td {
+            padding: 5px 10px;
+            border: none;
+        }
+        .total-row {
+            font-weight: bold;
+            font-size: 12pt;
+            color: #0dcaf0;
+            border-top: 2px solid #0dcaf0 !important;
+        }
+        .footer {
+            text-align: center;
+            font-size: 8pt;
+            color: #999;
+            margin-top: 50px;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Comprobante de Pago</h1>
-        <p>Multitienda Onichan</p>
-        <p>Fecha: {{ order.fecha }}</p>
-        <p>Pedido: {{ order.code }}</p>
-        <p>Cliente: {{ order.cliente.name }}</p>
-        <p>Email: {{ order.contact_email }} | Tel: {{ order.contact_phone }}</p>
-        <p>Método de Entrega: {{ order.delivery_method }}</p>
-        {% if order.delivery_method == "Despacho" %}
-        <p>Dirección: {{ order.shipping_address }}, {{ order.shipping_commune }}, {{ order.shipping_region }}</p>
-        {% endif %}
-    </div>
+    <!-- Header -->
+    <table class="header-container">
+        <tr>
+            <td style="border:none; padding:0;">
+                <div class="company-name">MultiTienda</div>
+                <div class="company-details">
+                    Av. La Plaza 6767<br>
+                    Santiago, Chile<br>
+                    contacto@multitienda.cl | +56 9 8837 6786
+                </div>
+            </td>
+            <td style="border:none; padding:0; text-align:right;">
+                <div class="invoice-title">COMPROBANTE DE PAGO</div>
+                <div class="invoice-details">
+                    <strong>N° Pedido:</strong> {{ order.code }}<br>
+                    <strong>Fecha:</strong> {{ order.fecha|date:"d/m/Y" }}
+                </div>
+            </td>
+        </tr>
+    </table>
 
+    <!-- Info Columns -->
+    <table class="columns">
+        <tr>
+            <td class="col-left" style="border:none;">
+                <div class="section-title">DATOS DEL CLIENTE</div>
+                <strong>{{ order.cliente.name }}</strong><br>
+                {{ order.contact_email }}<br>
+                {{ order.contact_phone }}
+            </td>
+            <td class="col-right" style="border:none;">
+                <div class="section-title">MÉTODO DE ENTREGA</div>
+                <strong>{{ order.delivery_method }}</strong><br>
+                {% if order.delivery_method == "Despacho" %}
+                    {{ order.shipping_address }}<br>
+                    {{ order.shipping_commune }}, {{ order.shipping_region }}
+                {% else %}
+                    Retiro en Tienda
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+
+    <!-- Items Table -->
     <table>
         <thead>
             <tr>
-                <th>Producto</th>
-                <th>Precio Unit.</th>
-                <th>Cantidad</th>
-                <th>Subtotal</th>
+                <th width="50%">Producto</th>
+                <th width="15%" class="text-center">Cant.</th>
+                <th width="15%" class="text-right">Precio</th>
+                <th width="20%" class="text-right">Total</th>
             </tr>
         </thead>
         <tbody>
             {% for item in items %}
             <tr>
-                <td>{{ item.product.name }}</td>
-                <td>${{ item.price }}</td>
-                <td>{{ item.cantidad }}</td>
-                <td>${{ item.subtotal }}</td>
+                <td>
+                    <strong>{{ item.product.name }}</strong>
+                    {% if item.size %}
+                    <br><span style="font-size: 8pt; color: #666;">Talla: {{ item.size }}</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">{{ item.cantidad }}</td>
+                <td class="text-right">${{ item.price }}</td>
+                <td class="text-right">${{ item.subtotal }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 
-    <div class="total">
-        <p>Total Pagado: ${{ order.total }}</p>
+    <!-- Totals -->
+    <table class="totals-table">
+        {% if order.discount_amount > 0 %}
+        <tr>
+            <td class="text-right">Subtotal:</td>
+            <td class="text-right">${{ order.total|add:order.discount_amount }}</td>
+        </tr>
+        <tr>
+            <td class="text-right" style="color: #dc3545;">Descuento:</td>
+            <td class="text-right" style="color: #dc3545;">-${{ order.discount_amount }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+            <td class="text-right total-row">TOTAL A PAGAR:</td>
+            <td class="text-right total-row">${{ order.total }}</td>
+        </tr>
+    </table>
+
+    <!-- Footer -->
+    <div id="footerContent" class="footer">
+        <p>¡Gracias por tu compra en Onichan Store!</p>
+        <p>Para dudas o consultas, contáctanos indicando tu número de pedido.</p>
     </div>
 </body>
 </html>

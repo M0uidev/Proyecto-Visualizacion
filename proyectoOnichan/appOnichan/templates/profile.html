@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "basecliente.html" %}
 {% load static %}
 
 {% block title %}Mi Perfil{% endblock %}
@@ -57,6 +57,28 @@
                             <p class="fw-medium">{{ profile.region }}</p>
                         </div>
                     </div>
+
+                    <h5 class="mb-3 mt-4">Mi Chequera (Cupones Disponibles)</h5>
+                    {% if wallet_coupons %}
+                    <div class="row g-3 mb-4">
+                        {% for uc in wallet_coupons %}
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card border-primary border-2 h-100 bg-soft-primary">
+                                <div class="card-body text-center">
+                                    <h6 class="card-title fw-bold text-primary">{{ uc.coupon.code }}</h6>
+                                    <h3 class="display-6 fw-bold">{{ uc.coupon.discount_percentage }}% OFF</h3>
+                                    <p class="small text-muted mb-0">Adquirido: {{ uc.acquired_at|date:"d/m/Y" }}</p>
+                                    <p class="small text-danger mb-0">Vence: {{ uc.coupon.valid_to|date:"d/m/Y" }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-light border rounded-3 text-center py-3 mb-4">
+                        <p class="text-muted mb-0">No tienes cupones disponibles en tu chequera.</p>
+                    </div>
+                    {% endif %}
 
                     <h5 class="mb-3 mt-4">Historial de Pedidos</h5>
                     {% if orders %}

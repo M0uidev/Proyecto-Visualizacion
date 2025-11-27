@@ -10,40 +10,6 @@
 
 {% block content %}
   <main class="container-fluid py-4">
-    <div class="mb-4 d-flex flex-wrap gap-2 align-items-center justify-content-between">
-      <div class="d-flex gap-2">
-      </div>
-      <form method="get" class="d-flex align-items-center gap-2">
-        <a class="btn btn-pastel-secondary" href="{{ prev_url }}" title="Anterior">⟵</a>
-        <div class="input-group">
-          <span class="input-group-text">Periodo</span>
-          <select name="period" class="form-select">
-            <option value="week" {% if period == 'week' %}selected{% endif %}>Semana</option>
-            <option value="month" {% if period == 'month' %}selected{% endif %}>Mes</option>
-            <option value="year" {% if period == 'year' %}selected{% endif %}>Año</option>
-          </select>
-        </div>
-        {% if period == 'week' %}
-          <div class="input-group">
-            <span class="input-group-text">Semana</span>
-            <input type="date" class="form-control" name="week" value="{{ ref_value|default:'' }}" />
-          </div>
-        {% elif period == 'month' %}
-          <div class="input-group">
-            <span class="input-group-text">Mes</span>
-            <input type="month" class="form-control" name="month" value="{{ ref_value|default:'' }}" />
-          </div>
-        {% else %}
-          <div class="input-group">
-            <span class="input-group-text">Año</span>
-            <input type="number" class="form-control" name="year" value="{{ ref_value|default:'' }}" />
-          </div>
-        {% endif %}
-        <button class="btn btn-pastel" type="submit">Ver</button>
-        <a class="btn btn-pastel-secondary" href="{{ next_url }}" title="Siguiente">⟶</a>
-      </form>
-    </div>
-
     <div class="dashboard-wrapper card-pastel p-4">
       <!-- KPIs Section (Always Visible) -->
       <section class="row g-4 mb-4">
@@ -69,6 +35,38 @@
           </article>
         </div>
       </section>
+
+      <div class="mb-4 d-flex flex-wrap gap-2 align-items-center justify-content-end">
+        <form method="get" class="d-flex align-items-center gap-2">
+          <a class="btn btn-pastel-secondary" href="{{ prev_url }}" title="Anterior">⟵</a>
+          <div class="input-group">
+            <span class="input-group-text">Periodo</span>
+            <select name="period" class="form-select">
+              <option value="week" {% if period == 'week' %}selected{% endif %}>Semana</option>
+              <option value="month" {% if period == 'month' %}selected{% endif %}>Mes</option>
+              <option value="year" {% if period == 'year' %}selected{% endif %}>Año</option>
+            </select>
+          </div>
+          {% if period == 'week' %}
+            <div class="input-group">
+              <span class="input-group-text">Semana</span>
+              <input type="date" class="form-control" name="week" value="{{ ref_value|default:'' }}" />
+            </div>
+          {% elif period == 'month' %}
+            <div class="input-group">
+              <span class="input-group-text">Mes</span>
+              <input type="month" class="form-control" name="month" value="{{ ref_value|default:'' }}" />
+            </div>
+          {% else %}
+            <div class="input-group">
+              <span class="input-group-text">Año</span>
+              <input type="number" class="form-control" name="year" value="{{ ref_value|default:'' }}" />
+            </div>
+          {% endif %}
+          <button class="btn btn-pastel" type="submit">Ver</button>
+          <a class="btn btn-pastel-secondary" href="{{ next_url }}" title="Siguiente">⟶</a>
+        </form>
+      </div>
 
       <!-- Tabs Navigation -->
       <ul class="nav nav-tabs mb-4" id="dashboardTabs" role="tablist">

@@ -23,11 +23,15 @@
   --shadow-sm: 0 2px 8px rgba(0,0,0,0.05);
   --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
   --nav-height: 70px;
-  --font-main: 'Poppins', sans-serif;
+  --font-main: 'Inter', sans-serif;
 }
 
 *, *::before, *::after {
   box-sizing: border-box;
+}
+
+html {
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -284,6 +288,17 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-muted);
   margin-top: 4rem;
   border-top: 1px solid #eee;
+}
+
+/* Info Card Hover Effect */
+.info-card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.info-card-hover:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-md) !important;
+  border-color: var(--color-primary) !important;
 }
 
 /* Responsive */

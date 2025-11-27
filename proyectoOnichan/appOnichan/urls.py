@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     path('', views.index, name='index'),
     path('pagina1/', views.pagina1, name='pagina1'),
+    path('buscar/', views.buscar_productos, name='buscar_productos'),
     # Auth
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
@@ -13,6 +14,11 @@ urlpatterns = [
     # Dashboards
     path('dashboardadmin/', views.dashboardadmin, name='dashboardadmin'),
     path('dashboardtrabajador/', views.dashboardtrabajador, name='dashboardtrabajador'),
+    path('api/check_orders/', views.check_new_orders, name='check_new_orders'),
+    # Fulfillment Game
+    path('orders/', views.order_list, name='order_list'),
+    path('fulfillment/', views.fulfillment_game, name='fulfillment_game'),
+    path('fulfillment/complete/<int:order_id>/', views.complete_fulfillment, name='complete_fulfillment'),
     # Stock (renombrado)
     path('stock/', views.stock, name='stock'),
     # POS para trabajador
@@ -22,11 +28,31 @@ urlpatterns = [
     path("producto/<int:pid>/edit/", views.edit_product, name="edit_product"),
     # Carrito
     path('add_to_cart/<int:pid>/', views.add_to_cart, name='add_to_cart'),
-    path('remove_from_cart/<int:pid>/', views.remove_from_cart, name='remove_from_cart'),
-    path('update_cart_quantity/<int:pid>/<str:action>/', views.update_cart_quantity, name='update_cart_quantity'),
+    path('remove_from_cart/<str:key>/', views.remove_from_cart, name='remove_from_cart'),
+    path('update_cart_quantity/<str:key>/<str:action>/', views.update_cart_quantity, name='update_cart_quantity'),
     path('cart/', views.cart_view, name='cart_view'),
     path('checkout/', views.checkout_webpay, name='checkout_webpay'),
     path('receipt/<str:order_code>/', views.download_receipt, name='download_receipt'),
+    # Marketing & Cupones
+    path('marketing/', views.marketing_dashboard, name='marketing_dashboard'),
+    path('marketing/coupon/create/', views.coupon_create, name='coupon_create'),
+    path('marketing/coupon/edit/<int:cid>/', views.coupon_edit, name='coupon_edit'),
+    path('marketing/coupon/delete/<int:cid>/', views.coupon_delete, name='coupon_delete'),
+    path('marketing/coupon/delete-batch/', views.delete_coupon_batch, name='delete_coupon_batch'),
+    path('marketing/bulk/revert/<int:oid>/', views.revert_bulk_offer, name='revert_bulk_offer'),
+    path('marketing/bulk/detail/<int:oid>/', views.bulk_offer_detail, name='bulk_offer_detail'),
+    path('cart/apply_coupon/', views.apply_coupon, name='apply_coupon'),
+    path('cart/remove_coupon/', views.remove_coupon, name='remove_coupon'),
     # API Análisis Regional
     path('regional-analysis-api/', views.regional_analysis_api, name='regional_analysis_api'),
+    path('marketing/coupon/get-batch/', views.get_coupon_batch, name='get_coupon_batch'),
+    # Barcode Tool
+    path('barcode-tool/', views.barcode_tool, name='barcode_tool'),
+    path('barcode-tool/print/', views.print_barcodes, name='print_barcodes'),
+    # Rewards
+    path('rewards/', views.rewards_catalog, name='rewards_catalog'),
+    path('rewards/redeem/<int:reward_id>/', views.redeem_reward, name='redeem_reward'),
+    path('marketing/reward/create/', views.create_reward, name='create_reward'),
+    path('marketing/reward/toggle/<int:rid>/', views.toggle_reward_status, name='toggle_reward_status'),
+    path('marketing/reward/delete/<int:rid>/', views.delete_reward, name='delete_reward'),
 ]

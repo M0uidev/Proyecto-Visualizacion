@@ -9,7 +9,10 @@
 
   <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/base.css' %}" />
 
   {% block extra_css %}{% endblock %}
@@ -26,26 +29,7 @@
       
       <div class="nav-actions">
         {% block nav_right %}
-          {% if user.is_authenticated %}
-            {% if user.is_staff or user.is_superuser or user|has_group:'admin' %}
-              <a href="{% url 'dashboardadmin' %}" class="nav-link-custom"><i class="bi bi-speedometer2"></i>Dashboard</a>
-              <a href="{% url 'stock' %}" class="nav-link-custom"><i class="bi bi-box-seam"></i>Stock</a>
-              <a href="{% url 'logout' %}" class="nav-link-custom"><i class="bi bi-box-arrow-right"></i>Salir</a>
-            {% elif user|has_group:'trabajador' %}
-              <a href="{% url 'dashboardtrabajador' %}" class="nav-link-custom"><i class="bi bi-speedometer2"></i>Dashboard</a>
-              <a href="{% url 'stock' %}" class="nav-link-custom"><i class="bi bi-box-seam"></i>Stock</a>
-              <a href="{% url 'pos' %}" class="nav-link-custom"><i class="bi bi-cash"></i>Caja</a>
-              <a href="{% url 'logout' %}" class="nav-link-custom"><i class="bi bi-box-arrow-right"></i>Salir</a>
-            {% else %}
-              <a href="{% url 'profile' %}" class="nav-link-custom"><i class="bi bi-person-circle"></i>Mi Perfil</a>
-              <a href="{% url 'cart_view' %}" class="nav-link-custom" aria-label="Carrito"><i class="bi bi-cart"></i>Carrito</a>
-              <a href="{% url 'logout' %}" class="nav-link-custom"><i class="bi bi-box-arrow-right"></i>Salir</a>
-            {% endif %}
-          {% else %}
-            <a href="{% url 'login' %}" class="nav-link-custom"><i class="bi bi-person"></i>Iniciar Sesión</a>
-            <a href="{% url 'register' %}" class="nav-link-custom"><i class="bi bi-person-plus"></i>Registrarse</a>
-            <a href="{% url 'cart_view' %}" class="nav-link-custom" aria-label="Carrito"><i class="bi bi-cart"></i>Carrito</a>
-          {% endif %}
+          {% include 'partials/navbar_right.html' %}
         {% endblock %}
         
         <a href="#mainMenu" class="nav-link-custom" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="mainMenu">
@@ -152,6 +136,7 @@
 
   <!-- Toast Container -->
   <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
+    <!-- Existing Cart Toast -->
     <div id="cartToast" class="toast align-items-center text-bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="d-flex">
         <div class="toast-body">
@@ -160,7 +145,103 @@
         <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
       </div>
     </div>
+
+    <!-- Django Messages Toasts -->
+    {% if messages %}
+      {% for message in messages %}
+        <div class="toast align-items-center text-bg-{% if message.tags == 'error' %}danger{% elif message.tags == 'debug' %}secondary{% else %}{{ message.tags }}{% endif %} border-0 message-toast" role="alert" aria-live="assertive" aria-atomic="true">
+          <div class="d-flex">
+            <div class="toast-body">
+              {% if message.tags == 'success' %}<i class="bi bi-check-circle-fill me-2"></i>{% endif %}
+              {% if message.tags == 'error' %}<i class="bi bi-exclamation-circle-fill me-2"></i>{% endif %}
+              {% if message.tags == 'warning' %}<i class="bi bi-exclamation-triangle-fill me-2"></i>{% endif %}
+              {% if message.tags == 'info' %}<i class="bi bi-info-circle-fill me-2"></i>{% endif %}
+              {{ message }}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
   </div>
+
+  <!-- Worker Notification Toast -->
+  {% if user.is_authenticated and user|has_group:'trabajador' %}
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
+    <div id="newOrderToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="toast-header bg-primary text-white">
+        <i class="bi bi-bell-fill me-2"></i>
+        <strong class="me-auto">Nuevo Pedido</strong>
+        <small>Justo ahora</small>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+      <div class="toast-body">
+        ¡Ha llegado un nuevo pedido!
+        <div class="mt-2 pt-2 border-top">
+          <a href="{% url 'dashboardtrabajador' %}" class="btn btn-primary btn-sm w-100">Ver Dashboard</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let lastOrderId = 0;
+        const checkInterval = 5000; // 5 seconds
+
+        function checkOrders() {
+            fetch("{% url 'check_new_orders' %}")
+                .then(response => response.json())
+                .then(data => {
+                    // Update badge
+                    const badge = document.getElementById('worker-orders-badge');
+                    if (badge) {
+                        if (data.count > 0) {
+                            badge.textContent = data.count;
+                            badge.style.display = 'inline-block';
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    }
+
+                    if (lastOrderId === 0) {
+                        lastOrderId = data.latest_id;
+                    } else if (data.latest_id > lastOrderId) {
+                        lastOrderId = data.latest_id;
+                        const toastEl = document.getElementById('newOrderToast');
+                        if (toastEl) {
+                            const toast = new bootstrap.Toast(toastEl);
+                            toast.show();
+                        }
+                    }
+                })
+                .catch(err => console.error('Error checking orders:', err));
+        }
+
+        // Initial check to set baseline
+        fetch("{% url 'check_new_orders' %}")
+            .then(response => response.json())
+            .then(data => {
+                lastOrderId = data.latest_id;
+                
+                // Update badge initially too
+                const badge = document.getElementById('worker-orders-badge');
+                if (badge) {
+                    if (data.count > 0) {
+                        badge.textContent = data.count;
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+
+                // Start polling only after initial check
+                setInterval(checkOrders, checkInterval);
+            })
+            .catch(err => console.error('Error initial check:', err));
+    });
+  </script>
+  {% endif %}
 
   <!-- Bootstrap 5 JS Bundle -->
   <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
@@ -168,6 +249,13 @@
     document.addEventListener('DOMContentLoaded', function() {
         const toastEl = document.getElementById('cartToast');
         const toast = new bootstrap.Toast(toastEl);
+
+        // Initialize Django Message Toasts
+        const messageToasts = document.querySelectorAll('.message-toast');
+        messageToasts.forEach(toastEl => {
+            const t = new bootstrap.Toast(toastEl, { delay: 5000 });
+            t.show();
+        });
 
         document.body.addEventListener('click', function(e) {
             const btn = e.target.closest('.add-to-cart-btn');

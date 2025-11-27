@@ -6,6 +6,15 @@
 <div class="container mt-5">
     <h1 class="display-6 fw-bold mb-4">Tu Carrito</h1>
     
+    {% if messages %}
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        {% for message in messages %}
+            {{ message }}
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+    
     {% if items %}
     <div class="row g-5">
         <!-- Lista de Productos -->
@@ -31,21 +40,56 @@
                                             <img src="{{ item.product.image_url }}" alt="{{ item.product.name }}" class="rounded-3 object-fit-cover" style="width: 64px; height: 64px;">
                                             <div>
                                                 <h6 class="mb-0 fw-semibold">{{ item.product.name }}</h6>
-                                                <small class="text-muted">ID: {{ item.product.id }}</small>
+                                                {% if item.size %}
+                                                <br><small class="text-muted">Talla: {{ item.size }}</small>
+                                                {% endif %}
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="py-3">${{ item.product.price }}</td>
                                     <td class="py-3">
-                                        <div class="input-group input-group-sm" style="width: 110px;">
-                                            <a href="{% url 'update_cart_quantity' item.product.id 'decrement' %}" class="btn btn-pastel-secondary border-end-0"><i class="bi bi-dash"></i></a>
-                                            <input type="text" class="form-control text-center border-secondary border-start-0 border-end-0 bg-white" value="{{ item.qty }}" readonly>
-                                            <a href="{% url 'update_cart_quantity' item.product.id 'increment' %}" class="btn btn-pastel-secondary border-start-0"><i class="bi bi-plus"></i></a>
-                                        </div>
+                                        {% if item.is_reward %}
+                                            <span class="badge bg-warning text-dark">GRATIS (Puntos)</span>
+                                        {% elif item.product.detail.discount_percentage %}
+                                            <div class="d-flex flex-column">
+                                                <span class="text-decoration-line-through text-muted small">${{ item.product.price }}</span>
+                                                <span class="text-danger fw-bold">${{ item.price_used }}</span>
+                                                <span class="badge bg-danger rounded-pill" style="font-size: 0.65rem;">-{{ item.product.detail.discount_percentage }}%</span>
+                                            </div>
+                                        {% else %}
+                                            ${{ item.product.price }}
+                                        {% endif %}
                                     </td>
-                                    <td class="fw-bold py-3 text-primary">${{ item.subtotal }}</td>
+                                    <td class="py-3">
+                                        {% if item.is_reward %}
+                                            <div class="input-group input-group-sm" style="width: 110px;">
+                                                <input type="text" class="form-control text-center border-secondary bg-white rounded" value="{{ item.qty }}" readonly>
+                                            </div>
+                                        {% else %}
+                                        <div class="input-group input-group-sm" style="width: 110px;">
+                                            <a href="{% url 'update_cart_quantity' item.key 'decrement' %}" class="btn btn-pastel-secondary border-end-0"><i class="bi bi-dash"></i></a>
+                                            <input type="text" class="form-control text-center border-secondary border-start-0 border-end-0 bg-white" value="{{ item.qty }}" readonly>
+                                            {% if item.qty >= item.product.stock %}
+                                                <button class="btn btn-pastel-secondary border-start-0 opacity-50" disabled style="cursor: not-allowed;" title="No puedes comprar más del stock disponible"><i class="bi bi-plus"></i></button>
+                                            {% else %}
+                                                <a href="{% url 'update_cart_quantity' item.key 'increment' %}" class="btn btn-pastel-secondary border-start-0"><i class="bi bi-plus"></i></a>
+                                            {% endif %}
+                                        </div>
+                                        {% if item.qty >= item.product.stock %}
+                                            <small class="text-danger d-block mt-1" style="font-size: 0.7rem; line-height: 1.1;">Máx. stock alcanzado</small>
+                                        {% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td class="fw-bold py-3 text-primary">
+                                        {% if item.is_reward %}
+                                            $0
+                                        {% elif item.product.detail.discount_percentage %}
+                                            <span class="text-danger">${{ item.subtotal }}</span>
+                                        {% else %}
+                                            ${{ item.subtotal }}
+                                        {% endif %}
+                                    </td>
                                     <td class="pe-4 py-3 text-end">
-                                        <a href="{% url 'remove_from_cart' item.product.id %}" class="btn btn-sm btn-light text-danger rounded-circle" title="Eliminar">
+                                        <a href="{% url 'remove_from_cart' item.key %}" class="btn btn-sm btn-light text-danger rounded-circle" title="Eliminar">
                                             <i class="bi bi-trash"></i>
                                         </a>
                                     </td>
@@ -71,14 +115,42 @@
                         <span class="text-muted">Subtotal</span>
                         <span class="fw-semibold">${{ total }}</span>
                     </div>
+                    
+                    <div id="couponSummaryRow" class="d-flex justify-content-between mb-2 text-success" {% if not coupon %}style="display:none;"{% endif %}>
+                        <span id="couponLabel">Cupón ({{ coupon.code|default:'' }})</span>
+                        <span id="couponAmount">-${{ discount_amount|default:0 }}</span>
+                    </div>
+                    <div id="removeCouponRow" class="mb-3 text-end" {% if not coupon %}style="display:none;"{% endif %}>
+                        <a href="{% url 'remove_coupon' %}" class="text-danger small text-decoration-none">Quitar cupón</a>
+                    </div>
+
                     <div class="d-flex justify-content-between mb-4">
                         <span class="text-muted">Envío</span>
                         <span class="text-success">Gratis</span>
                     </div>
                     <hr class="border-secondary opacity-10">
-                    <div class="d-flex justify-content-between mb-4">
-                        <span class="h5 fw-bold">Total</span>
-                        <span class="h5 fw-bold text-primary">${{ total }}</span>
+                        <div class="d-flex justify-content-between mb-4">
+                    </div>
+
+                    <!-- Coupon Form -->
+                    <div id="couponSection" {% if coupon %}style="display:none;"{% endif %}>
+                        <form action="{% url 'apply_coupon' %}" method="post" class="mb-2" id="couponForm">
+                            {% csrf_token %}
+                            <div class="input-group">
+                                <input type="text" name="code" id="couponCode" class="form-control form-control-sm" placeholder="Código de cupón" required>
+                                <button class="btn btn-outline-secondary btn-sm" type="submit">Aplicar</button>
+                            </div>
+                        </form>
+                        <div id="couponError" class="text-danger small mb-4" style="display:none;"></div>
+                        
+                        <!-- New Button -->
+                        {% if user.is_authenticated %}
+                        <div class="text-center mb-4">
+                            <button type="button" class="btn btn-sm btn-outline-info w-100" data-bs-toggle="modal" data-bs-target="#walletModal">
+                                <i class="bi bi-wallet2 me-1"></i> Abrir Chequera
+                            </button>
+                        </div>
+                        {% endif %}
                     </div>
 
                     <form action="{% url 'checkout_webpay' %}" method="post" id="checkoutForm">
@@ -131,7 +203,7 @@
                         <hr>
                         <div class="d-flex justify-content-between mb-3">
                             <span class="fw-bold">Total a Pagar:</span>
-                            <span class="fw-bold fs-5">${{ total }}</span>
+                            <span class="fw-bold fs-5" id="finalTotalDisplay">${{ final_total|default:total }}</span>
                         </div>
 
                         <button type="submit" class="btn btn-pastel w-100 py-2">
@@ -151,89 +223,52 @@
     {% endif %}
 </div>
 
+<!-- Add the Modal at the end of the file -->
+<div class="modal fade" id="walletModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="bi bi-wallet2 me-2"></i>Mi Chequera</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {% if wallet_coupons %}
+                    <div class="list-group">
+                        {% for uc in wallet_coupons %}
+                        <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                                onclick="applyWalletCoupon('{{ uc.coupon.code }}')">
+                            <div>
+                                <span class="fw-bold text-primary">{{ uc.coupon.code }}</span>
+                                <br>
+                                <small class="text-muted">{{ uc.coupon.discount_percentage }}% de descuento</small>
+                                <br>
+                                <small class="text-danger" style="font-size: 0.75rem;">Vence: {{ uc.coupon.valid_to|date:"d/m/Y" }}</small>
+                            </div>
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-emoji-frown display-4 text-muted mb-2"></i>
+                        <p class="text-muted">No tienes cupones disponibles.</p>
+                        <a href="{% url 'rewards_catalog' %}" class="btn btn-sm btn-primary">Ir a Canjear Puntos</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/regions.js' %}"></script>
+<script src="{% static 'js/cart.js' %}"></script>
 <script>
-function toggleDeliveryFields() {
-    const isDispatch = document.getElementById('deliveryDispatch').checked;
-    const shippingFields = document.getElementById('shippingFields');
-    const inputs = shippingFields.querySelectorAll('input, select');
-    
-    if (isDispatch) {
-        shippingFields.style.display = 'block';
-        inputs.forEach(input => input.required = true);
-    } else {
-        shippingFields.style.display = 'none';
-        inputs.forEach(input => input.required = false);
-    }
-}
-
 document.addEventListener('DOMContentLoaded', function() {
-    toggleDeliveryFields();
-
-    const regionSelect = document.getElementById('regionSelect');
-    const communeSelect = document.getElementById('communeSelect');
-    let regionsData = [];
-    let initialLoad = true;
-
-    // Cargar JSON de regiones
-    fetch("{% static 'chile-regiones-2025.json' %}")
-        .then(response => response.json())
-        .then(data => {
-            regionsData = data;
-            const userRegion = "{{ user_profile.region|default:'' }}";
-
-            regionsData.forEach(region => {
-                const option = document.createElement('option');
-                option.value = region.nombre_region;
-                option.textContent = region.nombre_region;
-                if (userRegion && region.nombre_region === userRegion) {
-                    option.selected = true;
-                }
-                regionSelect.appendChild(option);
-            });
-            
-            if (userRegion) {
-                regionSelect.dispatchEvent(new Event('change'));
-            }
-            initialLoad = false;
-        })
-        .catch(error => console.error('Error cargando regiones:', error));
-
-    // Evento cambio de región
-    regionSelect.addEventListener('change', function() {
-        const selectedRegionName = this.value;
-        communeSelect.innerHTML = '<option value="">Seleccione Comuna...</option>';
-        communeSelect.disabled = true;
-
-        if (selectedRegionName) {
-            const region = regionsData.find(r => r.nombre_region === selectedRegionName);
-            if (region && region.provincias) {
-                const comunas = [];
-                region.provincias.forEach(provincia => {
-                    if (provincia.comunas) {
-                        provincia.comunas.forEach(comuna => {
-                            comunas.push(comuna.nombre_comuna);
-                        });
-                    }
-                });
-                
-                // Ordenar alfabéticamente
-                comunas.sort();
-
-                const userCommune = "{{ user_profile.commune|default:'' }}";
-
-                comunas.forEach(comunaName => {
-                    const option = document.createElement('option');
-                    option.value = comunaName;
-                    option.textContent = comunaName;
-                    if (initialLoad && userCommune && comunaName === userCommune) {
-                        option.selected = true;
-                    }
-                    communeSelect.appendChild(option);
-                });
-                communeSelect.disabled = false;
-            }
-        }
-    });
+    initRegionSelector(
+        "{% static 'chile-regiones-2025.json' %}", 
+        "{{ user_profile.region|default:'' }}", 
+        "{{ user_profile.commune|default:'' }}"
+    );
 });
 </script>
 {% endblock %}

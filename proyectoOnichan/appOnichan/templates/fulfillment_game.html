@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'order_list' %}">Listado de Pedidos</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link active" aria-current="page" href="#">Preparación</a>
+        </li>
+    </ul>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">🎮 Completar Pedido</h3>
+                    <span class="badge bg-light text-primary fs-5">{{ order.code }}</span>
+                </div>
+                <div class="card-body p-4">
+                    <div class="progress mb-4" style="height: 25px;">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                    </div>
+
+                    <h5 class="mb-3">Productos a preparar:</h5>
+                    <div class="list-group mb-4">
+                        {% for item in items %}
+                        <label class="list-group-item d-flex justify-content-between align-items-center p-3 border rounded mb-2 shadow-sm item-row">
+                            <div class="d-flex align-items-center">
+                                <input class="form-check-input me-3 fs-4 item-checkbox" type="checkbox" value="" aria-label="...">
+                                <div>
+                                    <h5 class="mb-1">{{ item.product.name }}</h5>
+                                    <p class="mb-0 text-muted">Cantidad: <strong>{{ item.cantidad }}</strong> {% if item.size %}| Talla: {{ item.size }}{% endif %}</p>
+                                </div>
+                            </div>
+                            <span class="badge bg-secondary rounded-pill fs-6">{{ item.product.category.name }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+
+                    <form action="{% url 'complete_fulfillment' order.id %}" method="POST" id="completeForm">
+                        {% csrf_token %}
+                        <button type="submit" id="completeBtn" class="btn btn-success btn-lg w-100 py-3 fw-bold" disabled>
+                            <i class="fas fa-check-circle me-2"></i> Completar Pedido
+                        </button>
+                    </form>
+                </div>
+                <div class="card-footer text-muted text-center">
+                    Pedido realizado el {{ order.fecha }} por {{ order.cliente.name }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const checkboxes = document.querySelectorAll('.item-checkbox');
+        const progressBar = document.getElementById('progressBar');
+        const completeBtn = document.getElementById('completeBtn');
+        const totalItems = checkboxes.length;
+
+        function updateProgress() {
+            const checkedCount = document.querySelectorAll('.item-checkbox:checked').length;
+            const progress = (checkedCount / totalItems) * 100;
+            
+            progressBar.style.width = progress + '%';
+            progressBar.textContent = Math.round(progress) + '%';
+            progressBar.setAttribute('aria-valuenow', progress);
+
+            if (checkedCount === totalItems) {
+                completeBtn.disabled = false;
+                completeBtn.classList.add('pulse-animation');
+            } else {
+                completeBtn.disabled = true;
+                completeBtn.classList.remove('pulse-animation');
+            }
+        }
+
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    this.closest('.list-group-item').classList.add('list-group-item-success');
+                } else {
+                    this.closest('.list-group-item').classList.remove('list-group-item-success');
+                }
+                updateProgress();
+            });
+        });
+    });
+</script>
+
+<style>
+    .item-row {
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .item-row:hover {
+        transform: scale(1.01);
+    }
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    .pulse-animation {
+        animation: pulse 1.5s infinite;
+    }
+</style>
+{% endblock %}

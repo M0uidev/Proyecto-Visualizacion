@@ -3,44 +3,12 @@
 {% load roles %}
 {% load cart_tags %}
 {% block nav_right %}
-  {% get_cart_count as cart_count %}
-  {% if user.is_authenticated %}
-    {% if user.is_staff or user.is_superuser or user|has_group:'admin' %}
-      <a href="{% url 'dashboardadmin' %}" class="nav-link-custom"><i class="bi bi-speedometer2"></i>Admin</a>
-      <a href="{% url 'stock' %}" class="nav-link-custom"><i class="bi bi-box-seam"></i>Stock</a>
-    {% elif user|has_group:'trabajador' %}
-      <a href="{% url 'dashboardtrabajador' %}" class="nav-link-custom"><i class="bi bi-speedometer2"></i>Trabajador</a>
-      <a href="{% url 'stock' %}" class="nav-link-custom"><i class="bi bi-box-seam"></i>Stock</a>
-      <a href="{% url 'pos' %}" class="nav-link-custom"><i class="bi bi-cash"></i>Caja</a>
-    {% else %}
-      <a href="{% url 'profile' %}" class="nav-link-custom"><i class="bi bi-person-circle"></i>Mi Perfil</a>
-      <a href="{% url 'cart_view' %}" class="nav-link-custom" aria-label="Carrito">
-        <i class="bi bi-cart"></i>Carrito
-        {% if cart_count > 0 %}
-          <span class="badge bg-danger rounded-pill ms-2">
-            {% if cart_count > 9 %}9+{% else %}{{ cart_count }}{% endif %}
-          </span>
-        {% endif %}
-      </a>
-    {% endif %}
-    <a href="{% url 'logout' %}" class="nav-link-custom"><i class="bi bi-box-arrow-right"></i>Salir</a>
-  {% else %}
-    <a href="{% url 'login' %}" class="nav-link-custom"><i class="bi bi-person"></i>Iniciar Sesión</a>
-    <a href="{% url 'register' %}" class="nav-link-custom"><i class="bi bi-person-plus"></i>Registrarse</a>
-    <a href="{% url 'cart_view' %}" class="nav-link-custom" aria-label="Carrito">
-      <i class="bi bi-cart"></i>Carrito
-      {% if cart_count > 0 %}
-        <span class="badge bg-danger rounded-pill ms-2">
-          {% if cart_count > 9 %}9+{% else %}{{ cart_count }}{% endif %}
-        </span>
-      {% endif %}
-    </a>
-  {% endif %}
+  {% include 'partials/navbar_right.html' %}
 {% endblock %}
 
 {% block nav_left %}
   <div class="nav-left">
-    <form action="{% url 'pagina1' %}" method="get" class="search-bar">
+    <form action="{% url 'buscar_productos' %}" method="get" class="search-bar">
       <i class="bi bi-search"></i>
       <input type="text" name="q" placeholder="Buscar productos..." value="{{ request.GET.q|default:'' }}" />
     </form>

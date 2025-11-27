@@ -1,0 +1,38 @@
+<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-4" id="filterableProducts">
+  {% for producto in productos %}
+    {% include 'partials/product_card.html' with product=producto %}
+  {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if productos.has_other_pages %}
+<nav aria-label="Page navigation" class="mt-5">
+  <ul class="pagination justify-content-center">
+    {% if productos.has_previous %}
+      <li class="page-item">
+        <a class="page-link ajax-link" href="?page={{ productos.previous_page_number }}{% if current_category %}&category={{ current_category }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}{% if items_per_page %}&items={{ items_per_page }}{% endif %}">&laquo;</a>
+      </li>
+    {% else %}
+      <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+    {% endif %}
+    
+    {% for i in productos.paginator.page_range %}
+      {% if productos.number == i %}
+        <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+      {% else %}
+        <li class="page-item">
+          <a class="page-link ajax-link" href="?page={{ i }}{% if current_category %}&category={{ current_category }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}{% if items_per_page %}&items={{ items_per_page }}{% endif %}">{{ i }}</a>
+        </li>
+      {% endif %}
+    {% endfor %}
+    
+    {% if productos.has_next %}
+      <li class="page-item">
+        <a class="page-link ajax-link" href="?page={{ productos.next_page_number }}{% if current_category %}&category={{ current_category }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}{% if items_per_page %}&items={{ items_per_page }}{% endif %}">&raquo;</a>
+      </li>
+    {% else %}
+      <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}

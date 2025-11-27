@@ -1,14 +1,18 @@
 import json
+from django.db import models # Ensure models is imported for Q objects
+import random
+import string
+from django.core.paginator import Paginator
 
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404 # Added get_object_or_404
 from django.http import Http404, HttpResponseForbidden, JsonResponse, HttpResponse
 from django.template.loader import get_template
 from xhtml2pdf import pisa
-from django.db.models import Sum, Count, F
+from django.db.models import Sum, Count, F, Max
 from django.utils import timezone
 from datetime import date as dt_date, timedelta
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import Group, User
 from django.utils.text import slugify
 from datetime import date as dt_date
@@ -20,7 +24,16 @@ from .models import (
     OrderItem,
     Category,
     UserProfile,
+    Coupon,
+    ProductDetail,
+    BulkOffer,
+    ProductSize,
+    PointReward,
+    RedemptionHistory,
+    UserCoupon
 )
+from .forms import CouponForm, BulkDiscountForm, CouponGenerationForm # Added Forms
+from django.contrib import messages # Added messages
 from .services import get_regional_stats
 
 def index(request):
@@ -31,9 +44,64 @@ def pagina1(request):
     category_slug = request.GET.get("category", "")
     sort_by = request.GET.get("sort", "")
     query = request.GET.get("q", "").strip()
+    try:
+        items_per_page = int(request.GET.get("items", 30))
+    except ValueError:
+        items_per_page = 30
 
     # Base query
-    productos = Product.objects.all()
+    productos = Product.objects.select_related('category', 'detail').prefetch_related('bulk_offers').all()
+
+    # Filtrar por búsqueda
+    if query:
+        productos = productos.filter(name__icontains=query)
+
+    # Filtrar por categoría
+    if category_slug and category_slug != 'all':
+        productos = productos.filter(category__slug=category_slug)
+
+    # Ordenar
+    if sort_by == "price_asc":
+        productos = productos.order_by("price")
+    elif sort_by == "price_desc":
+        productos = productos.order_by("-price")
+    elif sort_by == "newest":
+        productos = productos.order_by("-id") # Asumiendo ID más alto es más nuevo
+    else:
+        productos = productos.order_by("id")
+
+    categories = Category.objects.all()
+
+    # Ofertas imperdibles (productos con descuento activo)
+    ofertas_imperdibles = Product.objects.filter(bulk_offers__active=True).distinct().select_related('category', 'detail').prefetch_related('bulk_offers')
+
+    # Paginación
+    paginator = Paginator(productos, items_per_page)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        "productos": page_obj,
+        "ofertas_imperdibles": ofertas_imperdibles,
+        "categories": categories,
+        "current_category": category_slug,
+        "current_sort": sort_by,
+        "items_per_page": items_per_page
+    }
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return render(request, "partials/product_list.html", context)
+
+    return render(request, "pagina1.html", context)
+
+def buscar_productos(request):
+    # Obtener parámetros de filtro y orden
+    category_slug = request.GET.get("category", "")
+    sort_by = request.GET.get("sort", "")
+    query = request.GET.get("q", "").strip()
+
+    # Base query
+    productos = Product.objects.select_related('category', 'detail').prefetch_related('bulk_offers').all()
 
     # Filtrar por búsqueda
     if query:
@@ -59,9 +127,10 @@ def pagina1(request):
         "productos": productos,
         "categories": categories,
         "current_category": category_slug,
-        "current_sort": sort_by
+        "current_sort": sort_by,
+        "query": query
     }
-    return render(request, "pagina1.html", context)
+    return render(request, "buscar_productos.html", context)
 
 def login_view(request):
     if request.method == "POST":
@@ -519,6 +588,10 @@ def stock(request):
             category_name = request.POST.get("category", "").strip()
             description = request.POST.get("description", "").strip()
             initial_stock = int(request.POST.get("initial_stock", "0") or 0)
+            has_sizes = request.POST.get("has_sizes") == "on"
+            size_scale = request.POST.get("size_scale")
+            custom_sizes = request.POST.get("custom_sizes", "").strip()
+
             if not (name and price > 0 and image_url and category_name):
                 return render(request, "stock.html", {"error": "Datos inválidos", "data": json.dumps(_products_payload())})
 
@@ -526,7 +599,7 @@ def stock(request):
             # Generar nuevo id
             max_id = Product.objects.aggregate(mx=Max("id")).get("mx") or 100
             new_id = max_id + 1
-            Product.objects.create(
+            p = Product.objects.create(
                 id=new_id,
                 name=name,
                 price=price,
@@ -534,29 +607,93 @@ def stock(request):
                 category=cat,
                 description=description,
                 stock=initial_stock,
+                has_sizes=has_sizes
             )
+
+            if has_sizes:
+                sizes_to_create = []
+                if size_scale == "s_xl":
+                    sizes_to_create = ["S", "M", "L", "XL"]
+                elif size_scale == "numbers":
+                    sizes_to_create = [str(i) for i in range(36, 45)]
+                elif size_scale == "custom" and custom_sizes:
+                    sizes_to_create = [s.strip() for s in custom_sizes.split(",") if s.strip()]
+                
+                for label in sizes_to_create:
+                    ProductSize.objects.create(product=p, label=label)
+
             return redirect("stock")
+
+        if action == "update_product_details":
+            if not is_admin:
+                return HttpResponseForbidden("No autorizado")
+            
+            pid = request.POST.get("product_id")
+            name = request.POST.get("name", "").strip()
+            price = int(request.POST.get("price", "0") or 0)
+            image_url = request.POST.get("image_url", "").strip()
+            category_name = request.POST.get("category", "").strip()
+            description = request.POST.get("description", "").strip()
+            stock = int(request.POST.get("stock", "0") or 0)
+            sizes_str = request.POST.get("sizes", "").strip()
+            
+            # Validation
+            if not (name and price > 0 and category_name):
+                 return JsonResponse({"ok": False, "error": "Datos inválidos"}, status=400)
+
+            # Image URL Validation
+            if image_url:
+                if not (image_url.lower().endswith('.png') or image_url.lower().endswith('.jpg')):
+                     return JsonResponse({"ok": False, "error": "La URL de la imagen debe terminar en .png o .jpg"}, status=400)
+                if not image_url.startswith('/static/images/productos/'):
+                     return JsonResponse({"ok": False, "error": "La imagen debe estar en /static/images/productos/"}, status=400)
+            
+            try:
+                p = Product.objects.get(pk=int(pid))
+                p.name = name
+                p.price = price
+                p.description = description
+                p.image_url = image_url
+                p.stock = stock
+                
+                cat, _ = Category.objects.get_or_create(name=category_name, defaults={"slug": slugify(category_name)})
+                p.category = cat
+                
+                # Update sizes
+                if sizes_str:
+                    p.has_sizes = True
+                    new_labels = [s.strip() for s in sizes_str.split(",") if s.strip()]
+                    p.sizes.all().delete()
+                    for label in new_labels:
+                        ProductSize.objects.create(product=p, label=label)
+                else:
+                    p.has_sizes = False
+                    p.sizes.all().delete()
+
+                p.save()
+                return JsonResponse({"ok": True})
+            except Exception as e:
+                return JsonResponse({"ok": False, "error": str(e)}, status=400)
 
     # GET: construir dataset de productos para el front
     payload = _products_payload()
     return render(request, "stock.html", {"data": json.dumps(payload)})
 
 
-from django.db.models import Max
 def _products_payload():
-    products = (
-        Product.objects.select_related("category").order_by("id")
-        .values("id", "name", "price", "image_url", "category__name", "stock")
-    )
+    products = Product.objects.select_related("category").prefetch_related("sizes").order_by("id")
     out = []
     for p in products:
         out.append({
-            "code": str(p["id"]),
-            "name": p["name"],
-            "price": p["price"],
-            "category": p["category__name"] or "Otros",
-            "stock": p["stock"] or 0,
-            "image_url": p["image_url"],
+            "code": str(p.id),
+            "name": p.name,
+            "price": p.price,
+            "category": p.category.name if p.category else "Otros",
+            "stock": p.stock,
+            "image_url": p.image_url,
+            "description": p.description,
+            "has_sizes": p.has_sizes,
+            "sizes": [s.label for s in p.sizes.all()]
         })
     return {"products": out}
 
@@ -576,15 +713,14 @@ def producto_detalle(request, pid: int):
         "sizes": [s.label for s in p.sizes.all()],
         "specs": [s.text for s in p.specs.all()],
         "care": [c.text for c in p.care.all()],
-        "descuento_pct": det.descuento_pct if det else 0,
+        "descuento_pct": det.discount_percentage if det else 0,
         "envio": det.envio if det else "",
         "llega": det.llega if det else "",
         "warranty": det.warranty if det else "",
         "capacity_l": det.capacity_l if det else None,
     }
 
-    descuento = d.get("descuento_pct", 0) or 0
-    d["precio_original"] = round(p.price / (1 - descuento / 100)) if descuento else None
+    d["discounted_price"] = det.discounted_price if det else p.price
 
     return render(request, "producto_detalle.html", {"p": p, "d": d})
 
@@ -747,8 +883,43 @@ def pos_view(request):
     )
 
 def add_to_cart(request, pid):
+    product = get_object_or_404(Product, id=pid)
+    
+    # Check if product is out of stock
+    if product.stock <= 0:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == '1':
+            return JsonResponse({'status': 'error', 'message': 'Producto sin stock'}, status=400)
+        messages.error(request, "Este producto no tiene stock.")
+        return redirect(request.META.get('HTTP_REFERER', 'pagina1'))
+
+    size = request.GET.get('size') or request.POST.get('size')
+    
+    # Validate size selection if product has sizes
+    if product.sizes.exists() and not size:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == '1':
+             return JsonResponse({'status': 'error', 'message': 'Debe seleccionar una talla'}, status=400)
+        messages.error(request, "Debe seleccionar una talla para este producto.")
+        return redirect(request.META.get('HTTP_REFERER', 'pagina1'))
+
+    key = str(pid)
+    if size:
+        key = f"{pid}_{size}"
+
     cart = request.session.get("cart", {})
-    cart[str(pid)] = cart.get(str(pid), 0) + 1
+    
+    # Calculate total quantity of this product currently in cart (across all sizes)
+    total_in_cart = 0
+    for k, v in cart.items():
+        if k == str(pid) or k.startswith(f"{pid}_"):
+            total_in_cart += v
+            
+    if total_in_cart + 1 > product.stock:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == '1':
+            return JsonResponse({'status': 'error', 'message': 'No hay suficiente stock disponible'}, status=400)
+        messages.error(request, f"No puedes agregar más unidades de {product.name}. Stock máximo alcanzado.")
+        return redirect(request.META.get('HTTP_REFERER', 'pagina1'))
+
+    cart[key] = cart.get(key, 0) + 1
     request.session["cart"] = cart
     
     # Check for AJAX request
@@ -758,11 +929,33 @@ def add_to_cart(request, pid):
         
     return redirect(request.META.get('HTTP_REFERER', 'pagina1'))
 
-def remove_from_cart(request, pid):
+def remove_from_cart(request, key):
     cart = request.session.get("cart", {})
-    if str(pid) in cart:
-        del cart[str(pid)]
+    if key in cart:
+        del cart[key]
         request.session["cart"] = cart
+        return redirect("cart_view")
+
+    rewards_cart = request.session.get("rewards_cart", {})
+    if key in rewards_cart:
+        # Refund logic
+        try:
+            pid = int(key.split('_')[0])
+            qty = rewards_cart[key]
+            # Find the reward cost
+            # We assume the current active reward cost is what they paid. 
+            reward = PointReward.objects.filter(product_id=pid, active=True, reward_type='PRODUCT').first()
+            if reward and request.user.is_authenticated:
+                refund_points = reward.points_cost * qty
+                request.user.profile.points += refund_points
+                request.user.profile.save()
+                messages.success(request, f"Producto eliminado. Se han reembolsado {refund_points} puntos.")
+        except Exception as e:
+            pass
+            
+        del rewards_cart[key]
+        request.session["rewards_cart"] = rewards_cart
+        
     return redirect("cart_view")
 
 def cart_view(request):
@@ -770,20 +963,97 @@ def cart_view(request):
     items = []
     total = 0
     
-    products = Product.objects.filter(id__in=cart.keys())
+    # Extract product IDs from keys (which might be "ID" or "ID_SIZE")
+    pids = set()
+    for key in cart.keys():
+        try:
+            pids.add(int(key.split('_')[0]))
+        except ValueError:
+            continue
+            
+    products = Product.objects.filter(id__in=pids)
     product_map = {str(p.id): p for p in products}
     
-    for pid, qty in cart.items():
+    for key, qty in cart.items():
+        try:
+            parts = key.split('_')
+            pid = parts[0]
+            size = parts[1] if len(parts) > 1 else None
+        except ValueError:
+            continue
+
         product = product_map.get(pid)
         if product:
-            subtotal = product.price * qty
+            # Calculate price with product discount if any
+            price = product.price
+            try:
+                price = product.detail.discounted_price
+            except ProductDetail.DoesNotExist:
+                pass
+                
+            subtotal = price * qty
             total += subtotal
             items.append({
                 "product": product,
                 "qty": qty,
-                "subtotal": subtotal
+                "subtotal": subtotal,
+                "price_used": price,
+                "size": size,
+                "key": key
             })
+
+    # Rewards Logic
+    rewards_cart = request.session.get("rewards_cart", {})
+    reward_pids = set()
+    for key in rewards_cart.keys():
+        try:
+            reward_pids.add(int(key.split('_')[0]))
+        except ValueError:
+            continue
             
+    if reward_pids:
+        reward_products = Product.objects.filter(id__in=reward_pids)
+        reward_product_map = {str(p.id): p for p in reward_products}
+        
+        for key, qty in rewards_cart.items():
+            try:
+                parts = key.split('_')
+                pid = parts[0]
+                size = parts[1] if len(parts) > 1 else None
+            except ValueError:
+                continue
+
+            product = reward_product_map.get(pid)
+            if product:
+                items.append({
+                    "product": product,
+                    "qty": qty,
+                    "subtotal": 0,
+                    "price_used": 0,
+                    "size": size,
+                    "key": key,
+                    "is_reward": True
+                })
+            
+    # Coupon Logic
+    coupon_id = request.session.get('coupon_id')
+    discount_amount = 0
+    coupon = None
+    
+    if coupon_id:
+        try:
+            coupon = Coupon.objects.get(id=coupon_id)
+            if coupon.is_valid():
+                discount_amount = int(total * (coupon.discount_percentage / 100))
+            else:
+                # Remove invalid coupon
+                del request.session['coupon_id']
+                coupon = None
+        except Coupon.DoesNotExist:
+            del request.session['coupon_id']
+            
+    final_total = total - discount_amount
+
     user_profile = None
     if request.user.is_authenticated:
         try:
@@ -791,12 +1061,26 @@ def cart_view(request):
         except UserProfile.DoesNotExist:
             pass
 
-    return render(request, "cart.html", {"items": items, "total": total, "user_profile": user_profile})
+    # Fetch wallet coupons
+    wallet_coupons = []
+    if request.user.is_authenticated:
+        wallet_coupons = UserCoupon.objects.filter(user=request.user, is_used=False).select_related('coupon')
+
+    return render(request, "cart.html", {
+        "items": items, 
+        "total": total, 
+        "discount_amount": discount_amount,
+        "final_total": final_total,
+        "coupon": coupon,
+        "user_profile": user_profile,
+        "wallet_coupons": wallet_coupons
+    })
 
 def checkout_webpay(request):
     if request.method == "POST":
         cart = request.session.get("cart", {})
-        if not cart:
+        rewards_cart = request.session.get("rewards_cart", {})
+        if not cart and not rewards_cart:
             return redirect("cart_view")
             
         # Obtener datos del formulario
@@ -845,12 +1129,68 @@ def checkout_webpay(request):
             
         code = f"{base}-{seq:04d}"
         
+        # Calculate total again to be safe
+        total_order = 0
+        
+        # Extract product IDs from keys
+        pids = set()
+        for key in cart.keys():
+            try:
+                pids.add(int(key.split('_')[0]))
+            except ValueError:
+                continue
+                
+        products_in_cart = Product.objects.filter(id__in=pids)
+        product_map = {str(p.id): p for p in products_in_cart}
+        
+        for key, qty in cart.items():
+            try:
+                parts = key.split('_')
+                pid = parts[0]
+            except ValueError:
+                continue
+
+            p = product_map.get(pid)
+            if p:
+                price = p.price
+                try:
+                    price = p.detail.discounted_price
+                except ProductDetail.DoesNotExist:
+                    pass
+                total_order += price * qty
+                
+        # Apply Coupon
+        coupon_id = request.session.get('coupon_id')
+        discount = 0
+        if coupon_id:
+            try:
+                coupon = Coupon.objects.get(id=coupon_id)
+                if coupon.is_valid():
+                    discount = int(total_order * (coupon.discount_percentage / 100))
+                    total_order -= discount
+                    
+                    # Increment usage
+                    coupon.times_used += 1
+                    coupon.save()
+
+                    # Mark UserCoupon as used if it exists for this user
+                    if request.user.is_authenticated:
+                        try:
+                            user_coupon = UserCoupon.objects.get(user=request.user, coupon=coupon, is_used=False)
+                            user_coupon.is_used = True
+                            user_coupon.save()
+                        except UserCoupon.DoesNotExist:
+                            pass
+            except Coupon.DoesNotExist:
+                pass
+        
         order = Order.objects.create(
             code=code,
             fecha=today,
             cliente=customer,
-            total=0,
-            estado="Entregado", # Simular pago exitoso
+            total=total_order,
+            discount_amount=discount,
+            estado="Pendiente",
             channel="Online",
             delivery_method=delivery_method,
             contact_phone=phone,
@@ -860,11 +1200,17 @@ def checkout_webpay(request):
             shipping_region=shipping_region
         )
         
-        total = 0
-        products = Product.objects.filter(id__in=cart.keys())
+        products = Product.objects.filter(id__in=pids)
         product_map = {str(p.id): p for p in products}
         
-        for pid, qty in cart.items():
+        for key, qty in cart.items():
+            try:
+                parts = key.split('_')
+                pid = parts[0]
+                size = parts[1] if len(parts) > 1 else ""
+            except ValueError:
+                continue
+
             product = product_map.get(pid)
             if product:
                 # Descontar stock
@@ -872,22 +1218,65 @@ def checkout_webpay(request):
                     product.stock -= qty
                     product.save()
                 
+                # Use discounted price for OrderItem
+                price = product.price
+                try:
+                    price = product.detail.discounted_price
+                except ProductDetail.DoesNotExist:
+                    pass
+
                 OrderItem.objects.create(
                     order=order,
                     product=product,
                     cantidad=qty,
-                    price=product.price
+                    price=price,
+                    size=size
                 )
-                total += product.price * qty
+
+        # Process Rewards Cart
+        rewards_cart = request.session.get("rewards_cart", {})
+        if rewards_cart:
+            reward_pids = set()
+            for key in rewards_cart.keys():
+                try:
+                    reward_pids.add(int(key.split('_')[0]))
+                except ValueError:
+                    continue
+            
+            reward_products = Product.objects.filter(id__in=reward_pids)
+            reward_product_map = {str(p.id): p for p in reward_products}
+            
+            for key, qty in rewards_cart.items():
+                try:
+                    parts = key.split('_')
+                    pid = parts[0]
+                    size = parts[1] if len(parts) > 1 else ""
+                except ValueError:
+                    continue
+
+                product = reward_product_map.get(pid)
+                if product:
+                    # Descontar stock
+                    if product.stock >= qty:
+                        product.stock -= qty
+                        product.save()
+                    
+                    OrderItem.objects.create(
+                        order=order,
+                        product=product,
+                        cantidad=qty,
+                        price=0, # Free
+                        size=size
+                    )
+            
+            # Clear rewards cart
+            del request.session['rewards_cart']
                 
-        order.total = total
-        order.save()
-        
         # Award points
         if request.user.is_authenticated:
             try:
                 profile = request.user.profile
-                points_earned = int(total / 100)
+                points_earned = int(total_order / 100)
                 profile.points += points_earned
                 profile.save()
             except UserProfile.DoesNotExist:
@@ -921,17 +1310,32 @@ def download_receipt(request, order_code):
        return HttpResponse('Error al generar PDF <pre>' + html + '</pre>')
     return response
 
-def update_cart_quantity(request, pid, action):
+def update_cart_quantity(request, key, action):
     cart = request.session.get("cart", {})
-    pid_str = str(pid)
     
-    if pid_str in cart:
+    if key in cart:
         if action == "increment":
-            cart[pid_str] += 1
+            # Validate stock before incrementing
+            try:
+                pid = key.split('_')[0]
+                product = Product.objects.get(id=pid)
+                
+                # Calculate total quantity of this product currently in cart (across all sizes)
+                total_in_cart = 0
+                for k, v in cart.items():
+                    if k == str(pid) or k.startswith(f"{pid}_"):
+                        total_in_cart += v
+                
+                if total_in_cart < product.stock:
+                    cart[key] += 1
+                else:
+                    messages.error(request, f"No puedes agregar más unidades de {product.name}. Stock máximo alcanzado.")
+            except Product.DoesNotExist:
+                pass
         elif action == "decrement":
-            cart[pid_str] -= 1
-            if cart[pid_str] <= 0:
-                del cart[pid_str]
+            cart[key] -= 1
+            if cart[key] <= 0:
+                del cart[key]
         
         request.session["cart"] = cart
         
@@ -996,7 +1400,14 @@ def profile(request):
     if customer:
         orders = Order.objects.filter(cliente=customer).order_by('-fecha', '-id')
     
-    return render(request, "profile.html", {"profile": profile, "orders": orders})
+    # Fetch wallet coupons
+    wallet_coupons = UserCoupon.objects.filter(user=user, is_used=False).select_related('coupon')
+    
+    return render(request, "profile.html", {
+        "profile": profile, 
+        "orders": orders, 
+        "wallet_coupons": wallet_coupons
+    })
 
 @login_required
 def edit_profile(request):
@@ -1034,16 +1445,12 @@ def edit_product(request, pid):
         name = request.POST.get("name", "").strip()
         price = int(request.POST.get("price", "0") or 0)
         description = request.POST.get("description", "").strip()
-        image_url = request.POST.get("image_url", "").strip()
         category_name = request.POST.get("category", "").strip()
-        stock = int(request.POST.get("stock", "0") or 0)
 
         if name and price > 0:
             product.name = name
             product.price = price
             product.description = description
-            product.image_url = image_url
-            product.stock = stock
             
             if category_name:
                 cat, _ = Category.objects.get_or_create(name=category_name, defaults={"slug": slugify(category_name)})
@@ -1053,3 +1460,687 @@ def edit_product(request, pid):
             return redirect("producto_detalle", pid=product.id)
     
     return render(request, "edit_product.html", {"product": product})
+
+@login_required
+def marketing_dashboard(request):
+    # Check permissions (admin or staff)
+    if not (request.user.is_superuser or request.user.is_staff or request.user.groups.filter(name__iexact="admin").exists()):
+        return redirect("pagina1")
+
+    # Group coupons by batch
+    coupon_batches = Coupon.objects.exclude(batch_name__isnull=True).exclude(batch_name="").values('batch_name').annotate(
+        total_count=Count('id'),
+        used_count=Sum('times_used'),
+        active_count=Count('id', filter=models.Q(active=True))
+    ).order_by('-batch_name')
+    
+    # Get Bulk Offers History
+    bulk_offers = BulkOffer.objects.all().order_by('-created_at')
+    
+    # Prepare products data for the grid selector
+    products_qs = Product.objects.select_related('category').prefetch_related(
+        models.Prefetch('bulk_offers', queryset=BulkOffer.objects.filter(active=True), to_attr='active_offers')
+    ).all().order_by('id')
+    
+    products_data = []
+    for p in products_qs:
+        active_offer = p.active_offers[0].name if p.active_offers else None
+        products_data.append({
+            'id': p.id,
+            'name': p.name,
+            'price': p.price,
+            'image_url': p.image_url,
+            'category': p.category.name if p.category else "Sin Categoría",
+            'active_offer': active_offer
+        })
+        
+    categories = Category.objects.all().order_by('name')
+    
+    # Forms
+    bulk_form = BulkDiscountForm()
+    gen_form = CouponGenerationForm()
+
+    if request.method == "POST":
+        if "bulk_discount" in request.POST:
+            bulk_form = BulkDiscountForm(request.POST)
+            if bulk_form.is_valid():
+                products = bulk_form.cleaned_data['products']
+                discount = bulk_form.cleaned_data['discount_percentage']
+                action = bulk_form.cleaned_data['action']
+                name = bulk_form.cleaned_data.get('name')
+                
+                if action == 'apply':
+                    # Create BulkOffer record
+                    offer_name = name if name else f"Oferta Masiva {timezone.now().strftime('%d/%m/%Y %H:%M')}"
+                    bulk_offer = BulkOffer.objects.create(
+                        name=offer_name,
+                        discount_percentage=discount,
+                        active=True
+                    )
+                    bulk_offer.products.set(products)
+                    
+                    count = 0
+                    for product in products:
+                        detail, created = ProductDetail.objects.get_or_create(product=product)
+                        detail.descuento_pct = discount
+                        detail.save()
+                        count += 1
+                    
+                    messages.success(request, f"Oferta '{offer_name}' aplicada a {count} productos.")
+                
+                elif action == 'remove':
+                    # Just remove discount from selected products (manual cleanup)
+                    count = 0
+                    for product in products:
+                        detail, created = ProductDetail.objects.get_or_create(product=product)
+                        detail.descuento_pct = 0
+                        detail.save()
+                        count += 1
+                    messages.success(request, f"Descuentos removidos de {count} productos.")
+                
+                return redirect("marketing_dashboard")
+        
+        elif "generate_coupons" in request.POST:
+            gen_form = CouponGenerationForm(request.POST)
+            if gen_form.is_valid():
+                # Pass batch name logic inside form or handle here?
+                # Let's handle it here by modifying the form method or just doing it manually
+                # Ideally we update the form class, but for now let's just use the form data
+                quantity = gen_form.cleaned_data['quantity']
+                discount = gen_form.cleaned_data['discount_percentage']
+                days = gen_form.cleaned_data['valid_days']
+                limit = gen_form.cleaned_data['usage_limit']
+                prefix = gen_form.cleaned_data['prefix'] or "GEN"
+                custom_batch_name = gen_form.cleaned_data.get('batch_name')
+                
+                batch_name = custom_batch_name if custom_batch_name else f"Lote {prefix} - {timezone.now().strftime('%d/%m %H:%M')}"
+                
+                created_count = 0
+                now = timezone.now()
+                valid_to = now + timezone.timedelta(days=days)
+                
+                for _ in range(quantity):
+                    random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+                    code = f"{prefix}-{random_str}"
+                    while Coupon.objects.filter(code=code).exists():
+                        random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+                        code = f"{prefix}-{random_str}"
+                    
+                    Coupon.objects.create(
+                        code=code,
+                        discount_percentage=discount,
+                        valid_from=now,
+                        valid_to=valid_to,
+                        usage_limit=limit,
+                        active=True,
+                        batch_name=batch_name
+                    )
+                    created_count += 1
+
+                messages.success(request, f"Se han generado {created_count} cupones en el lote '{batch_name}'.")
+                return redirect("marketing_dashboard")
+
+    # Rewards Data
+    rewards = PointReward.objects.all().order_by('-active', 'points_cost')
+    all_products = Product.objects.filter(stock__gt=0)
+    all_coupons = Coupon.objects.filter(active=True)
+
+    context = {
+        "coupon_batches": coupon_batches,
+        "bulk_offers": bulk_offers,
+        "bulk_form": bulk_form,
+        "gen_form": gen_form,
+        "products_json": json.dumps(products_data),
+        "categories": categories,
+        "rewards": rewards,
+        "all_products": all_products,
+        "all_coupons": all_coupons,
+        "active_tab": request.GET.get('tab', 'coupons')
+    }
+    return render(request, "marketing_dashboard.html", context)
+
+@login_required
+def create_reward(request):
+    if not (request.user.is_superuser or request.user.is_staff):
+        return redirect("pagina1")
+        
+    if request.method == "POST":
+        name = request.POST.get("name")
+        description = request.POST.get("description", "")
+        points_cost = int(request.POST.get("points_cost"))
+        reward_type = request.POST.get("reward_type")
+        image_url = request.POST.get("image_url", "")
+        
+        product_id = request.POST.get("product_id")
+        
+        # Coupon Generator Params
+        gen_quantity = request.POST.get("gen_quantity")
+        gen_discount = request.POST.get("gen_discount")
+        gen_days = request.POST.get("gen_days")
+        gen_prefix = request.POST.get("gen_prefix", "REWARD")
+
+        valid_until_str = request.POST.get("valid_until")
+        
+        valid_until = None
+        if valid_until_str:
+            valid_until = valid_until_str 
+            
+        # Stock for Product Rewards
+        stock = 0
+        if reward_type == 'PRODUCT':
+            try:
+                stock = int(request.POST.get("stock", 0))
+            except (ValueError, TypeError):
+                stock = 0
+
+        reward = PointReward(
+            name=name,
+            description=description,
+            points_cost=points_cost,
+            reward_type=reward_type,
+            image_url=image_url,
+            valid_until=valid_until,
+            stock=stock
+        )
+        
+        if reward_type == 'PRODUCT' and product_id:
+            reward.product_id = product_id
+            # Auto-fill name/image if empty
+            if not name:
+                p = Product.objects.get(id=product_id)
+                reward.name = p.name
+            if not image_url:
+                p = Product.objects.get(id=product_id)
+                reward.image_url = p.image_url
+                
+        elif reward_type == 'COUPON':
+            # Generate Batch
+            try:
+                qty = int(gen_quantity)
+                discount = int(gen_discount)
+                days = int(gen_days)
+                
+                batch_name = f"REWARD-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+                reward.coupon_batch_name = batch_name
+                
+                # Set default name/image if empty
+                if not name:
+                    reward.name = f"Cupón {discount}% Descuento"
+                if not image_url:
+                    reward.image_url = "https://cdn-icons-png.flaticon.com/512/726/726476.png" # Generic coupon icon
+
+                # Generate Coupons
+                now = timezone.now()
+                valid_to = now + timezone.timedelta(days=days)
+                
+                for _ in range(qty):
+                    random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+                    code = f"{gen_prefix}-{random_str}"
+                    while Coupon.objects.filter(code=code).exists():
+                        random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+                        code = f"{gen_prefix}-{random_str}"
+                    
+                    Coupon.objects.create(
+                        code=code,
+                        discount_percentage=discount,
+                        valid_from=now,
+                        valid_to=valid_to,
+                        usage_limit=1, # Single use per coupon
+                        active=True,
+                        batch_name=batch_name
+                    )
+            except (ValueError, TypeError):
+                messages.error(request, "Error en los parámetros del generador de cupones.")
+                return redirect("/marketing/?tab=rewards")
+            
+        reward.save()
+        messages.success(request, "Recompensa creada exitosamente.")
+        
+    return redirect("/marketing/?tab=rewards")
+
+@login_required
+def toggle_reward_status(request, rid):
+    if not (request.user.is_superuser or request.user.is_staff):
+        return redirect("pagina1")
+    
+    reward = get_object_or_404(PointReward, id=rid)
+    reward.active = not reward.active
+    reward.save()
+    messages.success(request, f"Recompensa '{reward.name}' {'activada' if reward.active else 'desactivada'}.")
+    return redirect("/marketing/?tab=rewards")
+
+@login_required
+def delete_reward(request, rid):
+    if not (request.user.is_superuser or request.user.is_staff):
+        return redirect("pagina1")
+    
+    reward = get_object_or_404(PointReward, id=rid)
+    reward.delete()
+    messages.success(request, "Recompensa eliminada.")
+    return redirect("/marketing/?tab=rewards")
+
+@login_required
+def revert_bulk_offer(request, oid):
+    if not (request.user.is_superuser or request.user.is_staff):
+        return redirect("pagina1")
+        
+    try:
+        offer = BulkOffer.objects.get(id=oid)
+        if offer.active:
+            count = 0
+            for product in offer.products.all():
+                # Reset discount to 0
+                # Note: This might overwrite other overlapping offers. 
+                # For a simple system, this is acceptable behavior.
+                if hasattr(product, 'detail'):
+                    product.detail.descuento_pct = 0
+                    product.detail.save()
+                    count += 1
+            
+            offer.active = False
+            offer.save()
+            messages.success(request, f"Oferta '{offer.name}' revertida. {count} productos actualizados.")
+        else:
+            messages.warning(request, "Esta oferta ya fue revertida o está inactiva.")
+    except BulkOffer.DoesNotExist:
+        messages.error(request, "Oferta no encontrada.")
+        
+    return redirect("marketing_dashboard")
+
+@login_required
+def delete_coupon_batch(request):
+    if not (request.user.is_superuser or request.user.is_staff):
+        return redirect("pagina1")
+        
+    batch_name = request.GET.get('batch_name')
+    if batch_name:
+        count, _ = Coupon.objects.filter(batch_name=batch_name).delete()
+        messages.success(request, f"Se eliminaron {count} cupones del lote '{batch_name}'.")
+    
+    return redirect("marketing_dashboard")
+
+
+@login_required
+def coupon_create(request):
+    if not (request.user.is_superuser or request.user.is_staff):
+        return redirect("pagina1")
+        
+    if request.method == "POST":
+        form = CouponForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Cupón creado exitosamente.")
+            return redirect("marketing_dashboard")
+    else:
+        form = CouponForm()
+    
+    return render(request, "coupon_form.html", {"form": form, "title": "Crear Cupón"})
+
+@login_required
+def coupon_edit(request, cid):
+    if not (request.user.is_superuser or request.user.is_staff):
+        return redirect("pagina1")
+        
+    coupon = Coupon.objects.get(id=cid)
+    if request.method == "POST":
+        form = CouponForm(request.POST, instance=coupon)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Cupón actualizado exitosamente.")
+            return redirect("marketing_dashboard")
+    else:
+        form = CouponForm(instance=coupon)
+    
+    return render(request, "coupon_form.html", {"form": form, "title": "Editar Cupón"})
+
+@login_required
+def coupon_delete(request, cid):
+    if not (request.user.is_superuser or request.user.is_staff):
+        return redirect("pagina1")
+        
+    coupon = Coupon.objects.get(id=cid)
+    coupon.delete()
+    messages.success(request, "Cupón eliminado.")
+    return redirect("marketing_dashboard")
+
+def apply_coupon(request):
+    if request.method == "POST":
+        code = request.POST.get("code", "").strip()
+        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
+        
+        try:
+            coupon = Coupon.objects.get(code=code)
+            if coupon.is_valid():
+                request.session['coupon_id'] = coupon.id
+                
+                # Calculate totals for AJAX response
+                if is_ajax:
+                    cart = request.session.get("cart", {})
+                    total = 0
+                    products = Product.objects.filter(id__in=cart.keys())
+                    product_map = {str(p.id): p for p in products}
+                    
+                    for pid, qty in cart.items():
+                        p = product_map.get(pid)
+                        if p:
+                            price = p.price
+                            try:
+                                price = p.detail.discounted_price
+                            except ProductDetail.DoesNotExist:
+                                pass
+                            total += price * qty
+                    
+                    discount_amount = int(total * (coupon.discount_percentage / 100))
+                    final_total = total - discount_amount
+                    
+                    return JsonResponse({
+                        'success': True,
+                        'message': f"Cupón aplicado: {coupon.discount_percentage}% de descuento",
+                        'discount_percentage': coupon.discount_percentage,
+                        'discount_amount': discount_amount,
+                        'new_total': final_total,
+                        'code': coupon.code
+                    })
+
+                messages.success(request, f"Cupón {code} aplicado: {coupon.discount_percentage}% de descuento.")
+            else:
+                if is_ajax:
+                    return JsonResponse({'success': False, 'message': "Cupón no válido o expirado"})
+                messages.error(request, "El cupón no es válido o ha expirado.")
+        except Coupon.DoesNotExist:
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': "Cupón no válido"})
+            messages.error(request, "El cupón no existe.")
+            
+    return redirect("cart_view")
+
+def remove_coupon(request):
+    if 'coupon_id' in request.session:
+        del request.session['coupon_id']
+        messages.info(request, "Cupón removido.")
+    return redirect("cart_view")
+
+@login_required
+def bulk_offer_detail(request, oid):
+    if not (request.user.is_superuser or request.user.is_staff):
+        return redirect("pagina1")
+    
+    offer = get_object_or_404(BulkOffer, id=oid)
+    products = offer.products.all()
+    
+    # Pre-calculate discounted prices for display
+    for p in products:
+        p.calculated_discounted_price = int(p.price * (1 - offer.discount_percentage / 100))
+
+    return render(request, "bulk_offer_detail.html", {
+        "offer": offer,
+        "products": products
+    })
+
+@login_required
+def get_coupon_batch(request):
+    if not (request.user.is_superuser or request.user.is_staff):
+        return JsonResponse({'error': 'No autorizado'}, status=403)
+        
+    batch_name = request.GET.get('batch_name')
+    if not batch_name:
+        return JsonResponse({'error': 'Nombre de lote requerido'}, status=400)
+        
+    coupons = Coupon.objects.filter(batch_name=batch_name).values_list('code', flat=True)
+    return JsonResponse({'coupons': list(coupons)})
+
+@login_required
+def barcode_tool(request):
+    # Check permissions (trabajador or admin)
+    is_worker = request.user.groups.filter(name='trabajador').exists()
+    is_admin = request.user.is_staff or request.user.is_superuser or request.user.groups.filter(name='admin').exists()
+    
+    if not (is_worker or is_admin):
+        return HttpResponseForbidden("No tienes permiso para acceder a esta herramienta.")
+
+    query = request.GET.get("q", "").strip()
+    category_slug = request.GET.get("category", "")
+    
+    products = Product.objects.select_related('category').prefetch_related('sizes').all().order_by('id')
+    
+    if query:
+        products = products.filter(name__icontains=query)
+    if category_slug:
+        products = products.filter(category__slug=category_slug)
+        
+    categories = Category.objects.all()
+    
+    context = {
+        "products": products,
+        "categories": categories,
+        "current_category": category_slug,
+        "query": query
+    }
+    return render(request, "barcode_tool.html", context)
+
+@login_required
+def print_barcodes(request):
+    # Check permissions
+    is_worker = request.user.groups.filter(name='trabajador').exists()
+    is_admin = request.user.is_staff or request.user.is_superuser or request.user.groups.filter(name='admin').exists()
+    
+    if not (is_worker or is_admin):
+        return HttpResponseForbidden("No tienes permiso para acceder a esta herramienta.")
+        
+    if request.method == "POST":
+        items_to_print = []
+        
+        # Iterate over POST data to find quantities
+        for key, value in request.POST.items():
+            try:
+                qty = int(value)
+                if qty <= 0:
+                    continue
+            except ValueError:
+                continue
+                
+            if key.startswith("qty_product_"):
+                # Handle product without sizes
+                try:
+                    pid = int(key.replace("qty_product_", ""))
+                    product = Product.objects.get(id=pid)
+                    code = f"P{product.id}"
+                    for _ in range(qty):
+                        items_to_print.append({
+                            "name": product.name,
+                            "code": code,
+                            "price": product.price
+                        })
+                except (ValueError, Product.DoesNotExist):
+                    continue
+                    
+            elif key.startswith("qty_size_"):
+                # Handle product size
+                try:
+                    sid = int(key.replace("qty_size_", ""))
+                    size = ProductSize.objects.select_related('product').get(id=sid)
+                    code = f"P{size.product.id}-S{size.id}"
+                    for _ in range(qty):
+                        items_to_print.append({
+                            "name": f"{size.product.name} - {size.label}",
+                            "code": code,
+                            "price": size.product.price
+                        })
+                except (ValueError, ProductSize.DoesNotExist):
+                    continue
+        
+        return render(request, "print_barcodes.html", {"items": items_to_print})
+    
+    return redirect('barcode_tool')
+
+@login_required
+def rewards_catalog(request):
+    rewards = PointReward.objects.filter(active=True)
+    user_points = request.user.profile.points
+    
+    context = {
+        'rewards': rewards,
+        'user_points': user_points,
+    }
+    return render(request, 'rewards.html', context)
+
+@login_required
+def redeem_reward(request, reward_id):
+    reward = get_object_or_404(PointReward, id=reward_id, active=True)
+    profile = request.user.profile
+    
+    if profile.points < reward.points_cost:
+        messages.error(request, "No tienes suficientes puntos para este canje.")
+        return redirect('rewards_catalog')
+    
+    # Check size requirement BEFORE deducting points
+    size = None
+    if reward.reward_type == 'PRODUCT' and reward.product and reward.product.has_sizes:
+        if request.method == 'POST':
+            size = request.POST.get('size')
+        
+        if not size:
+             messages.error(request, "Debes seleccionar una talla para canjear este producto.")
+             return redirect('rewards_catalog')
+    
+    # Deduct points
+    profile.points -= reward.points_cost
+    profile.save()
+    
+    # Record history
+    history = RedemptionHistory.objects.create(
+        user=request.user,
+        reward=reward,
+        points_spent=reward.points_cost
+    )
+    
+    if reward.reward_type == 'COUPON':
+        # Handle Batch Coupon Reward
+        if reward.coupon_batch_name:
+                      
+            # Find available coupon in batch
+            # Logic: Active coupons in batch that are NOT in UserCoupon
+            # We assume usage_limit=1 for these generated coupons, so if it's in UserCoupon it's "taken"
+            
+            # Get all coupons in batch
+            batch_coupons = Coupon.objects.filter(batch_name=reward.coupon_batch_name, active=True)
+            
+            # Get IDs of coupons already assigned to ANY user
+            assigned_ids = UserCoupon.objects.filter(coupon__in=batch_coupons).values_list('coupon_id', flat=True)
+            
+            # Filter available
+            available_coupon = batch_coupons.exclude(id__in=assigned_ids).first()
+            
+            if available_coupon:
+                UserCoupon.objects.create(user=request.user, coupon=available_coupon)
+                messages.success(request, f"¡Canje exitoso! El cupón {available_coupon.code} ha sido guardado en tu chequera.")
+                
+                # Check if this was the last one
+                remaining_count = batch_coupons.exclude(id__in=assigned_ids).count() - 1
+                if remaining_count <= 0:
+                    reward.active = False
+                    reward.save()
+            else:
+                # Should not happen if we check stock before, but just in case
+                messages.error(request, "Lo sentimos, se han agotado los cupones de esta recompensa.")
+                # Refund points
+                profile.points += reward.points_cost
+                profile.save()
+                history.delete()
+                reward.active = False
+                reward.save()
+                return redirect('rewards_catalog')
+
+        elif reward.coupon:
+            # Legacy single coupon support
+            UserCoupon.objects.create(user=request.user, coupon=reward.coupon)
+            messages.success(request, f"¡Canje exitoso! El cupón {reward.coupon.code} ha sido guardado en tu chequera.")
+            
+    elif reward.reward_type == 'PRODUCT' and reward.product:
+        # Check stock
+        if reward.stock <= 0:
+            messages.error(request, "Lo sentimos, este producto de recompensa se ha agotado.")
+            # Refund points
+            profile.points += reward.points_cost
+            profile.save()
+            history.delete()
+            reward.active = False
+            reward.save()
+            return redirect('rewards_catalog')
+
+        # Decrement stock
+        reward.stock -= 1
+        if reward.stock <= 0:
+            reward.active = False
+        reward.save()
+
+        # Add to cart with 0 price logic
+        # We use a special session key 'rewards_cart' to track these
+        rewards_cart = request.session.get('rewards_cart', {})
+        product_id = str(reward.product.id)
+        
+        key = product_id
+        if size:
+            key = f"{product_id}_{size}"
+            
+        rewards_cart[key] = rewards_cart.get(key, 0) + 1
+        request.session['rewards_cart'] = rewards_cart
+        messages.success(request, f"¡Canje exitoso! El producto {reward.product.name} ha sido agregado a tu carrito.")
+    else:
+        messages.success(request, "Canje realizado correctamente.")
+        
+    return redirect('rewards_catalog')
+
+def is_worker(user):
+    return user.groups.filter(name='trabajador').exists() or user.is_superuser
+
+@login_required
+@user_passes_test(is_worker)
+def fulfillment_game(request):
+    # Find the oldest pending order
+    order = Order.objects.filter(estado='Pendiente').order_by('fecha', 'id').first()
+    
+    if not order:
+        return render(request, 'fulfillment_empty.html')
+    
+    # Get items
+    items = OrderItem.objects.filter(order=order).select_related('product')
+    
+    context = {
+        'order': order,
+        'items': items,
+    }
+    return render(request, 'fulfillment_game.html', context)
+
+@login_required
+@user_passes_test(is_worker)
+def complete_fulfillment(request, order_id):
+    if request.method == 'POST':
+        order = get_object_or_404(Order, id=order_id)
+        if order.estado == 'Pendiente':
+            order.estado = 'Procesado'
+            order.save()
+            messages.success(request, f"Pedido {order.code} procesado correctamente.")
+        return redirect('fulfillment_game')
+    return redirect('fulfillment_game')
+
+def is_staff_or_worker(user):
+    return user.is_staff or user.is_superuser or user.groups.filter(name__in=['admin', 'trabajador']).exists()
+
+@login_required
+@user_passes_test(is_staff_or_worker)
+def order_list(request):
+    orders = Order.objects.filter(channel='Online').order_by('-id')
+    return render(request, 'orders_list.html', {'orders': orders})
+
+@login_required
+def check_new_orders(request):
+    user = request.user
+    if not (user.groups.filter(name__iexact="trabajador").exists() or user.is_staff or user.is_superuser):
+        return JsonResponse({"count": 0, "latest_id": 0})
+    
+    qs = Order.objects.filter(estado="Pendiente").order_by('-id')
+    count = qs.count()
+    latest_id = qs.first().id if count > 0 else 0
+    
+    return JsonResponse({"count": count, "latest_id": latest_id})

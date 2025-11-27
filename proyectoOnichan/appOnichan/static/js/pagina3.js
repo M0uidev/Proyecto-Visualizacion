@@ -27,7 +27,11 @@ document.addEventListener('DOMContentLoaded', () => {
       price: p.price,
       category: p.category || 'Otros',
       stock: p.stock || 0,
+      image_url: p.image_url || '',
+      description: p.description || '',
       status: 'Disponible',
+      sizes: p.sizes || [],
+      has_sizes: p.has_sizes || false
     };
     prod.status = updateStockStatus(prod);
     return prod;
@@ -36,8 +40,42 @@ document.addEventListener('DOMContentLoaded', () => {
   const CATEGORIES = [...new Set(PRODUCTS.map((product) => product.category))];
 
   let currentCategory = 'all';
-  let currentSort = { field: 'name', direction: 'asc' };
+  let currentSort = 'name_asc';
   let searchQuery = '';
+
+  // Populate Category Filter
+  const categorySelect = document.getElementById('categoryFilter');
+  if (categorySelect) {
+      // Clear existing options except "all"
+      categorySelect.innerHTML = '<option value="all">Todas las Categorías</option>';
+      CATEGORIES.forEach(cat => {
+          const option = document.createElement('option');
+          option.value = cat;
+          option.textContent = cat;
+          categorySelect.appendChild(option);
+      });
+      
+      categorySelect.addEventListener('change', (e) => {
+          currentCategory = e.target.value;
+          renderGrid();
+      });
+  }
+
+  const sortSelect = document.getElementById('sortFilter');
+  if (sortSelect) {
+      sortSelect.addEventListener('change', (e) => {
+          currentSort = e.target.value;
+          renderGrid();
+      });
+  }
+  
+  const searchInput = document.getElementById('productSearch');
+  if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+          searchQuery = e.target.value;
+          renderGrid();
+      });
+  }
 
   let modalChartInstance = null;
 
@@ -61,18 +99,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function filterProducts(products) {
     return products.filter((product) => {
+      // Category Filter
       if (currentCategory !== 'all') {
-        if (currentCategory === 'stock:bajo' && product.stock > 10) {
-          return false;
-        }
-        if (currentCategory.startsWith('category:')) {
-          const [, category] = currentCategory.split(':');
-          if (product.category !== category) {
-            return false;
-          }
-        }
+          if (product.category !== currentCategory) return false;
       }
 
+      // Search Filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return (
@@ -288,50 +320,77 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function renderTable() {
-    const tbody = $('#stockTable tbody');
-    if (!tbody) {
-      return;
-    }
+  function renderGrid() {
+    const gridContainer = document.getElementById('productsGrid');
+    const emptyState = document.getElementById('emptyState');
+    if (!gridContainer) return;
 
+    gridContainer.innerHTML = '';
+    
     const filtered = filterProducts(PRODUCTS);
+    
+    if (filtered.length === 0) {
+        if (emptyState) emptyState.style.display = 'block';
+        return;
+    }
+    if (emptyState) emptyState.style.display = 'none';
+
+    // Sort logic
     const sorted = [...filtered].sort((a, b) => {
-      const factor = currentSort.direction === 'asc' ? 1 : -1;
-      return a[currentSort.field] > b[currentSort.field] ? factor : -factor;
+        switch(currentSort) {
+            case 'stock_desc':
+                return b.stock - a.stock;
+            case 'stock_asc':
+                return a.stock - b.stock;
+            case 'recent':
+                return parseInt(b.code) - parseInt(a.code);
+            case 'name_asc':
+            default:
+                return a.name.localeCompare(b.name);
+        }
     });
 
-    tbody.innerHTML = sorted.map((product) => {
-      const statusText = product.status;
-      const statusClass = getStatusClass(statusText);
+    sorted.forEach(product => {
+        const statusText = product.status;
+        const statusClass = getStatusClass(statusText);
+        
+        const card = document.createElement('div');
+        card.className = 'card product-card shadow-sm';
+        card.style.width = '220px';
+        card.style.transition = 'transform 0.2s';
+        
+        // Hover effect
+        card.onmouseenter = () => card.style.transform = 'translateY(-5px)';
+        card.onmouseleave = () => card.style.transform = 'none';
 
-      const actions = [
-        `<button class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${product.code}">
-              <i class="bi bi-pencil"></i>
-            </button>`
-      ];
-      if (window.IS_ADMIN) {
-        actions.push(`
-            <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${product.code}">
-              <i class="bi bi-trash"></i>
-            </button>`);
-      }
+        let actionsHtml = '';
+        actionsHtml += `<button class="btn btn-sm btn-outline-primary me-1" data-action="edit" data-id="${product.code}" title="Editar"><i class="bi bi-pencil"></i></button>`;
+        
+        if (window.IS_ADMIN) {
+            actionsHtml += `<button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${product.code}" title="Eliminar"><i class="bi bi-trash"></i></button>`;
+        }
 
-      return (
-      `<tr>
-        <td>${product.code}</td>
-        <td>${product.name}</td>
-        <td>${product.category}</td>
-        <td>${product.stock}</td>
-        <td>${peso(product.price)}</td>
-        <td><span class="badge bg-${statusClass}">${statusText}</span></td>
-        <td>
-          <div class="btn-group">
-            ${actions.join('')}
-          </div>
-        </td>
-      </tr>`
-      );
-    }).join('');
+        card.innerHTML = `
+            <div class="position-relative">
+                <img src="${product.image_url}" class="card-img-top" alt="${product.name}" style="height: 150px; object-fit: cover;">
+                <span class="position-absolute top-0 end-0 badge bg-${statusClass} m-2">${statusText}</span>
+            </div>
+            <div class="card-body p-3">
+                <h6 class="card-title text-truncate mb-1" title="${product.name}">${product.name}</h6>
+                <p class="card-text small text-muted mb-1">ID: ${product.code}</p>
+                <p class="card-text small text-muted mb-2">${product.category}</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="fw-bold text-primary">${peso(product.price)}</span>
+                    <small class="text-muted">Stock: ${product.stock}</small>
+                </div>
+                <div class="mt-3 d-flex justify-content-end">
+                    ${actionsHtml}
+                </div>
+            </div>
+        `;
+        
+        gridContainer.appendChild(card);
+    });
 
     const statsElement = document.getElementById('tableStats');
     if (statsElement) {
@@ -348,19 +407,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  $$('.chip').forEach((button) => {
-    button.addEventListener('click', (event) => {
-      $$('.chip').forEach((chip) => chip.classList.remove('active'));
-      event.currentTarget.classList.add('active');
-      currentCategory = event.currentTarget.dataset.filter;
-      renderTable();
-    });
-  });
-
   $('#btnRefresh')?.addEventListener('click', () => window.location.reload());
   // btnAdd abre modal via data-bs-toggle (no JS extra)
 
-  $('#stockTable')?.addEventListener('click', (event) => {
+  $('#productsGrid')?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-action]');
     if (!button) {
       return;
@@ -372,38 +422,181 @@ document.addEventListener('DOMContentLoaded', () => {
     if (action === 'edit') {
       const product = PRODUCTS.find(p => p.code === productId);
       if (!product) return;
-      const newVal = prompt(`Nueva cantidad para ${product.name}`, String(product.stock));
-      if (newVal === null) return;
-      const parsed = parseInt(newVal, 10);
-      if (!Number.isFinite(parsed) || parsed < 0) {
-        alert('Cantidad inválida');
-        return;
+      
+      if (window.IS_ADMIN) {
+          // Populate Modal
+          document.getElementById('editProductId').value = product.code;
+          document.getElementById('editName').value = product.name;
+          document.getElementById('editPrice').value = product.price;
+          document.getElementById('editImageUrl').value = product.image_url;
+          document.getElementById('editCategory').value = product.category;
+          document.getElementById('editDescription').value = product.description;
+          document.getElementById('editStock').value = product.stock;
+          document.getElementById('editSizes').value = product.sizes.join(', ');
+          
+          // Show Modal
+          const editModal = new bootstrap.Modal(document.getElementById('editProductModal'));
+          editModal.show();
+      } else {
+          // Populate Worker Modal (Adjust Stock)
+          document.getElementById('adjustStockId').value = product.code;
+          document.getElementById('adjustStockName').textContent = product.name;
+          document.getElementById('displayCurrentStock').textContent = product.stock;
+          document.getElementById('currentStockValue').value = product.stock;
+          document.getElementById('stockAdjustment').value = 0;
+          document.getElementById('finalStockPreview').textContent = product.stock;
+          
+          const adjustModal = new bootstrap.Modal(document.getElementById('adjustStockModal'));
+          adjustModal.show();
       }
-
-      // Persistir en backend
-      const csrftoken = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
-      fetch(window.location.href, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-          'X-CSRFToken': csrftoken || ''
-        },
-        body: new URLSearchParams({ action: 'update_stock', product_id: product.code, stock: String(parsed) })
-      })
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(() => {
-        product.stock = parsed;
-        product.status = updateStockStatus(product);
-        renderTable();
-      })
-      .catch(() => alert('No se pudo actualizar el stock'));
     } else if (action === 'delete') {
       if (!window.IS_ADMIN) return;
       // Nota: eliminación no persistente en UI (opcionalmente implementar en backend)
-      const idx = PRODUCTS.findIndex(p => p.code === productId);
-      if (idx >= 0) { PRODUCTS.splice(idx, 1); renderTable(); }
+      if(confirm('¿Estás seguro de eliminar este producto?')) {
+          const idx = PRODUCTS.findIndex(p => p.code === productId);
+          if (idx >= 0) { PRODUCTS.splice(idx, 1); renderGrid(); }
+      }
     }
   });
 
-  renderTable();
+  // Handle Edit Form Submission
+  const editForm = document.getElementById('editProductForm');
+  if (editForm) {
+      editForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const formData = new FormData(editForm);
+          const csrftoken = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
+          
+          fetch(window.location.href, {
+              method: 'POST',
+              headers: {
+                  'X-CSRFToken': csrftoken || ''
+              },
+              body: formData
+          })
+          .then(r => r.json())
+          .then(data => {
+              if (data.ok) {
+                  // Update local data
+                  const pid = formData.get('product_id');
+                  const product = PRODUCTS.find(p => p.code === pid);
+                  if (product) {
+                      product.name = formData.get('name');
+                      product.price = parseInt(formData.get('price'));
+                      product.image_url = formData.get('image_url');
+                      product.category = formData.get('category');
+                      product.description = formData.get('description');
+                      product.stock = parseInt(formData.get('stock'));
+                      const sizesStr = formData.get('sizes');
+                      product.sizes = sizesStr ? sizesStr.split(',').map(s => s.trim()).filter(s => s) : [];
+                      product.has_sizes = product.sizes.length > 0;
+                      product.status = updateStockStatus(product);
+                      renderGrid();
+                  }
+                  // Close modal
+                  const modalEl = document.getElementById('editProductModal');
+                  const modal = bootstrap.Modal.getInstance(modalEl);
+                  modal.hide();
+                  alert('Producto actualizado correctamente');
+              } else {
+                  alert('Error: ' + data.error);
+              }
+          })
+          .catch(err => {
+              console.error(err);
+              alert('Error al actualizar el producto');
+          });
+      });
+  }
+
+  // Add Product Modal Logic
+  const addHasSizes = document.getElementById('addHasSizes');
+  const sizeScaleContainer = document.getElementById('sizeScaleContainer');
+  const sizeScaleSelect = document.querySelector('select[name="size_scale"]');
+  const customSizeInput = document.getElementById('customSizeInput');
+
+  if (addHasSizes) {
+      addHasSizes.addEventListener('change', (e) => {
+          sizeScaleContainer.style.display = e.target.checked ? 'block' : 'none';
+      });
+  }
+
+  if (sizeScaleSelect) {
+      sizeScaleSelect.addEventListener('change', (e) => {
+          customSizeInput.style.display = e.target.value === 'custom' ? 'block' : 'none';
+      });
+  }
+
+  // Adjust Stock Logic (Worker)
+  const adjustForm = document.getElementById('adjustStockForm');
+  const btnIncrease = document.getElementById('btnIncrease');
+  const btnDecrease = document.getElementById('btnDecrease');
+  const stockAdjustment = document.getElementById('stockAdjustment');
+  const currentStockValue = document.getElementById('currentStockValue');
+  const finalStockPreview = document.getElementById('finalStockPreview');
+
+  function updateFinalStock() {
+      const current = parseInt(currentStockValue.value || 0);
+      const adjustment = parseInt(stockAdjustment.value || 0);
+      const final = Math.max(0, current + adjustment);
+      finalStockPreview.textContent = final;
+  }
+
+  if (stockAdjustment) {
+      stockAdjustment.addEventListener('input', updateFinalStock);
+      btnIncrease.addEventListener('click', () => {
+          stockAdjustment.value = parseInt(stockAdjustment.value || 0) + 1;
+          updateFinalStock();
+      });
+      btnDecrease.addEventListener('click', () => {
+          stockAdjustment.value = parseInt(stockAdjustment.value || 0) - 1;
+          updateFinalStock();
+      });
+  }
+
+  if (adjustForm) {
+      adjustForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const current = parseInt(currentStockValue.value || 0);
+          const adjustment = parseInt(stockAdjustment.value || 0);
+          const finalStock = Math.max(0, current + adjustment);
+          
+          const formData = new FormData();
+          formData.append('action', 'update_stock');
+          formData.append('product_id', document.getElementById('adjustStockId').value);
+          formData.append('stock', finalStock);
+          
+          const csrftoken = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
+
+          fetch(window.location.href, {
+              method: 'POST',
+              headers: { 'X-CSRFToken': csrftoken || '' },
+              body: formData
+          })
+          .then(r => r.json())
+          .then(data => {
+              if (data.ok) {
+                  const pid = formData.get('product_id');
+                  const product = PRODUCTS.find(p => p.code === pid);
+                  if (product) {
+                      product.stock = parseInt(data.stock);
+                      product.status = updateStockStatus(product);
+                      renderGrid();
+                  }
+                  const modalEl = document.getElementById('adjustStockModal');
+                  const modal = bootstrap.Modal.getInstance(modalEl);
+                  modal.hide();
+                  alert('Stock actualizado correctamente');
+              } else {
+                  alert('Error: ' + data.error);
+              }
+          })
+          .catch(err => {
+              console.error(err);
+              alert('Error al actualizar stock');
+          });
+      });
+  }
+
+  renderGrid();
 });

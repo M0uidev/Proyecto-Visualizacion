@@ -1,0 +1,92 @@
+{% extends "basecliente.html" %}
+{% load static %}
+
+{% block title %}Buscar Productos · Multitienda{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-5 fw-bold mb-3">Buscar Productos</h1>
+            <form method="get" action="{% url 'buscar_productos' %}" class="row g-3 align-items-end">
+                <!-- Search Bar -->
+                <div class="col-md-4">
+                    <label for="q" class="form-label">Buscar</label>
+                    <input type="text" class="form-control" id="q" name="q" value="{{ query }}" placeholder="Nombre del producto...">
+                </div>
+                
+                <!-- Category Filter -->
+                <div class="col-md-3">
+                    <label for="category" class="form-label">Categoría</label>
+                    <select class="form-select" id="category" name="category">
+                        <option value="">Todas las categorías</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.slug }}" {% if current_category == cat.slug %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Sort Order -->
+                <div class="col-md-3">
+                    <label for="sort" class="form-label">Ordenar por</label>
+                    <select class="form-select" id="sort" name="sort">
+                        <option value="newest" {% if current_sort == 'newest' %}selected{% endif %}>Más nuevos</option>
+                        <option value="price_asc" {% if current_sort == 'price_asc' %}selected{% endif %}>Precio: Menor a Mayor</option>
+                        <option value="price_desc" {% if current_sort == 'price_desc' %}selected{% endif %}>Precio: Mayor a Menor</option>
+                    </select>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Products Grid -->
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+        {% for producto in productos %}
+        <div class="col">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="position-relative">
+                    <div class="ratio ratio-1x1">
+                        <img src="{{ producto.image_url }}" class="card-img-top object-fit-cover rounded-top" alt="{{ producto.name }}">
+                    </div>
+                    {% if producto.stock <= 0 %}
+                        <span class="position-absolute top-50 start-50 translate-middle badge bg-secondary">Sin Stock</span>
+                    {% elif producto.detail.discount_percentage %}
+                        <span class="position-absolute top-0 start-0 m-2 badge bg-danger">-{{ producto.detail.discount_percentage }}%</span>
+                    {% endif %}
+                </div>
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title text-truncate" title="{{ producto.name }}">{{ producto.name }}</h5>
+                    <p class="card-text small text-muted mb-2">{{ producto.category.name }}</p>
+                    
+                    <div class="mt-auto">
+                        {% if producto.detail.discount_percentage %}
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fw-bold text-danger fs-5">${{ producto.detail.discounted_price }}</span>
+                                <span class="text-decoration-line-through text-muted small">${{ producto.price }}</span>
+                            </div>
+                        {% else %}
+                            <div class="fw-bold text-primary fs-5">${{ producto.price }}</div>
+                        {% endif %}
+                        
+                        <div class="d-grid mt-3">
+                            <a href="{% url 'producto_detalle' producto.id %}" class="btn btn-outline-primary btn-sm">Ver Detalles</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <h3 class="text-muted">No se encontraron productos.</h3>
+            <p>Intenta con otros filtros o términos de búsqueda.</p>
+            <a href="{% url 'buscar_productos' %}" class="btn btn-secondary mt-3">Limpiar filtros</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -26,14 +26,6 @@
           <input type="text" class="form-control" name="category" value="{{ product.category.name }}" required />
         </div>
         <div class="mb-3">
-          <label class="form-label">Stock</label>
-          <input type="number" class="form-control" name="stock" value="{{ product.stock }}" min="0" required />
-        </div>
-        <div class="mb-3">
-          <label class="form-label">URL de imagen</label>
-          <input type="url" class="form-control" name="image_url" value="{{ product.image_url }}" required />
-        </div>
-        <div class="mb-3">
           <label class="form-label">Descripción</label>
           <textarea class="form-control" name="description" rows="5">{{ product.description|default:"" }}</textarea>
         </div>

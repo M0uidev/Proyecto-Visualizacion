@@ -10,6 +10,9 @@ from .models import (
 	Customer,
 	Order,
 	OrderItem,
+    PointReward,
+    RedemptionHistory,
+    UserCoupon,
 )
 
 
@@ -73,4 +76,25 @@ class OrderAdmin(admin.ModelAdmin):
 	list_display = ("code", "fecha", "cliente", "estado", "total", "channel")
 	list_filter = ("estado", "channel", "fecha")
 	inlines = [OrderItemInline]
+
+
+@admin.register(PointReward)
+class PointRewardAdmin(admin.ModelAdmin):
+    list_display = ('name', 'points_cost', 'reward_type', 'active')
+    list_filter = ('reward_type', 'active')
+    search_fields = ('name', 'description')
+
+
+@admin.register(RedemptionHistory)
+class RedemptionHistoryAdmin(admin.ModelAdmin):
+    list_display = ('user', 'reward', 'points_spent', 'redeemed_at')
+    list_filter = ('redeemed_at',)
+    search_fields = ('user__username', 'reward__name')
+
+
+@admin.register(UserCoupon)
+class UserCouponAdmin(admin.ModelAdmin):
+    list_display = ('user', 'coupon', 'acquired_at', 'is_used')
+    list_filter = ('is_used', 'acquired_at')
+    search_fields = ('user__username', 'coupon__code')
 
