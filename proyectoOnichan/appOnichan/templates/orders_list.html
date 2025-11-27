@@ -30,37 +30,67 @@
                             <th>Acciones</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        {% for order in orders %}
-                        <tr>
-                            <td><strong>{{ order.code }}</strong></td>
-                            <td>{{ order.fecha|date:"d/m/Y" }}</td>
-                            <td>{{ order.cliente.name }}</td>
-                            <td>${{ order.total }}</td>
-                            <td>
-                                {% if order.estado == 'Pendiente' %}
-                                    <span class="badge bg-warning text-dark">{{ order.estado }}</span>
-                                {% elif order.estado == 'Procesado' %}
-                                    <span class="badge bg-info text-dark">{{ order.estado }}</span>
-                                {% elif order.estado == 'Entregado' %}
-                                    <span class="badge bg-success">{{ order.estado }}</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">{{ order.estado }}</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-primary" disabled>Ver Detalle</button>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="6" class="text-center py-4">No hay pedidos registrados.</td>
-                        </tr>
-                        {% endfor %}
+                    <tbody id="orders-table-body">
+                        {% include 'partials/orders_rows.html' %}
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Modal Detalle Pedido -->
+<div class="modal fade" id="orderDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" id="order-detail-content">
+            <!-- Content loaded via AJAX -->
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function loadOrderDetail(orderId) {
+        const modalContent = document.getElementById('order-detail-content');
+        modalContent.innerHTML = `
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>`;
+            
+        const modal = new bootstrap.Modal(document.getElementById('orderDetailModal'));
+        modal.show();
+
+        fetch(`/orders/${orderId}/detail/`)
+            .then(response => response.text())
+            .then(html => {
+                modalContent.innerHTML = html;
+            })
+            .catch(err => {
+                console.error('Error loading order details:', err);
+                modalContent.innerHTML = '<div class="modal-body text-danger">Error al cargar los detalles.</div>';
+            });
+    }
+
+    window.addEventListener('newOrderDetected', function() {
+        // Fetch updated table rows via AJAX
+        fetch(window.location.href, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('orders-table-body').innerHTML = html;
+        })
+        .catch(err => console.error('Error updating orders table:', err));
+    });
+</script>
 {% endblock %}

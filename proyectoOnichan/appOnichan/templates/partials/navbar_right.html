@@ -7,9 +7,7 @@
     <a href="{% url 'dashboardadmin' %}" class="nav-link-custom"><i class="bi bi-speedometer2"></i>Dashboard</a>
     <a href="{% url 'order_list' %}" class="nav-link-custom">
       <i class="bi bi-list-check"></i>Pedidos
-      {% if pending_orders_count > 0 %}
-        <span class="badge bg-danger rounded-pill ms-1">{{ pending_orders_count }}</span>
-      {% endif %}
+      <span class="badge bg-danger rounded-pill ms-1" id="worker-orders-badge" {% if pending_orders_count == 0 %}style="display: none;"{% endif %}>{{ pending_orders_count }}</span>
     </a>
     <a href="{% url 'stock' %}" class="nav-link-custom"><i class="bi bi-box-seam"></i>Stock</a>
     <a href="{% url 'marketing_dashboard' %}" class="nav-link-custom"><i class="bi bi-tags"></i>Marketing</a>

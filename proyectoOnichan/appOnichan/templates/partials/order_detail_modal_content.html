@@ -1,0 +1,83 @@
+<div class="modal-header">
+    <h5 class="modal-title">Detalle del Pedido #{{ order.code }}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<div class="modal-body">
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <h6>Información del Cliente</h6>
+            <p class="mb-1"><strong>Nombre:</strong> {{ order.recipient_name|default:order.cliente.name }}</p>
+            <p class="mb-1"><strong>Email:</strong> {{ order.contact_email|default:"-" }}</p>
+            <p class="mb-1"><strong>Teléfono:</strong> {{ order.contact_phone|default:"-" }}</p>
+        </div>
+        <div class="col-md-6">
+            <h6>Información de Envío</h6>
+            <p class="mb-1"><strong>Método:</strong> {{ order.delivery_method }}</p>
+            {% if order.delivery_method == 'Despacho' %}
+            <p class="mb-1"><strong>Dirección:</strong> {{ order.shipping_address }}</p>
+            <p class="mb-1"><strong>Comuna:</strong> {{ order.shipping_commune }}</p>
+            <p class="mb-1"><strong>Región:</strong> {{ order.shipping_region }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-12">
+            <h6>Estado del Pedido</h6>
+            <span class="badge {% if order.estado == 'Entregado' %}bg-success{% elif order.estado == 'Pendiente' %}bg-warning text-dark{% else %}bg-info{% endif %}">
+                {{ order.estado }}
+            </span>
+            <span class="text-muted ms-2">{{ order.fecha|date:"d/m/Y" }}</span>
+        </div>
+    </div>
+
+    <h6 class="mt-4">Productos</h6>
+    <div class="table-responsive">
+        <table class="table table-sm table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th>Producto</th>
+                    <th>Talla</th>
+                    <th class="text-center">Cant.</th>
+                    <th class="text-end">Precio</th>
+                    <th class="text-end">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order.items.all %}
+                <tr>
+                    <td>{{ item.product.name }}</td>
+                    <td>{{ item.size|default:"-" }}</td>
+                    <td class="text-center">{{ item.cantidad }}</td>
+                    <td class="text-end">${{ item.price }}</td>
+                    <td class="text-end">${{ item.subtotal }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="4" class="text-end"><strong>Subtotal:</strong></td>
+                    <td class="text-end">${{ order.total|add:order.discount_amount }}</td>
+                </tr>
+                {% if order.discount_amount > 0 %}
+                <tr>
+                    <td colspan="4" class="text-end text-danger"><strong>Descuento:</strong></td>
+                    <td class="text-end text-danger">-${{ order.discount_amount }}</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td colspan="4" class="text-end"><strong>Total:</strong></td>
+                    <td class="text-end"><strong>${{ order.total }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+<div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+    {% if order.delivery_method == 'Despacho' %}
+    <a href="{% url 'print_shipping_label' order.id %}" class="btn btn-primary" target="_blank">
+        <i class="bi bi-printer"></i> Imprimir Etiqueta
+    </a>
+    {% endif %}
+</div>

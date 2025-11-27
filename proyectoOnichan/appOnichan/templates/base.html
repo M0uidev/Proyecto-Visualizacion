@@ -166,7 +166,8 @@
   </div>
 
   <!-- Worker Notification Toast -->
-  {% if user.is_authenticated and user|has_group:'trabajador' %}
+  {% if user.is_authenticated %}
+  {% if user.is_staff or user.is_superuser or user|has_group:'admin' or user|has_group:'trabajador' %}
   <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
     <div id="newOrderToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="toast-header bg-primary text-white">
@@ -178,7 +179,7 @@
       <div class="toast-body">
         ¡Ha llegado un nuevo pedido!
         <div class="mt-2 pt-2 border-top">
-          <a href="{% url 'dashboardtrabajador' %}" class="btn btn-primary btn-sm w-100">Ver Dashboard</a>
+          <a href="{% url 'fulfillment_game' %}" class="btn btn-primary btn-sm w-100">Ir a Preparación</a>
         </div>
       </div>
     </div>
@@ -213,6 +214,8 @@
                             const toast = new bootstrap.Toast(toastEl);
                             toast.show();
                         }
+                        // Dispatch event for other pages to listen
+                        window.dispatchEvent(new CustomEvent('newOrderDetected'));
                     }
                 })
                 .catch(err => console.error('Error checking orders:', err));
@@ -241,6 +244,7 @@
             .catch(err => console.error('Error initial check:', err));
     });
   </script>
+  {% endif %}
   {% endif %}
 
   <!-- Bootstrap 5 JS Bundle -->

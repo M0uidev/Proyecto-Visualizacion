@@ -208,6 +208,7 @@ class Order(models.Model):
     delivery_method = models.CharField(max_length=20, default="Despacho", verbose_name="Método de Entrega")
     contact_phone = models.CharField(max_length=20, blank=True, verbose_name="Teléfono")
     contact_email = models.EmailField(blank=True, verbose_name="Email")
+    recipient_name = models.CharField(max_length=150, blank=True, verbose_name="Nombre Destinatario")
     shipping_address = models.CharField(max_length=255, blank=True, verbose_name="Dirección")
     shipping_commune = models.CharField(max_length=100, blank=True, verbose_name="Comuna")
     shipping_region = models.CharField(max_length=100, blank=True, verbose_name="Región")

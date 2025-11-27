@@ -35,6 +35,12 @@ from .models import (
 from .forms import CouponForm, BulkDiscountForm, CouponGenerationForm # Added Forms
 from django.contrib import messages # Added messages
 from .services import get_regional_stats
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.graphics.barcode import code128
+from reportlab.graphics import renderPDF
+from reportlab.lib.utils import simpleSplit
 
 def index(request):
     return pagina1(request)
@@ -45,9 +51,9 @@ def pagina1(request):
     sort_by = request.GET.get("sort", "")
     query = request.GET.get("q", "").strip()
     try:
-        items_per_page = int(request.GET.get("items", 30))
+        items_per_page = int(request.GET.get("items", 10))
     except ValueError:
-        items_per_page = 30
+        items_per_page = 10
 
     # Base query
     productos = Product.objects.select_related('category', 'detail').prefetch_related('bulk_offers').all()
@@ -1195,6 +1201,7 @@ def checkout_webpay(request):
             delivery_method=delivery_method,
             contact_phone=phone,
             contact_email=email,
+            recipient_name=full_name,
             shipping_address=shipping_address,
             shipping_commune=shipping_commune,
             shipping_region=shipping_region
@@ -2131,6 +2138,8 @@ def is_staff_or_worker(user):
 @user_passes_test(is_staff_or_worker)
 def order_list(request):
     orders = Order.objects.filter(channel='Online').order_by('-id')
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return render(request, 'partials/orders_rows.html', {'orders': orders})
     return render(request, 'orders_list.html', {'orders': orders})
 
 @login_required
@@ -2144,3 +2153,106 @@ def check_new_orders(request):
     latest_id = qs.first().id if count > 0 else 0
     
     return JsonResponse({"count": count, "latest_id": latest_id})
+
+@login_required
+def print_shipping_label(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    
+    # Only allow for orders with delivery_method='Despacho'
+    if order.delivery_method != 'Despacho':
+        return HttpResponseForbidden("Este pedido no es para despacho.")
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="label_{order.code}.pdf"'
+
+    # Create PDF
+    p = canvas.Canvas(response, pagesize=A4)
+    width, height = A4
+    
+    # Label dimensions (100mm x 150mm standard shipping label)
+    label_w = 100 * mm
+    label_h = 150 * mm
+    
+    # Position label on top-left of A4 with some margin
+    x_start = 10 * mm
+    y_start = height - label_h - 10 * mm
+    
+    # Draw border
+    p.rect(x_start, y_start, label_w, label_h)
+    
+    # Header
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(x_start + 5*mm, y_start + label_h - 15*mm, "ETIQUETA DE ENVÍO")
+    
+    p.setFont("Helvetica", 10)
+    p.drawString(x_start + 5*mm, y_start + label_h - 25*mm, f"Fecha: {order.fecha.strftime('%d/%m/%Y')}")
+    
+    # Sender Info (Store)
+    p.line(x_start, y_start + label_h - 30*mm, x_start + label_w, y_start + label_h - 30*mm)
+    p.setFont("Helvetica-Bold", 10)
+    p.drawString(x_start + 5*mm, y_start + label_h - 38*mm, "REMITENTE:")
+    p.setFont("Helvetica", 10)
+    p.drawString(x_start + 5*mm, y_start + label_h - 43*mm, "MultiTienda")
+    p.drawString(x_start + 5*mm, y_start + label_h - 48*mm, "Av. Principal 123")
+    p.drawString(x_start + 5*mm, y_start + label_h - 53*mm, "Santiago, RM")
+    
+    # Recipient Info
+    p.line(x_start, y_start + label_h - 60*mm, x_start + label_w, y_start + label_h - 60*mm)
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(x_start + 5*mm, y_start + label_h - 70*mm, "DESTINATARIO:")
+    
+    p.setFont("Helvetica-Bold", 14)
+    recipient = order.recipient_name if order.recipient_name else order.cliente.name
+    p.drawString(x_start + 10*mm, y_start + label_h - 80*mm, f"{recipient}")
+    
+    p.setFont("Helvetica", 12)
+    # Handle address fields safely
+    address = order.shipping_address or "Dirección no especificada"
+    commune = order.shipping_commune or ""
+    region = order.shipping_region or ""
+    
+    # Define text area
+    text_width = label_w - 20*mm
+    current_y = y_start + label_h - 90*mm
+    
+    # Address wrapping
+    address_lines = simpleSplit(address, "Helvetica", 12, text_width)
+    for line in address_lines:
+        p.drawString(x_start + 10*mm, current_y, line)
+        current_y -= 5*mm
+        
+    # Commune/Region wrapping
+    location_str = f"{commune}, {region}"
+    location_lines = simpleSplit(location_str, "Helvetica", 12, text_width)
+    for line in location_lines:
+        p.drawString(x_start + 10*mm, current_y, line)
+        current_y -= 5*mm
+    
+    if order.contact_phone:
+        p.drawString(x_start + 10*mm, current_y, f"Tel: {order.contact_phone}")
+        
+    # Barcode
+    p.line(x_start, y_start + 40*mm, x_start + label_w, y_start + 40*mm)
+    
+    barcode_value = order.code
+    barcode = code128.Code128(barcode_value, barHeight=20*mm, barWidth=0.5*mm)
+    
+    # Center barcode
+    barcode_width = barcode.width
+    barcode_x = x_start + (label_w - barcode_width) / 2
+    barcode_y = y_start + 15*mm
+    
+    barcode.drawOn(p, barcode_x, barcode_y)
+    
+    p.setFont("Helvetica", 10)
+    p.drawCentredString(x_start + label_w/2, y_start + 10*mm, f"Pedido: {order.code}")
+    
+    p.showPage()
+    p.save()
+    return response
+
+@login_required
+@user_passes_test(is_staff_or_worker)
+def order_detail_partial(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    return render(request, 'partials/order_detail_modal_content.html', {'order': order})

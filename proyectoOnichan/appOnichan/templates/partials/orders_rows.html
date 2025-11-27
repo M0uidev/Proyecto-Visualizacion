@@ -1,0 +1,31 @@
+{% for order in orders %}
+<tr>
+    <td><strong>{{ order.code }}</strong></td>
+    <td>{{ order.fecha|date:"d/m/Y" }}</td>
+    <td>{{ order.cliente.name }}</td>
+    <td>${{ order.total }}</td>
+    <td>
+        {% if order.estado == 'Pendiente' %}
+            <span class="badge bg-warning text-dark">{{ order.estado }}</span>
+        {% elif order.estado == 'Procesado' %}
+            <span class="badge bg-info text-dark">{{ order.estado }}</span>
+        {% elif order.estado == 'Entregado' %}
+            <span class="badge bg-success">{{ order.estado }}</span>
+        {% else %}
+            <span class="badge bg-secondary">{{ order.estado }}</span>
+        {% endif %}
+    </td>
+    <td>
+        <button class="btn btn-sm btn-outline-primary" onclick="loadOrderDetail({{ order.id }})">Ver Detalle</button>
+        {% if order.delivery_method == 'Despacho' %}
+        <a href="{% url 'print_shipping_label' order.id %}" class="btn btn-sm btn-outline-secondary" target="_blank" title="Imprimir Etiqueta">
+            <i class="bi bi-printer"></i> Etiqueta
+        </a>
+        {% endif %}
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="6" class="text-center py-4">No hay pedidos registrados.</td>
+</tr>
+{% endfor %}

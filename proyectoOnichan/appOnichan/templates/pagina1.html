@@ -218,6 +218,12 @@
               
               const sortInput = itemsForm.querySelector('input[name="sort"]');
               if (sortInput) sortInput.value = params.get('sort') || '';
+              
+              const itemsSelect = document.getElementById('items');
+              if (itemsSelect) {
+                  const itemsVal = params.get('items');
+                  if (itemsVal) itemsSelect.value = itemsVal;
+              }
           }
       }
 
@@ -266,7 +272,21 @@
             this.classList.add('active', 'btn-primary');
             this.classList.remove('btn-outline-primary');
 
-            fetchProducts(this.href);
+            // Construct URL dynamically to preserve current state
+            const category = this.getAttribute('data-category');
+            const items = document.getElementById('items').value;
+            const sortInput = document.querySelector('input[name="sort"]');
+            const sort = sortInput ? sortInput.value : '';
+
+            const params = new URLSearchParams();
+            if (category && category !== 'all') params.set('category', category);
+            else params.set('category', 'all'); // Explicitly set 'all' if that's the selection
+            
+            if (items) params.set('items', items);
+            if (sort) params.set('sort', sort);
+
+            const url = '?' + params.toString();
+            fetchProducts(url);
         });
       });
 

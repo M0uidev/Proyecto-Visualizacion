@@ -17,6 +17,8 @@ urlpatterns = [
     path('api/check_orders/', views.check_new_orders, name='check_new_orders'),
     # Fulfillment Game
     path('orders/', views.order_list, name='order_list'),
+    path('orders/<int:order_id>/detail/', views.order_detail_partial, name='order_detail_partial'),
+    path('orders/<int:order_id>/print_label/', views.print_shipping_label, name='print_shipping_label'),
     path('fulfillment/', views.fulfillment_game, name='fulfillment_game'),
     path('fulfillment/complete/<int:order_id>/', views.complete_fulfillment, name='complete_fulfillment'),
     # Stock (renombrado)

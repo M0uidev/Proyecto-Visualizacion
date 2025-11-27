@@ -8,4 +8,5 @@ def get_cart_count(context):
     if not request:
         return 0
     cart = request.session.get("cart", {})
-    return sum(cart.values())
+    rewards_cart = request.session.get("rewards_cart", {})
+    return sum(cart.values()) + sum(rewards_cart.values())
