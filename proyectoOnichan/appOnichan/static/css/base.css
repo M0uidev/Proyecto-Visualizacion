@@ -312,4 +312,10 @@ h1, h2, h3, h4, h5, h6 {
   .brand-logo span {
     display: none;
   }
+  .nav-text {
+    display: none !important;
+  }
+  .nav-link-custom {
+    padding: 0.5rem;
+  }
 }

@@ -51,12 +51,12 @@ def pagina1(request):
     sort_by = request.GET.get("sort", "")
     query = request.GET.get("q", "").strip()
     try:
-        items_per_page = int(request.GET.get("items", 10))
+        items_per_page = int(request.GET.get("items", 8))
     except ValueError:
-        items_per_page = 10
+        items_per_page = 8
 
     # Base query
-    productos = Product.objects.select_related('category', 'detail').prefetch_related('bulk_offers').all()
+    productos = Product.objects.select_related('category', 'detail').prefetch_related('bulk_offers', 'sizes').all()
 
     # Filtrar por búsqueda
     if query:
@@ -79,7 +79,7 @@ def pagina1(request):
     categories = Category.objects.all()
 
     # Ofertas imperdibles (productos con descuento activo)
-    ofertas_imperdibles = Product.objects.filter(bulk_offers__active=True).distinct().select_related('category', 'detail').prefetch_related('bulk_offers')
+    ofertas_imperdibles = Product.objects.filter(bulk_offers__active=True).distinct().select_related('category', 'detail').prefetch_related('bulk_offers', 'sizes')
 
     # Paginación
     paginator = Paginator(productos, items_per_page)

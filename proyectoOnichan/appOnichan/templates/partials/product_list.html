@@ -1,6 +1,8 @@
-<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-4" id="filterableProducts">
+<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-4 g-4" id="filterableProducts">
   {% for producto in productos %}
-    {% include 'partials/product_card.html' with product=producto %}
+    <div class="col">
+      {% include 'partials/product_card.html' with product=producto %}
+    </div>
   {% endfor %}
 </div>
 

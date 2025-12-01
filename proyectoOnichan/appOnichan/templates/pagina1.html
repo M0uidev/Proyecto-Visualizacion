@@ -31,36 +31,7 @@
       <div class="scrolling-wrapper-flexbox py-2 d-flex flex-nowrap" id="offersCarousel">
         {% for producto in ofertas_imperdibles|slice:":12" %} <!-- Increased slice to show more items -->
           <div class="card-product-carousel">
-            <article class="card-product h-100">
-              <div class="position-relative">
-                <div class="ratio ratio-1x1 product-thumb">
-                  <img src="{{ producto.image_url }}" alt="{{ producto.name }}" class="img-fluid rounded-top">
-                </div>
-                {% if producto.stock <= 0 %}
-                  <span class="position-absolute top-50 start-50 translate-middle badge bg-secondary shadow-sm fs-6">Sin Stock</span>
-                {% elif producto.detail.discount_percentage %}
-                  <span class="position-absolute top-0 start-0 m-2 badge bg-danger rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 45px; height: 45px; font-size: 0.85rem;">-{{ producto.detail.discount_percentage }}%</span>
-                {% endif %}
-              </div>
-              <div class="card-body p-3 d-flex flex-column">
-                <h3 class="h6 product-title mb-2" title="{{ producto.name }}">{{ producto.name }}</h3>
-                <div class="mt-auto w-100">
-                  {% if producto.detail.discount_percentage %}
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                      <span class="fw-bold text-danger fs-5">${{ producto.detail.discounted_price }}</span>
-                      <span class="text-decoration-line-through text-muted small">${{ producto.price }}</span>
-                    </div>
-                  {% else %}
-                    <div class="fw-bold text-primary fs-5 mb-2">${{ producto.price }}</div>
-                  {% endif %}
-                  {% if producto.stock > 0 %}
-                  <a href="{% url 'producto_detalle' producto.id %}" class="btn btn-pastel-secondary btn-sm w-100">Ver detalles</a>
-                  {% else %}
-                  <a href="{% url 'producto_detalle' producto.id %}" class="btn btn-secondary btn-sm w-100">Ver detalles</a>
-                  {% endif %}
-                </div>
-              </div>
-            </article>
+            {% include 'partials/product_card.html' with product=producto %}
           </div>
         {% endfor %}
       </div>
@@ -95,10 +66,10 @@
             <input type="hidden" name="sort" value="{{ current_sort|default:'' }}">
             <label for="items" class="form-label me-2">Productos por página:</label>
             <select name="items" id="items" class="form-select d-inline-block w-auto">
-                <option value="10" {% if items_per_page|stringformat:"s" == "10" %}selected{% endif %}>10</option>
-                <option value="20" {% if items_per_page|stringformat:"s" == "20" %}selected{% endif %}>20</option>
-                <option value="30" {% if items_per_page|stringformat:"s" == "30" %}selected{% endif %}>30</option>
-                <option value="50" {% if items_per_page|stringformat:"s" == "50" %}selected{% endif %}>50</option>
+                <option value="8" {% if items_per_page|stringformat:"s" == "8" %}selected{% endif %}>8</option>
+                <option value="16" {% if items_per_page|stringformat:"s" == "16" %}selected{% endif %}>16</option>
+                <option value="24" {% if items_per_page|stringformat:"s" == "24" %}selected{% endif %}>24</option>
+                <option value="32" {% if items_per_page|stringformat:"s" == "32" %}selected{% endif %}>32</option>
             </select>
         </form>
     </div>

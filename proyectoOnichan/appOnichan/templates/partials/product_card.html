@@ -1,4 +1,3 @@
-<div class="col">
   <article class="card-pastel h-100 d-flex flex-column product-card-hover">
     <div class="position-relative overflow-hidden rounded-top-4">
       <a href="{% url 'producto_detalle' product.id %}" class="d-block">
@@ -33,6 +32,43 @@
       <p class="small text-muted mb-2">{{ product.category.name|default:"General" }}</p>
       
       <div class="d-grid gap-2 mt-3">
+        {% if product.stock == 0 %}
+          <button class="btn btn-secondary btn-sm" disabled>Sin Stock</button>
+        {% elif product.sizes.all %}
+          <button type="button" class="btn btn-pastel btn-sm" data-bs-toggle="modal" data-bs-target="#sizeModal-{{ product.id }}">
+            Agregar al carrito
+          </button>
+          
+          <!-- Modal de Tallas -->
+          <div class="modal fade" id="sizeModal-{{ product.id }}" tabindex="-1" aria-labelledby="sizeModalLabel-{{ product.id }}" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-sm">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="sizeModalLabel-{{ product.id }}">Elige tu talla</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="{% url 'add_to_cart' product.id %}" method="GET">
+                  <div class="modal-body">
+                    <div class="d-flex flex-wrap gap-2 justify-content-center">
+                      {% for size in product.sizes.all %}
+                        <input type="radio" class="btn-check" name="size" id="size-{{ product.id }}-{{ size.id }}" value="{{ size.label }}" required>
+                        <label class="btn btn-outline-primary" for="size-{{ product.id }}-{{ size.id }}">{{ size.label }}</label>
+                      {% empty %}
+                        <p class="text-muted">No hay tallas disponibles.</p>
+                      {% endfor %}
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="submit" class="btn btn-pastel w-100">Agregar al carrito</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <a href="{% url 'add_to_cart' product.id %}" class="btn btn-pastel btn-sm">Agregar al carrito</a>
+        {% endif %}
+
         {% if product.stock > 0 %}
         <a href="{% url 'producto_detalle' product.id %}" class="btn btn-pastel-secondary btn-sm">Ver detalles</a>
         {% else %}
@@ -41,4 +77,3 @@
       </div>
     </div>
   </article>
-</div>

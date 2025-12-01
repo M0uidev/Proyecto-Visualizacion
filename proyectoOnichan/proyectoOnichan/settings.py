@@ -26,7 +26,20 @@ SECRET_KEY = 'django-insecure-9c&))w*^vo)c3!3n2*!si8=@^^_h26&9!ief-f3ti%jr6g%#(=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'matiasmouat.cl',
+    'www.matiasmouat.cl',
+    '127.0.0.1',
+    'localhost',
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://matiasmouat.cl',
+    'https://www.matiasmouat.cl',
+]
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 
 
 # Application definition
