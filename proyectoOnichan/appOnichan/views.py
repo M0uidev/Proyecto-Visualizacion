@@ -3,6 +3,13 @@ from django.db import models # Ensure models is imported for Q objects
 import random
 import string
 from django.core.paginator import Paginator
+from transbank.webpay.webpay_plus.transaction import Transaction
+from transbank.common.options import WebpayOptions
+from transbank.common.integration_type import IntegrationType
+from transbank.common.integration_commerce_codes import IntegrationCommerceCodes
+from transbank.common.integration_api_keys import IntegrationApiKeys
+from transbank.error.transbank_error import TransbankError
+from django.views.decorators.csrf import csrf_exempt
 
 from django.shortcuts import render, redirect, get_object_or_404 # Added get_object_or_404
 from django.http import Http404, HttpResponseForbidden, JsonResponse, HttpResponse
@@ -236,7 +243,7 @@ def dashboardadmin(request):
         day_counts = {label: 0 for label in weekday_labels}
         delivered_counts = {label: 0 for label in weekday_labels}
         pending_counts = {label: 0 for label in weekday_labels}
-        orders_period = Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date)
+        orders_period = Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date).exclude(estado="IniciandoPago")
         for o in orders_period:
             idx = o.fecha.weekday()
             label = weekday_labels[idx]
@@ -283,7 +290,7 @@ def dashboardadmin(request):
         day_counts = {label: 0 for label in day_labels}
         delivered_counts = {label: 0 for label in day_labels}
         pending_counts = {label: 0 for label in day_labels}
-        orders_period = Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date)
+        orders_period = Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date).exclude(estado="IniciandoPago")
         for o in orders_period:
             label = str(o.fecha.day)
             day_counts[label] += 1
@@ -310,7 +317,7 @@ def dashboardadmin(request):
         m_counts = {label: 0 for label in month_labels}
         delivered_counts = {label: 0 for label in month_labels}
         pending_counts = {label: 0 for label in month_labels}
-        orders_period = Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date)
+        orders_period = Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date).exclude(estado="IniciandoPago")
         for o in orders_period:
             idx = o.fecha.month - 1
             label = month_labels[idx]
@@ -324,10 +331,11 @@ def dashboardadmin(request):
         line_detalles = {l: {"Entregados": delivered_counts[l], "Pendientes": pending_counts[l]} for l in line_labels}
 
     # KPIs
-    pedidos_hoy = Order.objects.filter(fecha=today).count()
+    pedidos_hoy = Order.objects.filter(fecha=today).exclude(estado="IniciandoPago").count()
     pendientes = Order.objects.filter(estado="Pendiente").count()
     ingresos_7d = (
         Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date)
+        .exclude(estado="IniciandoPago")
         .aggregate(total=Sum("total"))
         .get("total")
         or 0
@@ -336,6 +344,7 @@ def dashboardadmin(request):
     # Top products y revenue por categoría dentro del periodo seleccionado
     top = (
         OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date)
+        .exclude(order__estado="IniciandoPago")
         .values("product__name")
         .annotate(units=Sum("cantidad"))
         .order_by("-units")[:4]
@@ -346,6 +355,7 @@ def dashboardadmin(request):
     for label in top_labels:
         qs = (
             OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date, product__name=label)
+            .exclude(order__estado="IniciandoPago")
             .values("size")
             .annotate(units=Sum("cantidad"))
             .order_by("-units")
@@ -354,6 +364,7 @@ def dashboardadmin(request):
 
     cat_rows = (
         OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date)
+        .exclude(order__estado="IniciandoPago")
         .values("product__category__name", "order__channel")
         .annotate(revenue=Sum(F("cantidad") * F("price")))
     )
@@ -374,6 +385,7 @@ def dashboardadmin(request):
     # Multi Series Pie (categorías vs productos por unidades vendidas en el periodo)
     sales_rows = (
         OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date)
+        .exclude(order__estado="IniciandoPago")
         .values("product__category__name", "product__name")
         .annotate(units=Sum("cantidad"))
         .order_by("product__category__name", "product__name")
@@ -401,6 +413,7 @@ def dashboardadmin(request):
     # Mapa de Chile: Ventas por región
     region_sales_qs = (
         Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date)
+        .exclude(estado="IniciandoPago")
         .exclude(shipping_region__isnull=True)
         .exclude(shipping_region="")
         .values("shipping_region")
@@ -540,6 +553,7 @@ def dashboardtrabajador(request):
 
     rows = (
         OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date)
+        .exclude(order__estado="IniciandoPago")
         .values("product__name")
         .annotate(units=Sum("cantidad"))
         .order_by("product__name")
@@ -1196,7 +1210,7 @@ def checkout_webpay(request):
             cliente=customer,
             total=total_order,
             discount_amount=discount,
-            estado="Pendiente",
+            estado="IniciandoPago",
             channel="Online",
             delivery_method=delivery_method,
             contact_phone=phone,
@@ -1277,23 +1291,80 @@ def checkout_webpay(request):
                     )
             
             # Clear rewards cart
-            del request.session['rewards_cart']
+            # del request.session['rewards_cart'] # Moved to commit
+            pass
                 
-        # Award points
-        if request.user.is_authenticated:
-            try:
-                profile = request.user.profile
-                points_earned = int(total_order / 100)
-                profile.points += points_earned
-                profile.save()
-            except UserProfile.DoesNotExist:
-                pass
-        
-        request.session["cart"] = {}
-        
-        return render(request, "checkout_success.html", {"order": order})
+        # Start Webpay Transaction
+        buy_order = order.code
+        session_id = request.session.session_key or "session"
+        amount = order.total
+        return_url = request.build_absolute_uri('/webpay/commit/') 
+
+        try:
+            tx = Transaction(WebpayOptions(IntegrationCommerceCodes.WEBPAY_PLUS, IntegrationApiKeys.WEBPAY, IntegrationType.TEST))
+            response = tx.create(buy_order, session_id, amount, return_url)
+            
+            return render(request, 'webpay_redirect.html', {'url': response['url'], 'token': response['token']})
+        except TransbankError as e:
+             # Restore stock if transaction creation fails
+            for item in order.items.all():
+                product = item.product
+                product.stock += item.cantidad
+                product.save()
+            order.delete()
+            return render(request, 'payment_failed.html', {'message': str(e)})
         
     return redirect("cart_view")
+
+@csrf_exempt
+def webpay_commit(request):
+    token = request.GET.get("token_ws") or request.POST.get("token_ws")
+    
+    if not token:
+        return render(request, 'payment_failed.html', {'message': 'Transacción cancelada o inválida'})
+
+    try:
+        tx = Transaction(WebpayOptions(IntegrationCommerceCodes.WEBPAY_PLUS, IntegrationApiKeys.WEBPAY, IntegrationType.TEST))
+        response = tx.commit(token)
+        
+        status = response.get('status')
+        buy_order = response.get('buy_order')
+        
+        order = get_object_or_404(Order, code=buy_order)
+        
+        if status == 'AUTHORIZED':
+            order.estado = 'Pendiente'
+            order.save()
+            
+            if request.user.is_authenticated:
+                try:
+                    profile = request.user.profile
+                    points_earned = int(order.total / 100)
+                    profile.points += points_earned
+                    profile.save()
+                except:
+                    pass
+            
+            request.session["cart"] = {}
+            if "rewards_cart" in request.session:
+                del request.session["rewards_cart"]
+            if "coupon_id" in request.session:
+                del request.session["coupon_id"]
+                
+            return render(request, "checkout_success.html", {"order": order})
+        else:
+            order.estado = 'Rechazado'
+            order.save()
+            
+            for item in order.items.all():
+                product = item.product
+                product.stock += item.cantidad
+                product.save()
+                
+            return render(request, 'payment_failed.html', {'message': 'El pago fue rechazado por el banco.'})
+            
+    except TransbankError as e:
+        return render(request, 'payment_failed.html', {'message': str(e)})
 
 def download_receipt(request, order_code):
     try:
@@ -1405,7 +1476,7 @@ def profile(request):
     customer = Customer.objects.filter(name=user.username).first()
     orders = []
     if customer:
-        orders = Order.objects.filter(cliente=customer).order_by('-fecha', '-id')
+        orders = Order.objects.filter(cliente=customer).exclude(estado="IniciandoPago").order_by('-fecha', '-id')
     
     # Fetch wallet coupons
     wallet_coupons = UserCoupon.objects.filter(user=user, is_used=False).select_related('coupon')
@@ -2137,7 +2208,7 @@ def is_staff_or_worker(user):
 @login_required
 @user_passes_test(is_staff_or_worker)
 def order_list(request):
-    orders = Order.objects.filter(channel='Online').order_by('-id')
+    orders = Order.objects.filter(channel='Online').exclude(estado="IniciandoPago").order_by('-id')
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return render(request, 'partials/orders_rows.html', {'orders': orders})
     return render(request, 'orders_list.html', {'orders': orders})
@@ -2148,7 +2219,7 @@ def check_new_orders(request):
     if not (user.groups.filter(name__iexact="trabajador").exists() or user.is_staff or user.is_superuser):
         return JsonResponse({"count": 0, "latest_id": 0})
     
-    qs = Order.objects.filter(estado="Pendiente").order_by('-id')
+    qs = Order.objects.filter(estado="Pendiente").exclude(estado="IniciandoPago").order_by('-id')
     count = qs.count()
     latest_id = qs.first().id if count > 0 else 0
     

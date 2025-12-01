@@ -34,6 +34,7 @@ urlpatterns = [
     path('update_cart_quantity/<str:key>/<str:action>/', views.update_cart_quantity, name='update_cart_quantity'),
     path('cart/', views.cart_view, name='cart_view'),
     path('checkout/', views.checkout_webpay, name='checkout_webpay'),
+    path('webpay/commit/', views.webpay_commit, name='webpay_commit'),
     path('receipt/<str:order_code>/', views.download_receipt, name='download_receipt'),
     # Marketing & Cupones
     path('marketing/', views.marketing_dashboard, name='marketing_dashboard'),
