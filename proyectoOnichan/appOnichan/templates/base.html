@@ -6,7 +6,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}Multitienda{% endblock %}</title>
-
+  
   <link rel="stylesheet" href="{% static 'css/bootstrap.css' %}?v=3" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -245,6 +245,8 @@
   </script>
   {% endif %}
   {% endif %}
+
+  {% block modals %}{% endblock %}
 
   <!-- Bootstrap 5 JS Bundle -->
   <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>

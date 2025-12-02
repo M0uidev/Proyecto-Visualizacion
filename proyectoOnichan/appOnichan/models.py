@@ -199,6 +199,7 @@ class Order(models.Model):
         related_name="orders",
         verbose_name="Cliente"
     )
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Usuario Registrado")
     total = models.PositiveIntegerField(default=0, verbose_name="Total")
     discount_amount = models.PositiveIntegerField(default=0, verbose_name="Descuento Aplicado")
     estado = models.CharField(max_length=20, choices=STATUS_CHOICES, verbose_name="Estado")
@@ -239,6 +240,7 @@ class OrderItem(models.Model):
     cantidad = models.PositiveIntegerField(default=1, verbose_name="Cantidad")
     price = models.PositiveIntegerField(verbose_name="Precio Unitario", help_text="Precio unitario en CLP")
     size = models.CharField(max_length=20, blank=True, verbose_name="Talla")
+    is_reward = models.BooleanField(default=False, verbose_name="Es Recompensa")
 
     class Meta:
         db_table = 'apponichan_orderitem'

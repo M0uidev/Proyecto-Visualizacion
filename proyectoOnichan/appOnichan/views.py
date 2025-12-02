@@ -1,4 +1,5 @@
 import json
+import re
 from django.db import models # Ensure models is imported for Q objects
 import random
 import string
@@ -41,7 +42,8 @@ from .models import (
 )
 from .forms import CouponForm, BulkDiscountForm, CouponGenerationForm # Added Forms
 from django.contrib import messages # Added messages
-from .services import get_regional_stats
+from .services import get_regional_stats, RewardService, StockService
+from django.core.exceptions import ValidationError
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
@@ -962,14 +964,13 @@ def remove_from_cart(request, key):
         try:
             pid = int(key.split('_')[0])
             qty = rewards_cart[key]
-            # Find the reward cost
-            # We assume the current active reward cost is what they paid. 
-            reward = PointReward.objects.filter(product_id=pid, active=True, reward_type='PRODUCT').first()
+            
+            # Find the reward
+            reward = PointReward.objects.filter(product_id=pid, reward_type='PRODUCT').first()
+            
             if reward and request.user.is_authenticated:
-                refund_points = reward.points_cost * qty
-                request.user.profile.points += refund_points
-                request.user.profile.save()
-                messages.success(request, f"Producto eliminado. Se han reembolsado {refund_points} puntos.")
+                RewardService.restore_reward(request.user, reward.id, qty)
+                messages.success(request, f"Producto eliminado. Se han reembolsado los puntos.")
         except Exception as e:
             pass
             
@@ -1129,8 +1130,6 @@ def checkout_webpay(request):
             if not customer:
                 customer = Customer.objects.create(name=request.user.username)
         else:
-            # Para usuarios anónimos, podríamos crear un cliente nuevo o usar uno genérico
-            # Aquí creamos uno con el nombre proporcionado para el registro
             customer, _ = Customer.objects.get_or_create(name=full_name)
         
         today = timezone.localdate()
@@ -1149,150 +1148,147 @@ def checkout_webpay(request):
             
         code = f"{base}-{seq:04d}"
         
-        # Calculate total again to be safe
-        total_order = 0
-        
-        # Extract product IDs from keys
-        pids = set()
-        for key in cart.keys():
-            try:
-                pids.add(int(key.split('_')[0]))
-            except ValueError:
-                continue
+        try:
+            with transaction.atomic():
+                # Calculate total again to be safe
+                total_order = 0
                 
-        products_in_cart = Product.objects.filter(id__in=pids)
-        product_map = {str(p.id): p for p in products_in_cart}
-        
-        for key, qty in cart.items():
-            try:
-                parts = key.split('_')
-                pid = parts[0]
-            except ValueError:
-                continue
-
-            p = product_map.get(pid)
-            if p:
-                price = p.price
-                try:
-                    price = p.detail.discounted_price
-                except ProductDetail.DoesNotExist:
-                    pass
-                total_order += price * qty
+                # Extract product IDs from keys
+                pids = set()
+                for key in cart.keys():
+                    try:
+                        pids.add(int(key.split('_')[0]))
+                    except ValueError:
+                        continue
+                        
+                products_in_cart = Product.objects.filter(id__in=pids)
+                product_map = {str(p.id): p for p in products_in_cart}
                 
-        # Apply Coupon
-        coupon_id = request.session.get('coupon_id')
-        discount = 0
-        if coupon_id:
-            try:
-                coupon = Coupon.objects.get(id=coupon_id)
-                if coupon.is_valid():
-                    discount = int(total_order * (coupon.discount_percentage / 100))
-                    total_order -= discount
-                    
-                    # Increment usage
-                    coupon.times_used += 1
-                    coupon.save()
+                for key, qty in cart.items():
+                    try:
+                        parts = key.split('_')
+                        pid = parts[0]
+                    except ValueError:
+                        continue
 
-                    # Mark UserCoupon as used if it exists for this user
-                    if request.user.is_authenticated:
+                    p = product_map.get(pid)
+                    if p:
+                        price = p.price
                         try:
-                            user_coupon = UserCoupon.objects.get(user=request.user, coupon=coupon, is_used=False)
-                            user_coupon.is_used = True
-                            user_coupon.save()
-                        except UserCoupon.DoesNotExist:
+                            price = p.detail.discounted_price
+                        except ProductDetail.DoesNotExist:
                             pass
-            except Coupon.DoesNotExist:
-                pass
-        
-        order = Order.objects.create(
-            code=code,
-            fecha=today,
-            cliente=customer,
-            total=total_order,
-            discount_amount=discount,
-            estado="IniciandoPago",
-            channel="Online",
-            delivery_method=delivery_method,
-            contact_phone=phone,
-            contact_email=email,
-            recipient_name=full_name,
-            shipping_address=shipping_address,
-            shipping_commune=shipping_commune,
-            shipping_region=shipping_region
-        )
-        
-        products = Product.objects.filter(id__in=pids)
-        product_map = {str(p.id): p for p in products}
-        
-        for key, qty in cart.items():
-            try:
-                parts = key.split('_')
-                pid = parts[0]
-                size = parts[1] if len(parts) > 1 else ""
-            except ValueError:
-                continue
+                        total_order += price * qty
+                        
+                # Apply Coupon
+                coupon_id = request.session.get('coupon_id')
+                discount = 0
+                if coupon_id:
+                    try:
+                        coupon = Coupon.objects.select_for_update().get(id=coupon_id)
+                        if coupon.is_valid():
+                            discount = int(total_order * (coupon.discount_percentage / 100))
+                            total_order -= discount
+                            
+                            # Increment usage
+                            coupon.times_used += 1
+                            coupon.save()
 
-            product = product_map.get(pid)
-            if product:
-                # Descontar stock
-                if product.stock >= qty:
-                    product.stock -= qty
-                    product.save()
+                            # Mark UserCoupon as used if it exists for this user
+                            if request.user.is_authenticated:
+                                try:
+                                    user_coupon = UserCoupon.objects.get(user=request.user, coupon=coupon, is_used=False)
+                                    user_coupon.is_used = True
+                                    user_coupon.save()
+                                except UserCoupon.DoesNotExist:
+                                    pass
+                    except Coupon.DoesNotExist:
+                        pass
                 
-                # Use discounted price for OrderItem
-                price = product.price
-                try:
-                    price = product.detail.discounted_price
-                except ProductDetail.DoesNotExist:
-                    pass
-
-                OrderItem.objects.create(
-                    order=order,
-                    product=product,
-                    cantidad=qty,
-                    price=price,
-                    size=size
+                order = Order.objects.create(
+                    code=code,
+                    fecha=today,
+                    cliente=customer,
+                    user=request.user if request.user.is_authenticated else None,
+                    total=total_order,
+                    discount_amount=discount,
+                    estado="IniciandoPago",
+                    channel="Online",
+                    delivery_method=delivery_method,
+                    contact_phone=phone,
+                    contact_email=email,
+                    recipient_name=full_name,
+                    shipping_address=shipping_address,
+                    shipping_commune=shipping_commune,
+                    shipping_region=shipping_region
                 )
+                
+                for key, qty in cart.items():
+                    try:
+                        parts = key.split('_')
+                        pid = parts[0]
+                        size = parts[1] if len(parts) > 1 else ""
+                    except ValueError:
+                        continue
 
-        # Process Rewards Cart
-        rewards_cart = request.session.get("rewards_cart", {})
-        if rewards_cart:
-            reward_pids = set()
-            for key in rewards_cart.keys():
-                try:
-                    reward_pids.add(int(key.split('_')[0]))
-                except ValueError:
-                    continue
-            
-            reward_products = Product.objects.filter(id__in=reward_pids)
-            reward_product_map = {str(p.id): p for p in reward_products}
-            
-            for key, qty in rewards_cart.items():
-                try:
-                    parts = key.split('_')
-                    pid = parts[0]
-                    size = parts[1] if len(parts) > 1 else ""
-                except ValueError:
-                    continue
+                    product = product_map.get(pid)
+                    if product:
+                        # Use discounted price for OrderItem
+                        price = product.price
+                        try:
+                            price = product.detail.discounted_price
+                        except ProductDetail.DoesNotExist:
+                            pass
 
-                product = reward_product_map.get(pid)
-                if product:
-                    # Descontar stock
-                    if product.stock >= qty:
-                        product.stock -= qty
-                        product.save()
+                        OrderItem.objects.create(
+                            order=order,
+                            product=product,
+                            cantidad=qty,
+                            price=price,
+                            size=size,
+                            is_reward=False
+                        )
+
+                # Process Rewards Cart
+                if rewards_cart:
+                    reward_pids = set()
+                    for key in rewards_cart.keys():
+                        try:
+                            reward_pids.add(int(key.split('_')[0]))
+                        except ValueError:
+                            continue
                     
-                    OrderItem.objects.create(
-                        order=order,
-                        product=product,
-                        cantidad=qty,
-                        price=0, # Free
-                        size=size
-                    )
-            
-            # Clear rewards cart
-            # del request.session['rewards_cart'] # Moved to commit
-            pass
+                    reward_products = Product.objects.filter(id__in=reward_pids)
+                    reward_product_map = {str(p.id): p for p in reward_products}
+                    
+                    for key, qty in rewards_cart.items():
+                        try:
+                            parts = key.split('_')
+                            pid = parts[0]
+                            size = parts[1] if len(parts) > 1 else ""
+                        except ValueError:
+                            continue
+
+                        product = reward_product_map.get(pid)
+                        if product:
+                            OrderItem.objects.create(
+                                order=order,
+                                product=product,
+                                cantidad=qty,
+                                price=0, # Free
+                                size=size,
+                                is_reward=True
+                            )
+                
+                # Reserve Stock for Normal Items
+                StockService.reserve_stock_for_order(order)
+
+        except ValidationError as e:
+            messages.error(request, str(e))
+            return redirect("cart_view")
+        except Exception as e:
+            messages.error(request, "Error al procesar el pedido: " + str(e))
+            return redirect("cart_view")
                 
         # Start Webpay Transaction
         buy_order = order.code
@@ -1307,11 +1303,9 @@ def checkout_webpay(request):
             return render(request, 'webpay_redirect.html', {'url': response['url'], 'token': response['token']})
         except TransbankError as e:
              # Restore stock if transaction creation fails
-            for item in order.items.all():
-                product = item.product
-                product.stock += item.cantidad
-                product.save()
-            order.delete()
+            StockService.release_stock_for_order(order)
+            order.estado = 'Fallido'
+            order.save()
             return render(request, 'payment_failed.html', {'message': str(e)})
         
     return redirect("cart_view")
@@ -1356,10 +1350,7 @@ def webpay_commit(request):
             order.estado = 'Rechazado'
             order.save()
             
-            for item in order.items.all():
-                product = item.product
-                product.stock += item.cantidad
-                product.save()
+            StockService.release_stock_for_order(order)
                 
             return render(request, 'payment_failed.html', {'message': 'El pago fue rechazado por el banco.'})
             
@@ -2065,13 +2056,7 @@ def rewards_catalog(request):
 @login_required
 def redeem_reward(request, reward_id):
     reward = get_object_or_404(PointReward, id=reward_id, active=True)
-    profile = request.user.profile
     
-    if profile.points < reward.points_cost:
-        messages.error(request, "No tienes suficientes puntos para este canje.")
-        return redirect('rewards_catalog')
-    
-    # Check size requirement BEFORE deducting points
     size = None
     if reward.reward_type == 'PRODUCT' and reward.product and reward.product.has_sizes:
         if request.method == 'POST':
@@ -2080,92 +2065,28 @@ def redeem_reward(request, reward_id):
         if not size:
              messages.error(request, "Debes seleccionar una talla para canjear este producto.")
              return redirect('rewards_catalog')
-    
-    # Deduct points
-    profile.points -= reward.points_cost
-    profile.save()
-    
-    # Record history
-    history = RedemptionHistory.objects.create(
-        user=request.user,
-        reward=reward,
-        points_spent=reward.points_cost
-    )
-    
-    if reward.reward_type == 'COUPON':
-        # Handle Batch Coupon Reward
-        if reward.coupon_batch_name:
-                      
-            # Find available coupon in batch
-            # Logic: Active coupons in batch that are NOT in UserCoupon
-            # We assume usage_limit=1 for these generated coupons, so if it's in UserCoupon it's "taken"
-            
-            # Get all coupons in batch
-            batch_coupons = Coupon.objects.filter(batch_name=reward.coupon_batch_name, active=True)
-            
-            # Get IDs of coupons already assigned to ANY user
-            assigned_ids = UserCoupon.objects.filter(coupon__in=batch_coupons).values_list('coupon_id', flat=True)
-            
-            # Filter available
-            available_coupon = batch_coupons.exclude(id__in=assigned_ids).first()
-            
-            if available_coupon:
-                UserCoupon.objects.create(user=request.user, coupon=available_coupon)
-                messages.success(request, f"¡Canje exitoso! El cupón {available_coupon.code} ha sido guardado en tu chequera.")
-                
-                # Check if this was the last one
-                remaining_count = batch_coupons.exclude(id__in=assigned_ids).count() - 1
-                if remaining_count <= 0:
-                    reward.active = False
-                    reward.save()
-            else:
-                # Should not happen if we check stock before, but just in case
-                messages.error(request, "Lo sentimos, se han agotado los cupones de esta recompensa.")
-                # Refund points
-                profile.points += reward.points_cost
-                profile.save()
-                history.delete()
-                reward.active = False
-                reward.save()
-                return redirect('rewards_catalog')
 
-        elif reward.coupon:
-            # Legacy single coupon support
-            UserCoupon.objects.create(user=request.user, coupon=reward.coupon)
-            messages.success(request, f"¡Canje exitoso! El cupón {reward.coupon.code} ha sido guardado en tu chequera.")
-            
-    elif reward.reward_type == 'PRODUCT' and reward.product:
-        # Check stock
-        if reward.stock <= 0:
-            messages.error(request, "Lo sentimos, este producto de recompensa se ha agotado.")
-            # Refund points
-            profile.points += reward.points_cost
-            profile.save()
-            history.delete()
-            reward.active = False
-            reward.save()
-            return redirect('rewards_catalog')
-
-        # Decrement stock
-        reward.stock -= 1
-        if reward.stock <= 0:
-            reward.active = False
-        reward.save()
-
-        # Add to cart with 0 price logic
-        # We use a special session key 'rewards_cart' to track these
-        rewards_cart = request.session.get('rewards_cart', {})
-        product_id = str(reward.product.id)
+    try:
+        reward = RewardService.redeem_reward(request.user, reward_id, size)
         
-        key = product_id
-        if size:
-            key = f"{product_id}_{size}"
+        if reward.reward_type == 'PRODUCT':
+            rewards_cart = request.session.get('rewards_cart', {})
+            product_id = str(reward.product.id)
             
-        rewards_cart[key] = rewards_cart.get(key, 0) + 1
-        request.session['rewards_cart'] = rewards_cart
-        messages.success(request, f"¡Canje exitoso! El producto {reward.product.name} ha sido agregado a tu carrito.")
-    else:
-        messages.success(request, "Canje realizado correctamente.")
+            key = product_id
+            if size:
+                key = f"{product_id}_{size}"
+                
+            rewards_cart[key] = rewards_cart.get(key, 0) + 1
+            request.session['rewards_cart'] = rewards_cart
+            messages.success(request, f"¡Canje exitoso! El producto {reward.product.name} ha sido agregado a tu carrito.")
+        else:
+            messages.success(request, "¡Canje exitoso! El cupón ha sido guardado en tu chequera.")
+
+    except ValidationError as e:
+        messages.error(request, str(e))
+    except Exception as e:
+        messages.error(request, "Ocurrió un error inesperado al procesar el canje.")
         
     return redirect('rewards_catalog')
 
@@ -2208,10 +2129,53 @@ def is_staff_or_worker(user):
 @login_required
 @user_passes_test(is_staff_or_worker)
 def order_list(request):
+    search_query = request.GET.get('q', '')
+    date_filter = request.GET.get('date', '')
+
     orders = Order.objects.filter(channel='Online').exclude(estado="IniciandoPago").order_by('-id')
+
+    if search_query:
+        # Check for barcode patterns
+        barcode_size_match = re.match(r'^P(\d+)-S(\d+)$', search_query, re.IGNORECASE)
+        barcode_product_match = re.match(r'^P(\d+)$', search_query, re.IGNORECASE)
+
+        if barcode_size_match:
+            pid = barcode_size_match.group(1)
+            sid = barcode_size_match.group(2)
+            try:
+                size_obj = ProductSize.objects.get(id=sid)
+                orders = orders.filter(
+                    items__product__id=pid,
+                    items__size=size_obj.label
+                ).distinct()
+            except ProductSize.DoesNotExist:
+                orders = orders.none()
+        elif barcode_product_match:
+            pid = barcode_product_match.group(1)
+            orders = orders.filter(items__product__id=pid).distinct()
+        else:
+            orders = orders.filter(
+                models.Q(cliente__name__icontains=search_query) |
+                models.Q(items__product__name__icontains=search_query) |
+                models.Q(items__product__id__icontains=search_query) |
+                models.Q(code__icontains=search_query)
+            ).distinct()
+
+    if date_filter:
+        orders = orders.filter(fecha=date_filter)
+
+    paginator = Paginator(orders, 10) # 10 orders per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        return render(request, 'partials/orders_rows.html', {'orders': orders})
-    return render(request, 'orders_list.html', {'orders': orders})
+        return render(request, 'partials/orders_rows.html', {'orders': page_obj})
+    
+    return render(request, 'orders_list.html', {
+        'orders': page_obj,
+        'search_query': search_query,
+        'date_filter': date_filter
+    })
 
 @login_required
 def check_new_orders(request):

@@ -1,5 +1,7 @@
 from django.db.models import Sum, Count, Avg
-from .models import Order, OrderItem
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from .models import Order, OrderItem, Product, PointReward, UserProfile, RedemptionHistory, UserCoupon, Coupon
 
 def get_regional_stats(start_date, end_date):
     # 1. General metrics by region
@@ -50,3 +52,123 @@ def get_regional_stats(start_date, end_date):
             "categoria_top": top_cat_map.get(reg, "N/A"),
         }
     return results
+
+
+class RewardService:
+    @staticmethod
+    @transaction.atomic
+    def redeem_reward(user, reward_id, size=None):
+        # Lock the reward row
+        try:
+            reward = PointReward.objects.select_for_update().get(id=reward_id, active=True)
+        except PointReward.DoesNotExist:
+            raise ValidationError("La recompensa no existe o no está activa.")
+
+        # Lock the user profile
+        profile = UserProfile.objects.select_for_update().get(user=user)
+
+        if profile.points < reward.points_cost:
+            raise ValidationError("No tienes suficientes puntos para este canje.")
+
+        # Check stock for product rewards
+        if reward.reward_type == 'PRODUCT':
+            if reward.stock <= 0:
+                raise ValidationError("Lo sentimos, este producto de recompensa se ha agotado.")
+            
+            reward.stock -= 1
+            if reward.stock <= 0:
+                reward.active = False
+            reward.save()
+        
+        # Handle Coupons
+        elif reward.reward_type == 'COUPON':
+            if reward.coupon_batch_name:
+                batch_coupons = Coupon.objects.filter(batch_name=reward.coupon_batch_name, active=True)
+                assigned_ids = UserCoupon.objects.filter(coupon__in=batch_coupons).values_list('coupon_id', flat=True)
+                
+                # Try to find one available coupon
+                available_coupon = batch_coupons.exclude(id__in=assigned_ids).select_for_update(skip_locked=True).first()
+                
+                if not available_coupon:
+                     raise ValidationError("Lo sentimos, se han agotado los cupones de esta recompensa.")
+                
+                UserCoupon.objects.create(user=user, coupon=available_coupon)
+                
+                remaining = batch_coupons.exclude(id__in=assigned_ids).count() - 1
+                if remaining <= 0:
+                    reward.active = False
+                    reward.save()
+                    
+            elif reward.coupon:
+                if UserCoupon.objects.filter(user=user, coupon=reward.coupon).exists():
+                     raise ValidationError("Ya tienes este cupón.")
+                UserCoupon.objects.create(user=user, coupon=reward.coupon)
+
+        # Deduct points
+        profile.points -= reward.points_cost
+        profile.save()
+
+        # Record history
+        RedemptionHistory.objects.create(
+            user=user,
+            reward=reward,
+            points_spent=reward.points_cost
+        )
+        
+        return reward
+
+    @staticmethod
+    @transaction.atomic
+    def restore_reward(user, reward_id, quantity=1):
+        try:
+            reward = PointReward.objects.select_for_update().get(id=reward_id)
+        except PointReward.DoesNotExist:
+            return
+
+        if user:
+            try:
+                profile = UserProfile.objects.select_for_update().get(user=user)
+                points_to_restore = reward.points_cost * quantity
+                profile.points += points_to_restore
+                profile.save()
+            except UserProfile.DoesNotExist:
+                pass
+        
+        if reward.reward_type == 'PRODUCT':
+            reward.stock += quantity
+            if reward.stock > 0 and not reward.active:
+                reward.active = True
+            reward.save()
+
+class StockService:
+    @staticmethod
+    @transaction.atomic
+    def reserve_stock_for_order(order):
+        for item in order.items.all():
+            if not item.is_reward:
+                try:
+                    product = Product.objects.select_for_update().get(id=item.product.id)
+                except Product.DoesNotExist:
+                    raise ValidationError(f"El producto {item.product.name} ya no existe.")
+                
+                if product.stock < item.cantidad:
+                    raise ValidationError(f"No hay suficiente stock para {product.name}. Disponible: {product.stock}")
+                
+                product.stock -= item.cantidad
+                product.save()
+
+    @staticmethod
+    @transaction.atomic
+    def release_stock_for_order(order):
+        for item in order.items.all():
+            if item.is_reward:
+                reward = PointReward.objects.filter(product=item.product, reward_type='PRODUCT').first()
+                if reward and order.user:
+                    RewardService.restore_reward(order.user, reward.id, item.cantidad)
+            else:
+                try:
+                    product = Product.objects.select_for_update().get(id=item.product.id)
+                    product.stock += item.cantidad
+                    product.save()
+                except Product.DoesNotExist:
+                    pass
