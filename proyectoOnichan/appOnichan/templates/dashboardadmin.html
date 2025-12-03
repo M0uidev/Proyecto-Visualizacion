@@ -5,7 +5,24 @@
 
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'css/dashboardtrabajador.css' %}">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <style>
+    #chileMap {
+        height: 1200px;
+        min-width: 310px;
+        margin: 0 auto;
+    }
+    .loading {
+        margin-top: 10em;
+        text-align: center;
+        color: gray;
+    }
+    
+    .modal.show .modal-dialog {
+        transform: scale(1.5) !important;
+        transform-origin: top center;
+        margin-top: 5%; 
+    }
+  </style>
 {% endblock %}
 
 {% block content %}
@@ -64,7 +81,7 @@
             <span class="input-group-text">Año</span>
             <input type="number" class="form-control" name="year" value="{% if period == 'year' %}{{ ref_value|default:'' }}{% endif %}" />
           </div>
-          <a id="btnNextPeriod" class="btn btn-pastel-secondary {% if not next_url %}disabled{% endif %}" {% if next_url %}href="{{ next_url }}"{% endif %} title="Siguiente">⟶</a>
+          <a id="btnNextPeriod" class="btn btn-pastel-secondary" href="{{ next_url }}" title="Siguiente">⟶</a>
         </form>
       </div>
 
@@ -90,6 +107,9 @@
         <li class="nav-item" role="presentation">
           <button class="nav-link" id="mapa-tab" data-bs-toggle="tab" data-bs-target="#mapa" type="button" role="tab" aria-controls="mapa" aria-selected="false">Análisis Regional</button>
         </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="clientes-tab" data-bs-toggle="tab" data-bs-target="#clientes" type="button" role="tab" aria-controls="clientes" aria-selected="false">Comportamiento de Cliente</button>
+        </li>
       </ul>
 
       <!-- Tab Content -->
@@ -111,8 +131,8 @@
             </div>
             <div class="col-12 col-lg-5">
               <article class="dash-card chart-card" aria-labelledby="chartPieTitle">
-                <header>
-                  <h3 id="chartPieTitle">Top productos</h3>
+                <header class="d-flex justify-content-between align-items-center">
+                  <h3 id="chartPieTitle" class="mb-0">Top productos</h3>
                 </header>
                 <div class="chart-wrapper" style="height: 400px;">
                   <div id="topProductsPieChart" aria-describedby="chartPieTitle" style="width:100%; height:100%;"></div>
@@ -127,7 +147,7 @@
             <div class="col-12 col-lg-6">
               <article class="dash-card chart-card" aria-labelledby="chartBarTitle">
                 <header>
-                  <h3 id="chartBarTitle">Ingresos por categoría</h3>
+                  <h3 id="chartBarTitle">Productos vendidos por categoría</h3>
                 </header>
                 <div class="chart-wrapper" style="height: 400px;">
                   <div id="categoryRevenueBarChart" aria-describedby="chartBarTitle" style="width:100%; height:100%;"></div>
@@ -135,14 +155,13 @@
               </article>
             </div>
             <div class="col-12 col-lg-6">
-              <article class="dash-card chart-card" aria-labelledby="multiSeriesPieTitle">
+              <article class="dash-card chart-card" aria-labelledby="treemapTitle">
                 <header>
-                  <h3 id="multiSeriesPieTitle">Distribución de ventas: Categorías y Productos</h3>
+                  <h3 id="treemapTitle">Distribución de Ventas</h3>
                 </header>
                 <div class="chart-wrapper" style="height: 400px;">
-                  <div id="multiSeriesPieChart" aria-describedby="multiSeriesPieTitle" style="width:100%; height:100%;"></div>
+                  <div id="salesTreemapChart" aria-describedby="treemapTitle" style="width:100%; height:100%;"></div>
                 </div>
-                <div class="chart-legend" id="multiSeriesPieLegend" aria-hidden="true"></div>
               </article>
             </div>
           </section>
@@ -152,19 +171,19 @@
         <div class="tab-pane fade" id="mapa" role="tabpanel" aria-labelledby="mapa-tab">
           <section class="row g-4">
             <!-- Map Column -->
-            <div class="col-12 col-lg-8">
+            <div class="col-12 col-lg-9">
               <article class="dash-card chart-card" aria-labelledby="chartMapTitle">
                 <header>
                   <h3 id="chartMapTitle">Ventas por Región</h3>
                 </header>
-                <div class="chart-wrapper d-flex justify-content-center bg-white" style="height: auto; min-height: 600px;">
-                  <div id="chileMap" style="width: 100%; max-width: 800px; aspect-ratio: 1/1; background-color: #f8f9fa;"></div>
+                <div class="chart-wrapper d-flex justify-content-center align-items-center" style="height: auto; min-height: 800px; background-color: #e9ecef;">
+                  <div id="chileMap" style="width: 100%; background-color: #dee2e6; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
                 </div>
               </article>
             </div>
             
             <!-- Table Column -->
-            <div class="col-12 col-lg-4">
+            <div class="col-12 col-lg-3">
               <article class="dash-card chart-card" aria-labelledby="tableMapTitle">
                 <header>
                   <h3 id="tableMapTitle">Detalle Regional</h3>
@@ -181,6 +200,71 @@
                       <!-- Populated by JS -->
                     </tbody>
                   </table>
+                </div>
+              </article>
+            </div>
+          </section>
+        </div>
+
+        <!-- Clientes Tab -->
+        <div class="tab-pane fade" id="clientes" role="tabpanel" aria-labelledby="clientes-tab">
+          <!-- Row 1: New vs Returning -->
+          <section class="row g-4 mb-4">
+            <div class="col-12">
+              <article class="dash-card chart-card" aria-labelledby="chartRetentionTitle">
+                <header>
+                  <h3 id="chartRetentionTitle">Adquisición y Retención de Clientes</h3>
+                </header>
+                <div class="chart-wrapper" style="height: 400px;">
+                  <div id="retentionChart" aria-describedby="chartRetentionTitle" style="width:100%; height:100%;"></div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <!-- Row 2: Frequency & Ticket -->
+          <section class="row g-4 mb-4">
+            <div class="col-12 col-lg-6">
+              <article class="dash-card chart-card" aria-labelledby="chartFrequencyTitle">
+                <header>
+                  <h3 id="chartFrequencyTitle">Frecuencia de Compra (Pedidos por Cliente)</h3>
+                </header>
+                <div class="chart-wrapper" style="height: 400px;">
+                  <div id="frequencyChart" aria-describedby="chartFrequencyTitle" style="width:100%; height:100%;"></div>
+                </div>
+              </article>
+            </div>
+            <div class="col-12 col-lg-6">
+              <article class="dash-card chart-card" aria-labelledby="chartTicketTitle">
+                <header>
+                  <h3 id="chartTicketTitle">Distribución del Ticket de Compra</h3>
+                </header>
+                <div class="chart-wrapper" style="height: 400px;">
+                  <div id="ticketChart" aria-describedby="chartTicketTitle" style="width:100%; height:100%;"></div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <!-- Row 3: Top Customers & Day of Week -->
+          <section class="row g-4">
+            <div class="col-12 col-lg-6">
+              <article class="dash-card chart-card" aria-labelledby="chartTopCustomersTitle">
+                <header>
+                  <h3 id="chartTopCustomersTitle">Top 10 Clientes (Mayor Gasto)</h3>
+                </header>
+                <div class="chart-wrapper" style="height: 400px;">
+                  <div id="topCustomersChart" aria-describedby="chartTopCustomersTitle" style="width:100%; height:100%;"></div>
+                </div>
+              </article>
+            </div>
+            <div class="col-12 col-lg-6">
+              <article class="dash-card chart-card" aria-labelledby="chartDayOfWeekTitle">
+                <header>
+                  <h3 id="chartDayOfWeekTitle">Actividad por Día de la Semana</h3>
+                </header>
+                <div class="chart-wrapper" style="height: 400px;">
+                  <div id="dayOfWeekChart" aria-describedby="chartDayOfWeekTitle" style="width:100%; height:100%;"></div>
                 </div>
               </article>
             </div>
@@ -247,226 +331,191 @@
 {% block scripts %}
   <script type="application/json" id="dashboard-data" data-period="{{ period }}" data-ref-value="{{ ref_value }}">{{ data_json|default:"{}"|safe }}</script>
   <script src="https://code.highcharts.com/highcharts.js"></script>
+  <script src="https://code.highcharts.com/modules/variable-pie.js"></script>
+  <script src="https://code.highcharts.com/modules/treemap.js"></script>
   <script src="https://code.highcharts.com/modules/exporting.js"></script>
   <script src="https://code.highcharts.com/modules/export-data.js"></script>
   <script src="https://code.highcharts.com/modules/accessibility.js"></script>
   <script>const apiDashboardUrl = "{% url 'api_dashboard_data' %}";</script>
-  <script src="{% static 'js/dashboardadmin.js' %}?v=2.5"></script>
+  <script src="{% static 'js/dashboardadmin.js' %}?v=4.1"></script>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://code.highcharts.com/maps/modules/map.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      const dashboardDataEl = document.getElementById('dashboard-data');
-      if (!dashboardDataEl) return;
-      let dashboardData = {};
-      try {
-          dashboardData = JSON.parse(dashboardDataEl.textContent);
-      } catch(e) {
-          console.error("Error parsing dashboard data for map", e);
-      }
-      const mapData = dashboardData.mapData || {};
+        const apiParams = window.location.search;
 
-      // Initialize map centered on Chile
-      const map = L.map('chileMap', {
-          center: [-35.675147, -71.542969],
-          zoom: 5.0,
-          zoomSnap: 0.5,
-          minZoom: 4,
-          zoomControl: true,
-          attributionControl: false
-      });
+        (async () => {
+            try {
+                // Map standard Chile region IDs to Highcharts hc-keys
+                const regionKeyMap = {
+                    1: 'cl-ta', 2: 'cl-an', 3: 'cl-at', 4: 'cl-co', 5: 'cl-vs',
+                    6: 'cl-li', 7: 'cl-ml', 8: 'cl-bi', 9: 'cl-2730', 10: 'cl-ll',
+                    11: 'cl-ai', 12: 'cl-ma', 13: 'cl-rm', 14: 'cl-ar', 15: 'cl-2740', 16: 'cl-nb'
+                };
 
-      // Fix map size when tab is shown
-      const tabEl = document.querySelector('button[data-bs-target="#mapa"]');
-      if (tabEl) {
-        tabEl.addEventListener('shown.bs.tab', function (event) {
-          map.invalidateSize();
-        });
-      }
+                const [regionsMeta, geojson, salesData] = await Promise.all([
+                    fetch("{% static 'chile-regiones-2025.json' %}").then(r => r.json()),
+                    fetch("https://code.highcharts.com/mapdata/countries/cl/cl-all.geo.json").then(r => r.json()),
+                    fetch("{% url 'regional_analysis_api' %}" + apiParams).then(r => r.json())
+                ]);
 
-      function getColor(d) {
-          // Escala de Azul (menos compras) a Azul Oscuro (más compras)
-          return d > 20 ? '#08519c' : // Azul muy oscuro
-                 d > 15 ? '#3182bd' : // Azul oscuro
-                 d > 10 ? '#6baed6' : // Azul medio
-                 d > 5  ? '#9ecae1' : // Azul claro
-                 d > 0  ? '#c6dbef' : // Azul muy claro
-                          '#eff3ff';  // Casi blanco (0)
-      }
+                const data = [];
+                
+                regionsMeta.forEach(r => {
+                    const regionName = r.nombre_region;
+                    
+                    let regionData = salesData[regionName];
+                    if (!regionData && regionName.startsWith("Región de ")) {
+                        regionData = salesData[regionName.replace("Región de ", "").trim()];
+                    }
+                    if (!regionData && regionName.startsWith("Región del ")) {
+                        regionData = salesData[regionName.replace("Región del ", "").trim()];
+                    }
 
-      let regionLookup = {}; 
-      let apiData = {};
+                    // Use orders for value (color), but keep sales for display
+                    const orders = regionData ? regionData.pedidos_unicos : 0;
+                    const sales = regionData ? regionData.ventas_totales : 0;
+                    
+                    data.push({
+                        hcKey: regionKeyMap[r.id_region],
+                        value: orders, // Color based on orders
+                        sales: sales,
+                        regionName: regionName,
+                        orders: orders,
+                        topCategory: regionData ? regionData.categoria_top : '-',
+                        products: regionData ? regionData.productos_distintos : 0,
+                        ticket: regionData ? regionData.ticket_promedio : 0
+                    });
+                });
 
-      function style(feature) {
-          const props = feature.properties;
-          const regionId = props.codregion;
-          const regionName = regionLookup[regionId] || props.Region || "Desconocida";
-          
-          // Match logic
-          let data = apiData[regionName];
-          if (!data && regionName.startsWith("Región de ")) {
-             data = apiData[regionName.replace("Región de ", "").trim()];
-          }
-          if (!data && regionName.startsWith("Región del ")) {
-             data = apiData[regionName.replace("Región del ", "").trim()];
-          }
-          
-          // Usar cantidad de pedidos (pedidos_unicos) para el color
-          const orders = data ? data.pedidos_unicos : 0;
+                Highcharts.mapChart('chileMap', {
+                    chart: {
+                        map: geojson,
+                        backgroundColor: '#141414'
+                    },
+                    title: {
+                        text: 'Ventas por Región',
+                        style: {
+                            color: '#ffffff'
+                        }
+                    },
+                    mapNavigation: {
+                        enabled: true,
+                        buttonOptions: {
+                            verticalAlign: 'bottom'
+                        }
+                    },
+                    colorAxis: {
+                        min: 0,
+                        stops: [
+                            [0, '#193748'],
+                            [1, '#2CAEFD']
+                        ],
+                        labels: {
+                            style: {
+                                color: '#ffffff'
+                            }
+                        }
+                    },
+                    legend: {
+                        layout: 'vertical',
+                        align: 'right',
+                        verticalAlign: 'middle',
+                        title: {
+                            text: 'Pedidos',
+                            style: {
+                                color: '#ffffff'
+                            }
+                        },
+                        itemStyle: {
+                            color: '#ffffff'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                        style: {
+                            color: '#ffffff'
+                        },
+                        formatter: function () {
+                            const p = this.point;
+                            if (!p.regionName) return this.series.name;
+                            
+                            const formattedSales = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(p.sales);
+                            const formattedTicket = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(p.ticket);
+                            
+                            return `<b>${p.regionName}</b><br>` +
+                                   `Pedidos: ${p.orders} (Color)<br>` +
+                                   `Ventas: ${formattedSales}<br>` +
+                                   `Ticket Promedio: ${formattedTicket}<br>` +
+                                   `Top Categoría: ${p.topCategory}`;
+                        }
+                    },
+                    series: [{
+                        data: data,
+                        joinBy: ['hc-key', 'hcKey'],
+                        name: 'Pedidos',
+                        borderColor: '#333333',
+                        borderWidth: 1,
+                        states: {
+                            hover: {
+                                color: '#a4edba'
+                            }
+                        },
+                        dataLabels: {
+                            enabled: true,
+                            format: '{point.regionName}',
+                            style: {
+                                color: '#ffffff',
+                                textOutline: 'none',
+                                fontWeight: 'normal'
+                            }
+                        },
+                        point: {
+                            events: {
+                                click: function () {
+                                    const p = this;
+                                    document.getElementById('modalRegionName').innerText = p.regionName;
+                                    document.getElementById('modalSales').innerText = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(p.sales);
+                                    document.getElementById('modalCategory').innerText = p.topCategory;
+                                    document.getElementById('modalOrders').innerText = p.orders;
+                                    document.getElementById('modalProducts').innerText = p.products;
+                                    document.getElementById('modalTicket').innerText = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(p.ticket);
+                                    
+                                    new bootstrap.Modal(document.getElementById('regionModal')).show();
+                                }
+                            }
+                        }
+                    }]
+                });
 
-          return {
-              fillColor: getColor(orders),
-              weight: 2,
-              opacity: 1,
-              color: 'white',
-              dashArray: '3',
-              fillOpacity: 0.7
-          };
-      }
+                const tableBody = document.querySelector('#regionSalesTable tbody');
+                if (tableBody) {
+                    tableBody.innerHTML = '';
+                    // Sort by orders now? Or keep sales? Usually sales is more important for the table.
+                    // Let's keep sales for the table as it's "Detalle Regional"
+                    const sortedData = [...data].sort((a, b) => b.sales - a.sales);
+                    
+                    sortedData.forEach(item => {
+                        const tr = document.createElement('tr');
+                        const formattedSales = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(item.sales);
+                        tr.innerHTML = `
+                            <td>
+                                <div class="fw-bold">${item.regionName}</div>
+                                <small class="text-muted">Top Categoría: ${item.topCategory}</small>
+                            </td>
+                            <td class="text-end">
+                                <div class="fw-bold">${formattedSales}</div>
+                                <small class="text-muted">${item.orders} pedidos</small>
+                            </td>
+                        `;
+                        tableBody.appendChild(tr);
+                    });
+                }
 
-      function highlightFeature(e) {
-          var layer = e.target;
-          layer.setStyle({
-              weight: 2,
-              color: '#666',
-              dashArray: '',
-              fillOpacity: 0.8
-          });
-          layer.bringToFront();
-      }
-
-      function resetHighlight(e) {
-          geojson.resetStyle(e.target);
-      }
-
-      function onEachFeature(feature, layer) {
-          layer.on({
-              mouseover: highlightFeature,
-              mouseout: resetHighlight,
-              click: function(e) {
-                  const props = feature.properties;
-                  const regionId = props.codregion;
-                  const regionName = regionLookup[regionId] || props.Region || "Desconocida";
-                  
-                  let data = apiData[regionName];
-                  if (!data && regionName.startsWith("Región de ")) {
-                     data = apiData[regionName.replace("Región de ", "").trim()];
-                  }
-                  if (!data && regionName.startsWith("Región del ")) {
-                     data = apiData[regionName.replace("Región del ", "").trim()];
-                  }
-                  
-                  if (data) {
-                      document.getElementById('modalRegionName').innerText = regionName;
-                      document.getElementById('modalSales').innerText = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(data.ventas_totales);
-                      document.getElementById('modalCategory').innerText = data.categoria_top;
-                      document.getElementById('modalOrders').innerText = data.pedidos_unicos;
-                      document.getElementById('modalProducts').innerText = data.productos_distintos;
-                      document.getElementById('modalTicket').innerText = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(data.ticket_promedio);
-                      
-                      new bootstrap.Modal(document.getElementById('regionModal')).show();
-                  }
-              }
-          });
-          
-          const props = feature.properties;
-          const regionId = props.codregion;
-          const regionName = regionLookup[regionId] || props.Region || "Desconocida";
-          
-          let data = apiData[regionName];
-          if (!data && regionName.startsWith("Región de ")) {
-             data = apiData[regionName.replace("Región de ", "").trim()];
-          }
-          if (!data && regionName.startsWith("Región del ")) {
-             data = apiData[regionName.replace("Región del ", "").trim()];
-          }
-          
-          const sales = data ? data.ventas_totales : 0;
-          const formattedSales = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(sales);
-          
-          let tooltipContent = `<strong>${regionName}</strong><br>Ventas: ${formattedSales}`;
-          if (data) {
-              tooltipContent += `<br>Top Categoría: ${data.categoria_top}`;
-          }
-          layer.bindTooltip(tooltipContent);
-      }
-
-      let geojson;
-
-      // Fetch all data
-      const apiParams = window.location.search; // Pass current filters
-      Promise.all([
-          fetch("{% static 'chile-regiones-2025.json' %}").then(r => r.json()),
-          fetch("{% static 'regiones_chile.geojson' %}").then(r => r.json()),
-          fetch("{% url 'regional_analysis_api' %}" + apiParams).then(r => r.json())
-      ]).then(([regionsMeta, geoData, salesData]) => {
-          
-          // 1. Process Metadata
-          regionsMeta.forEach(r => {
-              regionLookup[r.id_region] = r.nombre_region;
-          });
-
-          // 2. Store API Data
-          apiData = salesData;
-
-          // 3. Render Map
-          geojson = L.geoJson(geoData, {
-              style: style,
-              onEachFeature: onEachFeature
-          }).addTo(map);
-          
-          if (geojson.getBounds().isValid()) {
-              map.fitBounds(geojson.getBounds());
-          }
-
-          // 4. Render Table
-          const tableBody = document.querySelector('#regionSalesTable tbody');
-          if (tableBody) {
-              tableBody.innerHTML = ''; // Clear existing
-              let rows = [];
-              
-              // Iterate over API results or Regions Metadata? 
-              // Better to iterate over Metadata to ensure all regions are listed even with 0 sales
-              regionsMeta.forEach(r => {
-                  const regionName = r.nombre_region;
-                  let data = apiData[regionName];
-                  
-                  // Fallback logic
-                  if (!data && regionName.startsWith("Región de ")) {
-                      data = apiData[regionName.replace("Región de ", "").trim()];
-                  }
-                  if (!data && regionName.startsWith("Región del ")) {
-                      data = apiData[regionName.replace("Región del ", "").trim()];
-                  }
-                  
-                  rows.push({
-                      name: regionName,
-                      sales: data ? data.ventas_totales : 0,
-                      orders: data ? data.pedidos_unicos : 0,
-                      top: data ? data.categoria_top : '-'
-                  });
-              });
-
-              rows.sort((a, b) => b.sales - a.sales);
-
-              rows.forEach(item => {
-                  const tr = document.createElement('tr');
-                  const formattedSales = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(item.sales);
-                  tr.innerHTML = `
-                      <td>
-                          <div class="fw-bold">${item.name}</div>
-                          <small class="text-muted">Top Categoría: ${item.top}</small>
-                      </td>
-                      <td class="text-end">
-                          <div class="fw-bold">${formattedSales}</div>
-                          <small class="text-muted">${item.orders} pedidos</small>
-                      </td>
-                  `;
-                  tableBody.appendChild(tr);
-              });
-          }
-
-      }).catch(err => console.error("Error loading regional data:", err));
+            } catch (error) {
+                console.error("Error initializing map:", error);
+            }
+        })();
     });
   </script>
 {% endblock %}

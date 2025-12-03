@@ -1530,6 +1530,91 @@
     ]
   },
   {
+    "id_region": 12,
+    "nombre_region": "Magallanes y de la Antártica Chilena",
+    "provincias": [
+      {
+        "id_provincia": 121,
+        "nombre_provincia": "Magallanes",
+        "comunas": [
+          {
+            "id_comuna": 12101,
+            "nombre_comuna": "Punta Arenas",
+            "id_provincia": 121
+          },
+          {
+            "id_comuna": 12102,
+            "nombre_comuna": "Laguna Blanca",
+            "id_provincia": 121
+          },
+          {
+            "id_comuna": 12103,
+            "nombre_comuna": "Río Verde",
+            "id_provincia": 121
+          },
+          {
+            "id_comuna": 12104,
+            "nombre_comuna": "San Gregorio",
+            "id_provincia": 121
+          }
+        ]
+      },
+      {
+        "id_provincia": 122,
+        "nombre_provincia": "Antártica Chilena",
+        "comunas": [
+          {
+            "id_comuna": 12201,
+            "nombre_comuna": "Cabo de Hornos",
+            "id_provincia": 122
+          },
+          {
+            "id_comuna": 12202,
+            "nombre_comuna": "Antártica",
+            "id_provincia": 122
+          }
+        ]
+      },
+      {
+        "id_provincia": 123,
+        "nombre_provincia": "Tierra del Fuego",
+        "comunas": [
+          {
+            "id_comuna": 12301,
+            "nombre_comuna": "Porvenir",
+            "id_provincia": 123
+          },
+          {
+            "id_comuna": 12302,
+            "nombre_comuna": "Primavera",
+            "id_provincia": 123
+          },
+          {
+            "id_comuna": 12303,
+            "nombre_comuna": "Timaukel",
+            "id_provincia": 123
+          }
+        ]
+      },
+      {
+        "id_provincia": 124,
+        "nombre_provincia": "Última Esperanza",
+        "comunas": [
+          {
+            "id_comuna": 12401,
+            "nombre_comuna": "Natales",
+            "id_provincia": 124
+          },
+          {
+            "id_comuna": 12402,
+            "nombre_comuna": "Torres del Paine",
+            "id_provincia": 124
+          }
+        ]
+      }
+    ]
+  },
+  {
     "id_region": 13,
     "nombre_region": "Metropolitana de Santiago",
     "provincias": [

@@ -394,6 +394,40 @@
             }
         });
 
+        // Handle Modal Form Submission (AJAX)
+        document.body.addEventListener('submit', function(e) {
+            if (e.target.classList.contains('add-to-cart-form')) {
+                e.preventDefault();
+                const form = e.target;
+                const url = form.action;
+                const formData = new FormData(form);
+                const size = formData.get('size');
+                
+                if (!size) return;
+
+                const fetchUrl = `${url}?size=${encodeURIComponent(size)}&ajax=1`;
+
+                fetch(fetchUrl, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.status === 'ok') {
+                        const modalEl = form.closest('.modal');
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) modal.hide();
+
+                        updateCartBadge(data.cart_count);
+                        toast.show();
+                    }
+                })
+                .catch(err => {
+                    console.error('Error adding to cart:', err);
+                    form.submit();
+                });
+            }
+        });
+
         function updateCartBadge(count) {
             const cartLinks = document.querySelectorAll('a[aria-label="Carrito"]');
             cartLinks.forEach(link => {

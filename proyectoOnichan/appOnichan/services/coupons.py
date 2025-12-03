@@ -31,7 +31,7 @@ class CouponService:
         
         # Calcular total del carrito si no se proporciona
         if cart_total is None:
-            items, _ = CartService.get_cart_items(request)
+            items = CartService.get_cart_items(request)
             cart_total, _, _ = CartService.calculate_totals(items, None)
         
         try:

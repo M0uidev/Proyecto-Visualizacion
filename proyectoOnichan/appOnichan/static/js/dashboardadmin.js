@@ -16,6 +16,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Highcharts Global Options
     Highcharts.setOptions({
+        chart: {
+            style: {
+                fontFamily: 'inherit',
+                fontSize: '14px'
+            }
+        },
+        exporting: {
+            enabled: false
+        },
         lang: {
             loading: 'Cargando...',
             months: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
@@ -34,13 +43,234 @@ document.addEventListener('DOMContentLoaded', () => {
             thousandsSep: ".",
             decimalPoint: ','
         },
-        colors: ['#4f46e5', '#22c55e', '#f97316', '#0ea5e9', '#ec4899', '#f59e0b', '#8b5cf6']
+        colors: ['#4f46e5', '#22c55e', '#f97316', '#0ea5e9', '#ec4899', '#f59e0b', '#8b5cf6', '#a01d8eff']
     });
 
     // Chart Instances
-    let ordersChart, topProductsChart, revenueChart, multiPieChart, modalChart;
+    let ordersChart, topProductsChart, revenueChart, salesTreemapChart, modalChart;
+    let retentionChart, frequencyChart, ticketChart, topCustomersChart, dayOfWeekChart;
+    let currentTopProductsData = initialData.topProducts;
 
     // Render Functions
+    function createRetentionChart(data) {
+        if (!data) return;
+        
+        // Map data to include details
+        const newData = data.new.map((val, i) => ({
+            y: val,
+            customDetails: data.newDetails ? data.newDetails[i] : []
+        }));
+        
+        const returningData = data.returning.map((val, i) => ({
+            y: val,
+            customDetails: data.returningDetails ? data.returningDetails[i] : []
+        }));
+
+        retentionChart = Highcharts.chart('retentionChart', {
+            chart: { type: 'column' },
+            title: { text: null },
+            xAxis: { categories: data.labels },
+            yAxis: { 
+                allowDecimals: false,
+                min: 0,
+                title: { text: 'Clientes' }, 
+                stackLabels: { enabled: true } 
+            },
+            tooltip: {
+                format: '<b>{key}</b><br/>{series.name}: {y}<br/>Total: {point.stackTotal}'
+            },
+            plotOptions: {
+                column: {
+                    stacking: 'normal',
+                    cursor: 'pointer',
+                    point: {
+                        events: {
+                            click: function () {
+                                const details = this.customDetails;
+                                const category = this.category;
+                                const seriesName = this.series.name;
+                                
+                                if (details && details.length > 0) {
+                                    // Use existing openModal but adapt it for list display
+                                    // We can pass type='list' (custom handling) or just pass dummy values
+                                    // Let's use a custom type 'list' and handle it in openModal
+                                    openModal({
+                                        title: `Clientes ${seriesName} - ${category}`,
+                                        labels: details, // Pass names as labels
+                                        values: details.map(() => 1), // Dummy values
+                                        datasetLabel: 'Cliente',
+                                        type: 'list', // Custom type
+                                        isCurrency: false
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            series: [{
+                name: 'Nuevos',
+                data: newData,
+                color: '#22c55e'
+            }, {
+                name: 'Recurrentes',
+                data: returningData,
+                color: '#4f46e5'
+            }]
+        });
+    }
+
+    function updateRetentionChart(data) {
+        if (!data) return;
+        if (!retentionChart) { createRetentionChart(data); return; }
+        
+        const newData = data.new.map((val, i) => ({
+            y: val,
+            customDetails: data.newDetails ? data.newDetails[i] : []
+        }));
+        
+        const returningData = data.returning.map((val, i) => ({
+            y: val,
+            customDetails: data.returningDetails ? data.returningDetails[i] : []
+        }));
+
+        retentionChart.xAxis[0].setCategories(data.labels, false);
+        retentionChart.series[0].setData(newData, false);
+        retentionChart.series[1].setData(returningData, true);
+    }
+
+    function createFrequencyChart(data) {
+        if (!data) return;
+        frequencyChart = Highcharts.chart('frequencyChart', {
+            chart: { type: 'column' },
+            title: { text: null },
+            xAxis: { categories: data.labels, title: { text: 'Pedidos realizados' } },
+            yAxis: { title: { text: 'Cantidad de Clientes' } },
+            series: [{
+                name: 'Clientes',
+                data: data.values,
+                color: '#f59e0b'
+            }]
+        });
+    }
+
+    function updateFrequencyChart(data) {
+        if (!data) return;
+        if (!frequencyChart) { createFrequencyChart(data); return; }
+        frequencyChart.xAxis[0].setCategories(data.labels, false);
+        frequencyChart.series[0].setData(data.values, true);
+    }
+
+    function createTicketChart(data) {
+        if (!data) return;
+        const seriesData = data.labels.map((l, i) => ({ 
+            name: l, 
+            y: data.values[i],
+            customDetails: data.details ? data.details[i] : []
+        }));
+        ticketChart = Highcharts.chart('ticketChart', {
+            chart: {
+                type: 'pie',
+                zooming: { type: 'xy' },
+                panning: { enabled: true, type: 'xy' },
+                panKey: 'shift'
+            },
+            title: { text: null },
+            tooltip: { 
+                pointFormat: '<b>{point.name}</b>: {point.y} pedidos' 
+            },
+            plotOptions: {
+                pie: {
+                    allowPointSelect: true,
+                    cursor: 'pointer',
+                    showInLegend: true,
+                    dataLabels: {
+                        enabled: false
+                    },
+                    point: {
+                        events: {
+                            click: function () {
+                                const details = this.customDetails;
+                                const label = this.name;
+                                
+                                if (details && details.length > 0) {
+                                    openModal({
+                                        title: `Pedidos en rango ${label}`,
+                                        labels: details,
+                                        values: [],
+                                        datasetLabel: 'Pedidos',
+                                        type: 'list'
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            series: [{
+                name: 'Pedidos',
+                colorByPoint: true,
+                data: seriesData
+            }]
+        });
+    }
+
+    function updateTicketChart(data) {
+        if (!data) return;
+        if (!ticketChart) { createTicketChart(data); return; }
+        const seriesData = data.labels.map((l, i) => ({ 
+            name: l, 
+            y: data.values[i],
+            customDetails: data.details ? data.details[i] : []
+        }));
+        ticketChart.series[0].setData(seriesData, true);
+    }
+
+    function createTopCustomersChart(data) {
+        if (!data) return;
+        topCustomersChart = Highcharts.chart('topCustomersChart', {
+            chart: { type: 'bar' },
+            title: { text: null },
+            xAxis: { categories: data.labels },
+            yAxis: { title: { text: 'Total Gastado' } },
+            tooltip: { valuePrefix: '$' },
+            series: [{
+                name: 'Gasto Total',
+                data: data.values,
+                color: '#8b5cf6'
+            }]
+        });
+    }
+
+    function updateTopCustomersChart(data) {
+        if (!data) return;
+        if (!topCustomersChart) { createTopCustomersChart(data); return; }
+        topCustomersChart.xAxis[0].setCategories(data.labels, false);
+        topCustomersChart.series[0].setData(data.values, true);
+    }
+
+    function createDayOfWeekChart(data) {
+        if (!data) return;
+        dayOfWeekChart = Highcharts.chart('dayOfWeekChart', {
+            chart: { type: 'column' },
+            title: { text: null },
+            xAxis: { categories: data.labels },
+            yAxis: { title: { text: 'Pedidos' } },
+            series: [{
+                name: 'Pedidos',
+                data: data.values,
+                color: '#ec4899'
+            }]
+        });
+    }
+
+    function updateDayOfWeekChart(data) {
+        if (!data) return;
+        if (!dayOfWeekChart) { createDayOfWeekChart(data); return; }
+        dayOfWeekChart.xAxis[0].setCategories(data.labels, false);
+        dayOfWeekChart.series[0].setData(data.values, true);
+    }
+
     function createOrdersChart(lineData) {
         if (!lineData) return;
         console.log('Creating Orders Chart');
@@ -73,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const detail = this.series.chart.customDetalles?.[label];
                                 if (detail) {
                                     openModal({
-                                        title: `Pedidos ${label}`,
+                                        title: `Estados de Pedidos (${label})`,
                                         labels: Object.keys(detail),
                                         values: Object.values(detail),
                                         datasetLabel: 'Pedidos',
@@ -108,33 +338,63 @@ document.addEventListener('DOMContentLoaded', () => {
     function createTopProductsChart(pieData) {
         if (!pieData) return;
         console.log('Creating Top Products Chart');
-        const seriesData = pieData.labels.map((label, i) => ({
+        currentTopProductsData = pieData;
+        
+        const limit = 10;
+
+        // Slice data based on limit
+        const labels = pieData.labels.slice(0, limit);
+        const values = pieData.values.slice(0, limit);
+        const revenues = pieData.revenues ? pieData.revenues.slice(0, limit) : values;
+
+        // Calculate total for Z (percentage of displayed items)
+        const totalUnits = values.reduce((a, b) => a + b, 0);
+
+        const seriesData = labels.map((label, i) => ({
             name: label,
-            y: pieData.values[i]
+            y: values[i],
+            z: totalUnits > 0 ? (values[i] / totalUnits) : 0,
+            revenue: revenues[i]
         }));
 
         topProductsChart = Highcharts.chart('topProductsPieChart', {
-            chart: { type: 'pie' },
-            title: { text: null },
-            tooltip: { pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>' },
+            chart: {
+                type: 'variablepie'
+            },
+            title: {
+                text: null
+            },
+            tooltip: {
+                headerFormat: '',
+                pointFormat: '<span style="color:{point.color}">\u25CF</span> <b> {point.name}</b><br/>' +
+                    'Unidades: <b>{point.y}</b><br/>' +
+                    'Ingresos: <b>${point.revenue:,.0f}</b><br/>' +
+                    'Porcentaje: <b>{point.percentage:.1f}%</b><br/>'
+            },
             plotOptions: {
-                pie: {
+                variablepie: {
                     allowPointSelect: true,
                     cursor: 'pointer',
                     dataLabels: { enabled: false },
-                    showInLegend: true,
+                    showInLegend: false,
                     point: {
                         events: {
                             click: function () {
                                 const label = this.name;
                                 const detail = this.series.chart.customDetalles?.[label];
                                 if (detail) {
+                                    // Check if product has sizes (more than just "Único" or empty)
+                                    const keys = Object.keys(detail);
+                                    if (keys.length === 1 && (keys[0] === 'Único' || keys[0] === '')) {
+                                        return; // Do nothing if no sizes
+                                    }
+
                                     openModal({
-                                        title: `Top productos · ${label}`,
+                                        title: `Tallas de ${label}`,
                                         labels: Object.keys(detail),
                                         values: Object.values(detail),
                                         datasetLabel: 'Unidades',
-                                        type: 'pie'
+                                        type: 'variablepie'
                                     });
                                 }
                             }
@@ -143,9 +403,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             },
             series: [{
-                name: 'Unidades',
-                colorByPoint: true,
-                data: seriesData
+                minPointSize: '10%',
+                maxPointSize: '100%',
+                innerSize: '20%',
+                zMin: 0,
+                name: 'Productos',
+                borderRadius: 5,
+                data: seriesData,
+                colors: Highcharts.getOptions().colors
             }]
         });
         topProductsChart.customDetalles = pieData.detalles;
@@ -157,15 +422,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateTopProductsChart(pieData) {
         if (!pieData) return;
+        currentTopProductsData = pieData;
+        
         if (!topProductsChart) {
             createTopProductsChart(pieData);
             return;
         }
         console.log('Updating Top Products Chart');
-        const seriesData = pieData.labels.map((label, i) => ({
+        
+        const limit = 10;
+
+        // Slice data based on limit
+        const labels = pieData.labels.slice(0, limit);
+        const values = pieData.values.slice(0, limit);
+        const revenues = pieData.revenues ? pieData.revenues.slice(0, limit) : values;
+
+        // Calculate total for Z (percentage of displayed items)
+        const totalUnits = values.reduce((a, b) => a + b, 0);
+
+        const seriesData = labels.map((label, i) => ({
             name: label,
-            y: pieData.values[i]
+            y: values[i],
+            z: totalUnits > 0 ? (values[i] / totalUnits) : 0,
+            revenue: revenues[i]
         }));
+        
         topProductsChart.customDetalles = pieData.detalles;
         topProductsChart.series[0].setData(seriesData, true);
     }
@@ -173,19 +454,29 @@ document.addEventListener('DOMContentLoaded', () => {
     function createRevenueChart(barData) {
         if (!barData) return;
         console.log('Creating Revenue Chart');
+        
+        // Map data to include names explicitly
+        const seriesData = barData.labels.map((label, i) => ({
+            name: label,
+            y: barData.values[i]
+        }));
+
         revenueChart = Highcharts.chart('categoryRevenueBarChart', {
             chart: { type: 'column' },
             title: { text: null },
-            xAxis: { categories: barData.labels },
+            xAxis: { 
+                type: 'category',
+                categories: barData.labels 
+            },
             yAxis: {
-                title: { text: 'Ingresos' },
+                title: { text: 'Productos Vendidos' },
                 labels: {
-                    formatter: function () { return currencyFormatter.format(this.value); }
+                    formatter: function () { return this.value; }
                 }
             },
             tooltip: {
                 formatter: function () {
-                    return `<b>${this.x}</b><br/>${this.series.name}: ${currencyFormatter.format(this.y)}`;
+                    return `<b>${this.key}</b><br/>${this.series.name}: ${this.y}`;
                 }
             },
             plotOptions: {
@@ -194,16 +485,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     point: {
                         events: {
                             click: function () {
-                                const label = this.category;
+                                const label = this.name; // Now we can use this.name safely
                                 const detail = this.series.chart.customDetalles?.[label];
                                 if (detail) {
                                     openModal({
-                                        title: `Ingresos · ${label}`,
+                                        title: `Productos en ${label}`,
                                         labels: Object.keys(detail),
                                         values: Object.values(detail),
-                                        datasetLabel: 'Ingresos',
-                                        type: 'pie', // or column
-                                        isCurrency: true
+                                        datasetLabel: 'Unidades',
+                                        type: 'pie',
+                                        isCurrency: false,
+                                        detalles: this.series.chart.customSubDetalles
                                     });
                                 }
                             }
@@ -212,12 +504,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             },
             series: [{
-                name: 'Ingresos',
-                data: barData.values,
+                name: 'Productos Vendidos',
+                data: seriesData,
                 colorByPoint: true
             }]
         });
         revenueChart.customDetalles = barData.detalles;
+        revenueChart.customSubDetalles = barData.subDetalles;
     }
 
     function updateRevenueChart(barData) {
@@ -227,111 +520,77 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         console.log('Updating Revenue Chart');
+        
+        const seriesData = barData.labels.map((label, i) => ({
+            name: label,
+            y: barData.values[i]
+        }));
+
         revenueChart.customDetalles = barData.detalles;
+        revenueChart.customSubDetalles = barData.subDetalles;
         revenueChart.xAxis[0].setCategories(barData.labels, false);
-        revenueChart.series[0].setData(barData.values, true);
+        revenueChart.series[0].setData(seriesData, true);
     }
 
-    function createMultiPieChart(multiData) {
-        if (!multiData) return;
-        console.log('Creating Multi Pie Chart');
-        // Prepare data for Highcharts
-        // Inner ring: Categories
-        const categoriesData = multiData.categories.map((cat, i) => ({
-            name: cat,
-            y: multiData.datasets.categories[i],
-            color: Highcharts.getOptions().colors[i % Highcharts.getOptions().colors.length]
-        })).filter(p => p.y > 0);
-
-        // Outer ring: Products
-        const productNames = multiData.labels.slice(multiData.categories.length);
-        const productValues = multiData.datasets.products.slice(multiData.categories.length);
+    function createSalesTreemap(data) {
+        if (!data) return;
+        console.log('Creating Sales Treemap');
         
-        const productsSeries = productNames.map((name, i) => {
-            const cat = multiData.productCategoryMap[name];
-            const catIdx = multiData.categories.indexOf(cat);
-            const color = Highcharts.color(Highcharts.getOptions().colors[catIdx % Highcharts.getOptions().colors.length]).brighten(0.1).get();
-            return {
-                name: name,
-                y: productValues[i],
-                color: color
-            };
-        }).filter(p => p.y > 0);
+        // Separate categories (roots) and products (children)
+        const categories = data.filter(d => !d.parent);
+        const products = data.filter(d => d.parent);
 
-        multiPieChart = Highcharts.chart('multiSeriesPieChart', {
-            chart: { type: 'pie' },
-            title: { text: null },
-            plotOptions: {
-                pie: {
-                    shadow: false,
-                    center: ['50%', '50%']
-                }
-            },
-            tooltip: {
-                valueSuffix: ' unidades'
-            },
+        salesTreemapChart = Highcharts.chart('salesTreemapChart', {
             series: [{
-                name: 'Categorías',
-                data: categoriesData,
-                size: '60%',
+                type: 'treemap',
+                layoutAlgorithm: 'squarified',
+                data: categories, // Only show categories initially
+                colorByPoint: true,
                 dataLabels: {
-                    formatter: function () {
-                        return this.y > 5 ? this.point.name : null;
-                    },
-                    color: '#ffffff',
-                    distance: -30
-                }
-            }, {
-                name: 'Productos',
-                data: productsSeries,
-                size: '80%',
-                innerSize: '60%',
-                dataLabels: {
-                    formatter: function () {
-                        // display only if larger than 1
-                        return this.y > 1 ? `<b>${this.point.name}:</b> ${this.y}` : null;
+                    enabled: true,
+                    style: {
+                        fontSize: '15px',
+                        fontWeight: 'bold'
                     }
                 },
-                id: 'versions'
-            }]
+                tooltip: {
+                    pointFormat: '<b>{point.name}</b>:<br>Ventas: {point.value:,.0f}'
+                },
+                events: {
+                    click: function(event) {
+                        const point = event.point;
+                        // Find products for this category
+                        const catProducts = products.filter(p => p.parent === point.id);
+                        
+                        if (catProducts.length > 0) {
+                            openModal({
+                                type: 'treemap',
+                                title: `Productos en ${point.name}`,
+                                data: catProducts,
+                                datasetLabel: 'Ventas'
+                            });
+                        }
+                    }
+                }
+            }],
+            title: { text: null }
         });
         
-        const multiLegend = document.getElementById('multiSeriesPieLegend');
-        if (multiLegend) multiLegend.innerHTML = ''; // Clear custom legend
+        // Store full data for updates
+        salesTreemapChart.fullData = data;
     }
 
-    function updateMultiPieChart(multiData) {
-        if (!multiData) return;
-        if (!multiPieChart) {
-            createMultiPieChart(multiData);
+    function updateSalesTreemap(data) {
+        if (!data) return;
+        if (!salesTreemapChart) {
+            createSalesTreemap(data);
             return;
         }
-        console.log('Updating Multi Pie Chart');
-        // Prepare data for Highcharts
-        // Inner ring: Categories
-        const categoriesData = multiData.categories.map((cat, i) => ({
-            name: cat,
-            y: multiData.datasets.categories[i],
-            color: Highcharts.getOptions().colors[i % Highcharts.getOptions().colors.length]
-        })).filter(p => p.y > 0);
-
-        // Outer ring: Products
-        const productNames = multiData.labels.slice(multiData.categories.length);
-        const productValues = multiData.datasets.products.slice(multiData.categories.length);
+        console.log('Updating Sales Treemap');
         
-        const productsSeries = productNames.map((name, i) => {
-            const cat = multiData.productCategoryMap[name];
-            const catIdx = multiData.categories.indexOf(cat);
-            const color = Highcharts.color(Highcharts.getOptions().colors[catIdx % Highcharts.getOptions().colors.length]).brighten(0.1).get();
-            return {
-                name: name,
-                y: productValues[i],
-                color: color
-            };
-        }).filter(p => p.y > 0);
-
-        multiPieChart.series[0].setData(categoriesData, false);
-        multiPieChart.series[1].setData(productsSeries, true);
+        const categories = data.filter(d => !d.parent);
+        salesTreemapChart.series[0].setData(categories, true);
+        salesTreemapChart.fullData = data;
     }
 
     function updateMetrics(kpis) {
@@ -378,13 +637,71 @@ document.addEventListener('DOMContentLoaded', () => {
         // Destroy previous chart if exists
         if (modalChart) {
             modalChart.destroy();
+            modalChart = null;
+        }
+
+        // Clear modal body content (in case we added a list previously)
+        const container = document.getElementById('dashModalChart');
+        container.innerHTML = '';
+
+        if (config.type === 'list') {
+            // Render a simple list instead of a chart
+            const ul = document.createElement('ul');
+            ul.className = 'list-group list-group-flush';
+            
+            if (config.labels && config.labels.length > 0) {
+                config.labels.forEach(label => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item';
+                    li.textContent = label;
+                    ul.appendChild(li);
+                });
+            } else {
+                const li = document.createElement('li');
+                li.className = 'list-group-item text-muted';
+                li.textContent = 'No hay datos disponibles.';
+                ul.appendChild(li);
+            }
+            container.appendChild(ul);
+            bootstrapModal.show();
+            return;
+        }
+
+        if (config.type === 'treemap') {
+            modalChart = Highcharts.chart('dashModalChart', {
+                series: [{
+                    type: 'treemap',
+                    layoutAlgorithm: 'squarified',
+                    data: config.data,
+                    colorByPoint: true,
+                    dataLabels: {
+                        enabled: true
+                    },
+                    tooltip: {
+                        pointFormat: '<b>{point.name}</b>:<br>Ventas: {point.value:,.0f}'
+                    }
+                }],
+                title: { text: null }
+            });
+            bootstrapModal.show();
+            return;
         }
 
         // Render new chart
-        const seriesData = config.labels.map((l, i) => ({
-            name: l,
-            y: config.values[i]
-        }));
+        let seriesData;
+        if (config.type === 'variablepie') {
+             const total = config.values.reduce((a, b) => a + b, 0);
+             seriesData = config.labels.map((l, i) => ({
+                name: l,
+                y: config.values[i],
+                z: total > 0 ? config.values[i] / total : 0
+            }));
+        } else {
+            seriesData = config.labels.map((l, i) => ({
+                name: l,
+                y: config.values[i]
+            }));
+        }
 
         modalChart = Highcharts.chart('dashModalChart', {
             chart: { type: config.type || 'column' },
@@ -404,10 +721,53 @@ document.addEventListener('DOMContentLoaded', () => {
                     return `<b>${this.point.name || this.x}</b><br/>${this.series.name}: ${val}`;
                 }
             },
+            plotOptions: {
+                pie: {
+                    allowPointSelect: true,
+                    cursor: 'pointer',
+                    dataLabels: {
+                        enabled: true,
+                        format: '<b>{point.name}</b>: {point.y}'
+                    },
+                    point: {
+                        events: {
+                            click: function() {
+                                // Check if we have next level details (Level 3: Channels)
+                                const prodName = this.name;
+                                const channels = config.detalles?.[prodName];
+                                
+                                if (channels) {
+                                    // Open modal again (update it) with Channel data
+                                    openModal({
+                                        title: `Canales de venta: ${prodName}`,
+                                        labels: Object.keys(channels),
+                                        values: Object.values(channels),
+                                        datasetLabel: 'Unidades',
+                                        type: 'pie',
+                                        isCurrency: false,
+                                        detalles: null // No more levels
+                                    });
+                                }
+                            }
+                        }
+                    }
+                },
+                variablepie: {
+                    allowPointSelect: true,
+                    cursor: 'pointer',
+                    dataLabels: {
+                        enabled: true,
+                        format: '<b>{point.name}</b>: {point.y}'
+                    }
+                }
+            },
             series: [{
+                minPointSize: '10%',
+                maxPointSize: '100%',
+                zMin: 0,
                 name: config.datasetLabel,
-                data: config.type === 'pie' ? seriesData : config.values,
-                colorByPoint: config.type === 'pie'
+                data: config.type === 'pie' ? seriesData : (config.type === 'variablepie' ? seriesData : config.values),
+                colorByPoint: config.type === 'pie' || config.type === 'variablepie'
             }]
         });
 
@@ -420,7 +780,15 @@ document.addEventListener('DOMContentLoaded', () => {
         createOrdersChart(initialData.lineChart);
         createTopProductsChart(initialData.topProducts);
         createRevenueChart(initialData.categoryRevenue);
-        createMultiPieChart(initialData.multiSeriesPie);
+        createSalesTreemap(initialData.treemapData);
+
+        if (initialData.customerBehavior) {
+            createRetentionChart(initialData.customerBehavior.newVsReturning);
+            createFrequencyChart(initialData.customerBehavior.frequency);
+            createTicketChart(initialData.customerBehavior.ticket);
+            createTopCustomersChart(initialData.customerBehavior.topCustomers);
+            createDayOfWeekChart(initialData.customerBehavior.dayOfWeek);
+        }
     } else {
         console.warn('No initial data found, waiting for WebSocket update...');
     }
@@ -443,7 +811,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateOrdersChart(data.lineChart);
                 updateTopProductsChart(data.topProducts);
                 updateRevenueChart(data.categoryRevenue);
-                updateMultiPieChart(data.multiSeriesPie);
+                updateSalesTreemap(data.treemapData);
+
+                if (data.customerBehavior) {
+                    updateRetentionChart(data.customerBehavior.newVsReturning);
+                    updateFrequencyChart(data.customerBehavior.frequency);
+                    updateTicketChart(data.customerBehavior.ticket);
+                    updateTopCustomersChart(data.customerBehavior.topCustomers);
+                    updateDayOfWeekChart(data.customerBehavior.dayOfWeek);
+                }
                 
                 // Update Navigation Buttons
                 const btnPrev = document.getElementById('btnPrevPeriod');
@@ -567,13 +943,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const href = this.getAttribute('href'); 
         console.log('Navigating to:', href); // Debug log
         if (href) {
-            const url = `${apiDashboardUrl}${href}`;
+            // Ensure we are using the correct base URL for API calls
+            // If href already contains the full path or starts with ?, handle accordingly
+            let url;
+            if (href.startsWith('?')) {
+                url = `${apiDashboardUrl}${href}`;
+            } else {
+                // If href is a full URL or absolute path, use it directly (though typically it's just query params)
+                url = href;
+            }
             fetchDashboardData(url);
         }
     }
 
     if (btnPrev) btnPrev.addEventListener('click', handleNavClick);
     if (btnNext) btnNext.addEventListener('click', handleNavClick);
+
+    // Handle Browser Back/Forward Buttons
+    window.addEventListener('popstate', function() {
+        const url = `${apiDashboardUrl}${window.location.search}`;
+        fetchDashboardData(url, false);
+    });
 
     // Prevent form submit (if user hits enter)
     if (filterForm) {
@@ -627,7 +1017,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateOrdersChart(data.lineChart);
                 updateTopProductsChart(data.topProducts);
                 updateRevenueChart(data.categoryRevenue);
-                updateMultiPieChart(data.multiSeriesPie);
+                updateSalesTreemap(data.treemapData);
+
+                if (data.customerBehavior) {
+                    updateRetentionChart(data.customerBehavior.newVsReturning);
+                    updateFrequencyChart(data.customerBehavior.frequency);
+                    updateTicketChart(data.customerBehavior.ticket);
+                    updateTopCustomersChart(data.customerBehavior.topCustomers);
+                    updateDayOfWeekChart(data.customerBehavior.dayOfWeek);
+                }
 
                 updateMetrics(data.kpis);
             } catch (err) {

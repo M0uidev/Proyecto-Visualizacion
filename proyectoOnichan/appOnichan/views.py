@@ -21,7 +21,7 @@ from django.shortcuts import render, redirect, get_object_or_404 # Added get_obj
 from django.http import Http404, HttpResponseForbidden, JsonResponse, HttpResponse
 from django.template.loader import get_template
 from xhtml2pdf import pisa
-from django.db.models import Sum, Count, F, Max
+from django.db.models import Sum, Count, F, Max, Min
 from django.utils import timezone
 from datetime import date as dt_date, timedelta
 from django.contrib.auth import authenticate, login, logout
@@ -262,7 +262,7 @@ def get_dashboard_context(request):
         
         # Disable next if future
         if next_ref_date > today:
-            next_url = ""
+            next_url = f"?period=week&week={ref_date.isoformat()}"
         else:
             next_url = f"?period=week&week={next_ref_date.isoformat()}"
             
@@ -271,20 +271,29 @@ def get_dashboard_context(request):
         # Labels por día de la semana
         weekday_labels = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
         day_counts = {label: 0 for label in weekday_labels}
-        delivered_counts = {label: 0 for label in weekday_labels}
-        pending_counts = {label: 0 for label in weekday_labels}
+        
+        # Inicializar contadores para todos los estados posibles
+        # Obtenemos los estados dinámicamente o definimos los conocidos
+        all_states = ["Pendiente", "Pagado", "EnPreparacion", "Enviado", "Entregado", "Cancelado", "Reembolsado"]
+        state_counts = {label: {s: 0 for s in all_states} for label in weekday_labels}
+        
         orders_period = Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date).exclude(estado="IniciandoPago")
         for o in orders_period:
             idx = o.fecha.weekday()
             label = weekday_labels[idx]
             day_counts[label] += 1
-            if o.estado == "Entregado":
-                delivered_counts[label] += 1
-            elif o.estado == "Pendiente":
-                pending_counts[label] += 1
+            
+            # Contar por estado
+            current_state = o.estado
+            if current_state in state_counts[label]:
+                state_counts[label][current_state] += 1
+            else:
+                # Fallback para estados no previstos
+                state_counts[label][current_state] = state_counts[label].get(current_state, 0) + 1
+
         line_labels = weekday_labels
         line_values = [day_counts[l] for l in line_labels]
-        line_detalles = {l: {"Entregados": delivered_counts[l], "Pendientes": pending_counts[l]} for l in line_labels}
+        line_detalles = state_counts
     elif period == "month":
         # referencia YYYY-MM
         month_str = request.GET.get("month", "").strip()
@@ -314,7 +323,7 @@ def get_dashboard_context(request):
         
         # Disable next if future
         if next_month > today:
-            next_url = ""
+            next_url = f"?period=month&month={ref_date.strftime('%Y-%m')}"
         else:
             next_url = f"?period=month&month={next_month.strftime('%Y-%m')}"
             
@@ -324,19 +333,25 @@ def get_dashboard_context(request):
         total_days = (end_date - start_date).days + 1
         day_labels = [str(d) for d in range(1, total_days + 1)]
         day_counts = {label: 0 for label in day_labels}
-        delivered_counts = {label: 0 for label in day_labels}
-        pending_counts = {label: 0 for label in day_labels}
+        
+        # Inicializar contadores para todos los estados
+        all_states = ["Pendiente", "Pagado", "EnPreparacion", "Enviado", "Entregado", "Cancelado", "Reembolsado"]
+        state_counts = {label: {s: 0 for s in all_states} for label in day_labels}
+
         orders_period = Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date).exclude(estado="IniciandoPago")
         for o in orders_period:
             label = str(o.fecha.day)
             day_counts[label] += 1
-            if o.estado == "Entregado":
-                delivered_counts[label] += 1
-            elif o.estado == "Pendiente":
-                pending_counts[label] += 1
+            
+            current_state = o.estado
+            if current_state in state_counts[label]:
+                state_counts[label][current_state] += 1
+            else:
+                state_counts[label][current_state] = state_counts[label].get(current_state, 0) + 1
+
         line_labels = day_labels
         line_values = [day_counts[l] for l in line_labels]
-        line_detalles = {l: {"Entregados": delivered_counts[l], "Pendientes": pending_counts[l]} for l in line_labels}
+        line_detalles = state_counts
     else:  # year
         year_str = request.GET.get("year", "").strip()
         try:
@@ -349,7 +364,7 @@ def get_dashboard_context(request):
         
         # Disable next if future
         if (year_i + 1) > today.year:
-            next_url = ""
+            next_url = f"?period=year&year={year_i}"
         else:
             next_url = f"?period=year&year={year_i + 1}"
             
@@ -357,20 +372,26 @@ def get_dashboard_context(request):
         title_text = f"Pedidos por mes ({year_i})"
         month_labels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
         m_counts = {label: 0 for label in month_labels}
-        delivered_counts = {label: 0 for label in month_labels}
-        pending_counts = {label: 0 for label in month_labels}
+        
+        # Inicializar contadores para todos los estados
+        all_states = ["Pendiente", "Pagado", "EnPreparacion", "Enviado", "Entregado", "Cancelado", "Reembolsado"]
+        state_counts = {label: {s: 0 for s in all_states} for label in month_labels}
+
         orders_period = Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date).exclude(estado="IniciandoPago")
         for o in orders_period:
             idx = o.fecha.month - 1
             label = month_labels[idx]
             m_counts[label] += 1
-            if o.estado == "Entregado":
-                delivered_counts[label] += 1
-            elif o.estado == "Pendiente":
-                pending_counts[label] += 1
+            
+            current_state = o.estado
+            if current_state in state_counts[label]:
+                state_counts[label][current_state] += 1
+            else:
+                state_counts[label][current_state] = state_counts[label].get(current_state, 0) + 1
+
         line_labels = month_labels
         line_values = [m_counts[l] for l in line_labels]
-        line_detalles = {l: {"Entregados": delivered_counts[l], "Pendientes": pending_counts[l]} for l in line_labels}
+        line_detalles = state_counts
 
     # KPIs
     pedidos_hoy = Order.objects.filter(fecha=today).exclude(estado="IniciandoPago").count()
@@ -388,11 +409,15 @@ def get_dashboard_context(request):
         OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date)
         .exclude(order__estado="IniciandoPago")
         .values("product__name")
-        .annotate(units=Sum("cantidad"))
-        .order_by("-units")[:4]
+        .annotate(
+            units=Sum("cantidad"),
+            revenue=Sum(F("cantidad") * F("price"))
+        )
+        .order_by("-units")[:50]
     )
     top_labels = [t["product__name"] for t in top]
     top_values = [t["units"] for t in top]
+    top_revenues = [t["revenue"] for t in top]
     detalles_top = {}
     for label in top_labels:
         qs = (
@@ -404,53 +429,214 @@ def get_dashboard_context(request):
         )
         detalles_top[label] = {(r["size"] or "Único"): r["units"] for r in qs}
 
-    cat_rows = (
+    # Ingresos por categoría -> Ahora Ventas (Unidades) por Categoría con Drilldown
+    # 1. Obtener todas las categorías para asegurar visibilidad
+    all_cats = list(Category.objects.values_list('name', flat=True))
+    
+    # 2. Query agrupada por Categoría, Producto y Canal
+    drill_rows = (
         OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date)
         .exclude(order__estado="IniciandoPago")
-        .values("product__category__name", "order__channel")
-        .annotate(revenue=Sum(F("cantidad") * F("price")))
+        .values("product__category__name", "product__name", "order__channel")
+        .annotate(units=Sum("cantidad"))
     )
-    cat_totals = {}
-    cat_details = {}
-    for r in cat_rows:
+
+    # 3. Procesar datos
+    cat_totals = {c: 0 for c in all_cats}      # Nivel 1: Categoría -> Total Unidades
+    cat_products = {c: {} for c in all_cats}   # Nivel 2: Categoría -> {Producto: Unidades}
+    product_channels = {}                      # Nivel 3: Producto -> {Canal: Unidades}
+
+    for r in drill_rows:
         cat = r["product__category__name"] or "Otros"
+        prod = r["product__name"] or "Desconocido"
         ch = r["order__channel"] or "Online"
-        rev = r["revenue"] or 0
-        cat_totals[cat] = cat_totals.get(cat, 0) + rev
-        det = cat_details.get(cat, {})
-        det[ch] = det.get(ch, 0) + rev
-        cat_details[cat] = det
+        u = r["units"] or 0
+        
+        # Asegurar que la categoría existe en los mapas
+        if cat not in cat_totals:
+            cat_totals[cat] = 0
+            cat_products[cat] = {}
+            
+        cat_totals[cat] += u
+        
+        # Nivel 2
+        cat_products[cat][prod] = cat_products[cat].get(prod, 0) + u
+        
+        # Nivel 3
+        if prod not in product_channels:
+            product_channels[prod] = {}
+        product_channels[prod][ch] = product_channels[prod].get(ch, 0) + u
 
     cat_labels = list(cat_totals.keys())
     cat_values = [cat_totals[c] for c in cat_labels]
 
-    # Multi Series Pie (categorías vs productos por unidades vendidas en el periodo)
-    sales_rows = (
+    # Treemap Data (Sales Distribution by Category and Product - Revenue)
+    treemap_data = []
+    
+    # 1. Categories (Parents)
+    categories_qs = (
+        OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date)
+        .exclude(order__estado="IniciandoPago")
+        .values("product__category__name")
+        .annotate(total_revenue=Sum(F("cantidad") * F("price")))
+        .order_by("-total_revenue")
+    )
+    
+    # Map category name to an ID
+    cat_id_map = {}
+    # Define some colors for categories if desired, or let Highcharts handle it.
+    # We'll let Highcharts handle colors by series/level, but for a single series treemap, 
+    # we might want to assign colors to parents.
+    # For now, simple structure.
+    for i, cat in enumerate(categories_qs):
+        c_name = cat["product__category__name"] or "Otros"
+        c_id = f"cat_{i}"
+        cat_id_map[c_name] = c_id
+        treemap_data.append({
+            "id": c_id,
+            "name": c_name,
+            "value": cat["total_revenue"] or 0
+        })
+
+    # 2. Products (Children)
+    products_qs = (
         OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date)
         .exclude(order__estado="IniciandoPago")
         .values("product__category__name", "product__name")
-        .annotate(units=Sum("cantidad"))
-        .order_by("product__category__name", "product__name")
+        .annotate(revenue=Sum(F("cantidad") * F("price")))
+        .order_by("-revenue")
     )
-    category_units = {}
-    product_units = []
-    for r in sales_rows:
-        cat_name = r["product__category__name"] or "Otros"
-        prod_name = r["product__name"] or "(Sin nombre)"
-        units = r["units"] or 0
-        category_units[cat_name] = category_units.get(cat_name, 0) + units
-        product_units.append((cat_name, prod_name, units))
 
-    multi_categories = list(category_units.keys())
-    multi_products = [p for (_, p, _) in product_units]
-    # Labels combinadas: primero categorías luego productos
-    multi_labels = multi_categories + multi_products
-    # Dataset interno (categorías): valores en posiciones de categorías, cero en productos
-    categories_data = [category_units[c] for c in multi_categories] + [0] * len(multi_products)
-    # Dataset externo (productos): cero en categorías, valor en posición de cada producto
-    products_data = [0] * len(multi_categories) + [u for (_, _, u) in product_units]
-    # Mapa producto -> categoría (para color/leyenda)
-    product_category_map = {p: c for (c, p, _) in product_units}
+    for i, prod in enumerate(products_qs):
+        c_name = prod["product__category__name"] or "Otros"
+        p_name = prod["product__name"] or "(Sin nombre)"
+        revenue = prod["revenue"] or 0
+        
+        if c_name in cat_id_map:
+            treemap_data.append({
+                "id": f"prod_{i}",
+                "name": p_name,
+                "parent": cat_id_map[c_name],
+                "value": revenue
+            })
+
+    # --- Customer Behavior Analysis ---
+    
+    # 1. New vs Returning (Over Time)
+    period_orders = Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date).exclude(estado="IniciandoPago")
+    period_customer_ids = period_orders.values_list('cliente_id', flat=True).distinct()
+    
+    # Get first order date for these customers
+    first_orders = Order.objects.filter(cliente_id__in=period_customer_ids).exclude(estado="IniciandoPago").values('cliente_id').annotate(first_date=Min('fecha'))
+    customer_first_date = {item['cliente_id']: item['first_date'] for item in first_orders}
+    
+    new_vs_returning_labels = line_labels 
+    new_customers_data = [0] * len(line_labels)
+    returning_customers_data = [0] * len(line_labels)
+    
+    # Details lists
+    new_customers_details = [[] for _ in range(len(line_labels))]
+    returning_customers_details = [[] for _ in range(len(line_labels))]
+    
+    seen_customer_bucket = set()
+
+    for o in period_orders:
+        c_id = o.cliente_id
+        f_date = customer_first_date.get(c_id)
+        
+        idx = -1
+        if period == 'week':
+            idx = o.fecha.weekday() # 0=Lun, 6=Dom
+        elif period == 'month':
+            idx = o.fecha.day - 1
+        elif period == 'year':
+            idx = o.fecha.month - 1
+            
+        if 0 <= idx < len(line_labels):
+            # Deduplicate per bucket (unique customers per day/month)
+            if (c_id, idx) in seen_customer_bucket:
+                continue
+            seen_customer_bucket.add((c_id, idx))
+
+            # Determine if New or Returning for this bucket
+            # New if first purchase ever falls within this bucket's timeframe
+            # For 'week' and 'month' (daily buckets), check exact date match
+            # For 'year' (monthly buckets), check month/year match
+            is_new = False
+            if period == 'year':
+                if f_date.year == o.fecha.year and f_date.month == o.fecha.month:
+                    is_new = True
+            else:
+                if f_date == o.fecha:
+                    is_new = True
+            
+            # Get customer name safely
+            c_name = o.cliente.name if o.cliente else "Cliente Desconocido"
+
+            if is_new:
+                new_customers_data[idx] += 1
+                new_customers_details[idx].append(c_name)
+            else:
+                returning_customers_data[idx] += 1
+                returning_customers_details[idx].append(c_name)
+
+    # 2. Purchase Frequency (Histogram)
+    cust_order_counts = period_orders.values('cliente_id').annotate(cnt=Count('id'))
+    freq_dist = {'1': 0, '2': 0, '3-5': 0, '6-10': 0, '11+': 0}
+    for c in cust_order_counts:
+        cnt = c['cnt']
+        if cnt == 1: freq_dist['1'] += 1
+        elif cnt == 2: freq_dist['2'] += 1
+        elif 3 <= cnt <= 5: freq_dist['3-5'] += 1
+        elif 6 <= cnt <= 10: freq_dist['6-10'] += 1
+        else: freq_dist['11+'] += 1
+        
+    freq_labels = list(freq_dist.keys())
+    freq_values = list(freq_dist.values())
+
+    # 3. Ticket Distribution
+    ticket_dist = {'< 20k': 0, '20k - 50k': 0, '50k - 100k': 0, '> 100k': 0}
+    ticket_details = {'< 20k': [], '20k - 50k': [], '50k - 100k': [], '> 100k': []}
+    
+    for o in period_orders:
+        t = o.total
+        c_name = o.cliente.name if o.cliente else "Cliente Desconocido"
+        detail_str = f"{c_name} (${t:,.0f})"
+        
+        if t < 20000: 
+            ticket_dist['< 20k'] += 1
+            ticket_details['< 20k'].append(detail_str)
+        elif t < 50000: 
+            ticket_dist['20k - 50k'] += 1
+            ticket_details['20k - 50k'].append(detail_str)
+        elif t < 100000: 
+            ticket_dist['50k - 100k'] += 1
+            ticket_details['50k - 100k'].append(detail_str)
+        else: 
+            ticket_dist['> 100k'] += 1
+            ticket_details['> 100k'].append(detail_str)
+    
+    ticket_labels = list(ticket_dist.keys())
+    ticket_values = list(ticket_dist.values())
+    ticket_details_list = list(ticket_details.values())
+
+    # 4. Top Customers
+    top_cust_qs = period_orders.values('cliente__name').annotate(total=Sum('total')).order_by('-total')[:10]
+    top_cust_labels = [x['cliente__name'] for x in top_cust_qs]
+    top_cust_values = [x['total'] for x in top_cust_qs]
+
+    # 5. Day of Week Activity
+    dow_counts = {i: 0 for i in range(1, 8)}
+    dow_qs = period_orders.values('fecha__week_day').annotate(cnt=Count('id'))
+    for x in dow_qs:
+        dow_counts[x['fecha__week_day']] = x['cnt']
+    
+    # Map to names. Highcharts usually starts Monday or Sunday.
+    # Django week_day: 1=Sunday, 2=Monday... 7=Saturday
+    # We want Mon-Sun order: 2,3,4,5,6,7,1
+    dow_names = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    dow_mapping = [2, 3, 4, 5, 6, 7, 1]
+    dow_values = [dow_counts[i] for i in dow_mapping]
 
     # Mapa de Chile: Ventas por región
     region_sales_qs = (
@@ -478,21 +664,41 @@ def get_dashboard_context(request):
         "topProducts": {
             "labels": top_labels,
             "values": top_values,
+            "revenues": top_revenues,
             "detalles": detalles_top,
         },
         "categoryRevenue": {
             "labels": cat_labels,
             "values": cat_values,
-            "detalles": cat_details,
+            "detalles": cat_products,
+            "subDetalles": product_channels,
         },
-        "multiSeriesPie": {
-            "labels": multi_labels,
-            "datasets": {
-                "categories": categories_data,
-                "products": products_data,
+        "treemapData": treemap_data,
+        "customerBehavior": {
+            "newVsReturning": {
+                "labels": new_vs_returning_labels,
+                "new": new_customers_data,
+                "returning": returning_customers_data,
+                "newDetails": new_customers_details,
+                "returningDetails": returning_customers_details
             },
-            "categories": multi_categories,
-            "productCategoryMap": product_category_map,
+            "frequency": {
+                "labels": freq_labels,
+                "values": freq_values
+            },
+            "ticket": {
+                "labels": ticket_labels,
+                "values": ticket_values,
+                "details": ticket_details_list
+            },
+            "topCustomers": {
+                "labels": top_cust_labels,
+                "values": top_cust_values
+            },
+            "dayOfWeek": {
+                "labels": dow_names,
+                "values": dow_values
+            }
         },
     }
     
@@ -563,7 +769,10 @@ def dashboardtrabajador(request):
         prev_ref = ref_date - timedelta(days=1)
         next_ref = ref_date + timedelta(days=1)
         prev_url = f"?period=day&date={prev_ref.isoformat()}"
-        next_url = f"?period=day&date={next_ref.isoformat()}"
+        if next_ref > today:
+            next_url = f"?period=day&date={ref_date.isoformat()}"
+        else:
+            next_url = f"?period=day&date={next_ref.isoformat()}"
         ref_value = ref_date.isoformat()
         title_text = f"Ventas por producto ({ref_date.isoformat()})"
         period_title = "día"
@@ -578,7 +787,10 @@ def dashboardtrabajador(request):
         prev_ref = start_date - timedelta(days=1)
         next_ref = end_date + timedelta(days=1)
         prev_url = f"?period=week&week={prev_ref.isoformat()}"
-        next_url = f"?period=week&week={next_ref.isoformat()}"
+        if next_ref > today:
+            next_url = f"?period=week&week={ref_date.isoformat()}"
+        else:
+            next_url = f"?period=week&week={next_ref.isoformat()}"
         ref_value = ref_date.isoformat()
         title_text = f"Ventas por producto (semana {start_date.isoformat()} a {end_date.isoformat()})"
         period_title = "semana"
@@ -601,7 +813,10 @@ def dashboardtrabajador(request):
         prev_month = dt_date(ref_date.year - 1, 12, 1) if ref_date.month == 1 else dt_date(ref_date.year, ref_date.month - 1, 1)
         next_month = next_month_start
         prev_url = f"?period=month&month={prev_month.strftime('%Y-%m')}"
-        next_url = f"?period=month&month={next_month.strftime('%Y-%m')}"
+        if next_month > today:
+            next_url = f"?period=month&month={ref_date.strftime('%Y-%m')}"
+        else:
+            next_url = f"?period=month&month={next_month.strftime('%Y-%m')}"
         ref_value = ref_date.strftime('%Y-%m')
         title_text = f"Ventas por producto ({ref_date.strftime('%Y-%m')})"
         period_title = "mes"
@@ -614,7 +829,10 @@ def dashboardtrabajador(request):
         start_date = dt_date(year_i, 1, 1)
         end_date = dt_date(year_i, 12, 31)
         prev_url = f"?period=year&year={year_i - 1}"
-        next_url = f"?period=year&year={year_i + 1}"
+        if (year_i + 1) > today.year:
+            next_url = f"?period=year&year={year_i}"
+        else:
+            next_url = f"?period=year&year={year_i + 1}"
         ref_value = str(year_i)
         title_text = f"Ventas por producto ({year_i})"
         period_title = "año"
@@ -1224,6 +1442,23 @@ def checkout_webpay(request):
             messages.error(request, "Error al procesar el pedido: " + str(e))
             return redirect("cart_view")
                 
+        # Check if total is 0 (bypass Webpay)
+        if order.total == 0:
+            order.estado = 'Pendiente'
+            order.save()
+            
+            # Send confirmation email
+            EmailService.send_order_confirmation(order)
+            
+            # Clear cart
+            request.session["cart"] = {}
+            if "rewards_cart" in request.session:
+                del request.session["rewards_cart"]
+            if "coupon_id" in request.session:
+                del request.session["coupon_id"]
+                
+            return render(request, "checkout_success.html", {"order": order})
+
         # Start Webpay Transaction
         buy_order = order.code
         session_id = request.session.session_key or "session"
