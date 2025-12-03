@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="{% static 'css/dashboardtrabajador.css' %}">
   <style>
     #chileMap {
-        height: 1200px;
+        height: 1000px;
         min-width: 310px;
         margin: 0 auto;
     }
@@ -18,7 +18,7 @@
     }
     
     .modal.show .modal-dialog {
-        transform: scale(1.5) !important;
+        transform: scale(1.25) !important;
         transform-origin: top center;
         margin-top: 5%; 
     }
@@ -237,7 +237,7 @@
             <div class="col-12 col-lg-6">
               <article class="dash-card chart-card" aria-labelledby="chartTicketTitle">
                 <header>
-                  <h3 id="chartTicketTitle">Distribución del Ticket de Compra</h3>
+                  <h3 id="chartTicketTitle">Distribución de la Venta de Compra</h3>
                 </header>
                 <div class="chart-wrapper" style="height: 400px;">
                   <div id="ticketChart" aria-describedby="chartTicketTitle" style="width:100%; height:100%;"></div>
@@ -317,7 +317,7 @@
                 <span class="badge bg-warning rounded-pill" id="modalProducts"></span>
               </li>
               <li class="list-group-item d-flex justify-content-between align-items-center">
-                Ticket Promedio
+                Venta Promedio
                 <span class="badge bg-secondary rounded-pill" id="modalTicket"></span>
               </li>
             </ul>
@@ -337,7 +337,7 @@
   <script src="https://code.highcharts.com/modules/export-data.js"></script>
   <script src="https://code.highcharts.com/modules/accessibility.js"></script>
   <script>const apiDashboardUrl = "{% url 'api_dashboard_data' %}";</script>
-  <script src="{% static 'js/dashboardadmin.js' %}?v=4.1"></script>
+  <script src="{% static 'js/dashboardadmin.js' %}?v=4.24"></script>
 
   <script src="https://code.highcharts.com/maps/modules/map.js"></script>
   <script>
@@ -432,10 +432,17 @@
                         }
                     },
                     tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                        borderColor: '#333333',
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        shadow: true,
                         style: {
-                            color: '#ffffff'
+                            color: '#ffffff',
+                            fontSize: '15px',
+                            padding: '12px'
                         },
+                        useHTML: true,
                         formatter: function () {
                             const p = this.point;
                             if (!p.regionName) return this.series.name;
@@ -443,10 +450,10 @@
                             const formattedSales = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(p.sales);
                             const formattedTicket = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(p.ticket);
                             
-                            return `<b>${p.regionName}</b><br>` +
-                                   `Pedidos: ${p.orders} (Color)<br>` +
+                            return `<span style="font-size: 16px; font-weight: bold">${p.regionName}</span><br>` +
+                                   `Pedidos: ${p.orders}<br>` +
                                    `Ventas: ${formattedSales}<br>` +
-                                   `Ticket Promedio: ${formattedTicket}<br>` +
+                                   `Venta Promedio: ${formattedTicket}<br>` +
                                    `Top Categoría: ${p.topCategory}`;
                         }
                     },
@@ -467,7 +474,8 @@
                             style: {
                                 color: '#ffffff',
                                 textOutline: 'none',
-                                fontWeight: 'normal'
+                                fontWeight: 'normal',
+                                fontSize: '14px'
                             }
                         },
                         point: {

@@ -43,7 +43,62 @@ document.addEventListener('DOMContentLoaded', () => {
             thousandsSep: ".",
             decimalPoint: ','
         },
-        colors: ['#4f46e5', '#22c55e', '#f97316', '#0ea5e9', '#ec4899', '#f59e0b', '#8b5cf6', '#a01d8eff']
+        colors: ['#4f46e5', '#22c55e', '#f97316', '#0ea5e9', '#ec4899', '#f59e0b', '#8b5cf6', '#a01d8eff'],
+        tooltip: {
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            borderColor: '#e5e7eb',
+            borderRadius: 8,
+            borderWidth: 1,
+            shadow: {
+                opacity: 0.15
+            },
+            style: {
+                fontSize: '15px',
+                color: '#1f2937',
+                padding: '12px'
+            },
+            headerFormat: '<span style="font-size: 16px; font-weight: bold; color: #111827">{point.key}</span><br/>',
+            useHTML: true
+        },
+        xAxis: {
+            labels: {
+                style: {
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    color: '#333333'
+                }
+            },
+            title: {
+                style: {
+                    fontSize: '15px',
+                    fontWeight: 'bold',
+                    color: '#333333'
+                }
+            }
+        },
+        yAxis: {
+            labels: {
+                style: {
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    color: '#333333'
+                }
+            },
+            title: {
+                style: {
+                    fontSize: '15px',
+                    fontWeight: 'bold',
+                    color: '#333333'
+                }
+            }
+        },
+        legend: {
+            itemStyle: {
+                fontSize: '14px',
+                fontWeight: 'bold',
+                color: '#333333'
+            }
+        }
     });
 
     // Chart Instances
@@ -379,15 +434,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     showInLegend: false,
                     point: {
                         events: {
-                            click: function () {
+                            click: function (event) {
                                 const label = this.name;
                                 const detail = this.series.chart.customDetalles?.[label];
+                                
+                                // Prevent default slicing behavior initially
+                                event.preventDefault(); 
+
                                 if (detail) {
                                     // Check if product has sizes (more than just "Único" or empty)
                                     const keys = Object.keys(detail);
                                     if (keys.length === 1 && (keys[0] === 'Único' || keys[0] === '')) {
                                         return; // Do nothing if no sizes
                                     }
+
+                                    // Manually slice the point since we prevented default
+                                    this.slice(true);
 
                                     openModal({
                                         title: `Tallas de ${label}`,
@@ -626,6 +688,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (p.sliced) p.slice(false);
                 });
             }
+            // Reset Modal Chart slicing (if it was a pie chart that opened another level)
+            if (modalChart && modalChart.series && modalChart.series[0]) {
+                modalChart.series[0].points.forEach(p => {
+                    if (p.sliced) p.slice(false);
+                });
+            }
         });
     }
 
@@ -722,6 +790,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             },
             plotOptions: {
+                column: {
+                    dataLabels: {
+                        enabled: true,
+                        format: '<b>{point.y}</b>',
+                        style: { textOutline: 'none' }
+                    }
+                },
                 pie: {
                     allowPointSelect: true,
                     cursor: 'pointer',
@@ -731,12 +806,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     point: {
                         events: {
-                            click: function() {
+                            click: function(event) {
                                 // Check if we have next level details (Level 3: Channels)
                                 const prodName = this.name;
                                 const channels = config.detalles?.[prodName];
                                 
+                                event.preventDefault();
+
                                 if (channels) {
+                                    this.slice(true);
                                     // Open modal again (update it) with Channel data
                                     openModal({
                                         title: `Canales de venta: ${prodName}`,
@@ -766,8 +844,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 maxPointSize: '100%',
                 zMin: 0,
                 name: config.datasetLabel,
-                data: config.type === 'pie' ? seriesData : (config.type === 'variablepie' ? seriesData : config.values),
-                colorByPoint: config.type === 'pie' || config.type === 'variablepie'
+                data: seriesData,
+                colorByPoint: true
             }]
         });
 
