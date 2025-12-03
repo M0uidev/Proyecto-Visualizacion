@@ -30,6 +30,10 @@ class Customer(models.Model):
 
 
 class Product(models.Model):
+    """Modelo de Producto"""
+    from .managers import ProductManager
+    objects = ProductManager()
+    
     id = models.PositiveIntegerField(primary_key=True, verbose_name="ID")
     name = models.CharField(max_length=200, verbose_name="Nombre")
     price = models.PositiveIntegerField(verbose_name="Precio", help_text="Precio en CLP (entero)")
@@ -51,6 +55,20 @@ class Product(models.Model):
 
     def __str__(self):
         return f"{self.name} (${self.price})"
+    
+    def is_available(self):
+        """Verifica si el producto está disponible (tiene stock)"""
+        return self.stock > 0
+    
+    def get_final_price(self):
+        """
+        Obtiene el precio final del producto considerando descuentos activos.
+        Usa el servicio de productos para calcular el precio con descuento.
+        """
+        try:
+            return self.detail.discounted_price
+        except:
+            return self.price
 
 
 class ProductDetail(models.Model):
@@ -176,6 +194,10 @@ class ProductBreadcrumb(models.Model):
 
 
 class Order(models.Model):
+    """Modelo de Pedido/Orden"""
+    from .managers import OrderManager
+    objects = OrderManager()
+    
     STATUS_CHOICES = [
         ("Pendiente", "Pendiente"),
         ("Procesado", "Procesado"),
@@ -221,6 +243,13 @@ class Order(models.Model):
 
     def __str__(self):
         return self.code
+    
+    def calculate_total(self):
+        """
+        Calcula el total del pedido sumando todos los items.
+        Retorna el total calculado (sin considerar descuentos del cupón, que ya están en self.total).
+        """
+        return sum(item.subtotal for item in self.items.all())
 
 
 class OrderItem(models.Model):
@@ -262,6 +291,7 @@ class UserProfile(models.Model):
     commune = models.CharField(max_length=100, blank=True, verbose_name="Comuna")
     region = models.CharField(max_length=100, blank=True, verbose_name="Región")
     points = models.PositiveIntegerField(default=0, verbose_name="Puntos Acumulados")
+    is_verified = models.BooleanField(default=False, verbose_name="Verificado")
 
     class Meta:
         verbose_name = "Perfil de Usuario"
@@ -289,6 +319,7 @@ class Coupon(models.Model):
         return f"{self.code} - {self.discount_percentage}%"
 
     def is_valid(self):
+        """Verifica si el cupón es válido (activo, en rango de fechas y con usos disponibles)"""
         now = timezone.now()
         if not self.active:
             return False
@@ -296,6 +327,27 @@ class Coupon(models.Model):
             return False
         if self.usage_limit > 0 and self.times_used >= self.usage_limit:
             return False
+        return True
+    
+    def can_be_used_by(self, user):
+        """
+        Verifica si un usuario puede usar este cupón.
+        Valida que el cupón sea válido y que el usuario no lo haya usado ya.
+        """
+        if not self.is_valid():
+            return False
+        
+        # Verificar si el usuario ya usó este cupón (si aplica)
+        if user and user.is_authenticated:
+            # Verificar UserCoupon solo si existe la relación
+            try:
+                user_coupon = self.user_coupons.filter(user=user, is_used=True).first()
+                if user_coupon:
+                    return False
+            except:
+                # Si no existe la relación, asumir que puede usarlo
+                pass
+        
         return True
 
 
@@ -394,4 +446,59 @@ class RedemptionHistory(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.reward.name if self.reward else 'Borrado'}"
+
+
+# --- MODELOS DE MARKETING ---
+
+class MarketingTemplate(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Nombre del Template")
+    subject = models.CharField(max_length=200, verbose_name="Asunto del Correo (Default)")
+    
+    # HTML listo para enviar
+    content_html = models.TextField(verbose_name="Contenido HTML", blank=True)
+    
+    # JSON interno de GrapesJS para poder re-editar el diseño (posiciones, estilos, etc)
+    design_json = models.JSONField(verbose_name="Diseño (JSON)", blank=True, null=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+class MarketingCampaign(models.Model):
+    STATUS_CHOICES = [
+        ('draft', 'Borrador'),
+        ('scheduled', 'Programada'),
+        ('sent', 'Enviada'),
+    ]
+
+    name = models.CharField(max_length=100, verbose_name="Nombre de Campaña")
+    template = models.ForeignKey(MarketingTemplate, on_delete=models.PROTECT)
+    subject = models.CharField(max_length=200, help_text="Si se deja vacío usa el del template", blank=True)
+    
+    # Configuración de Cupones
+    include_coupon = models.BooleanField(default=False, verbose_name="¿Incluir Cupón Personalizado?")
+    coupon_discount_percent = models.IntegerField(default=0, verbose_name="% Descuento", blank=True)
+    coupon_valid_days = models.IntegerField(default=7, verbose_name="Días de validez")
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    sent_at = models.DateTimeField(null=True, blank=True)
+    
+    # Destinatarios (simplificado: todos los usuarios o lógica futura de segmentos)
+    # En un sistema real, aquí iría una relación ManyToMany o un filtro JSON.
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_status_display()})"
+
+class CampaignLog(models.Model):
+    """Registro de envío individual para trazabilidad"""
+    campaign = models.ForeignKey(MarketingCampaign, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    sent_at = models.DateTimeField(auto_now_add=True)
+    coupon_code = models.CharField(max_length=50, blank=True, null=True)
+    opened = models.BooleanField(default=False) # Para tracking futuro (pixel)
+
+    def __str__(self):
+        return f"Log: {self.campaign.name} -> {self.user.username}"
 

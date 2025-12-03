@@ -45,12 +45,14 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
     'appOnichan',
 ]
 
@@ -83,6 +85,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'proyectoOnichan.wsgi.application'
+ASGI_APPLICATION = 'proyectoOnichan.asgi.application'
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}
 
 
 # Database
@@ -143,6 +152,16 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     BASE_DIR / "appOnichan" / "static",
 ]
+
+# Configuración para Gmail
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = 'matiasmouat@gmail.com'
+EMAIL_HOST_PASSWORD = 'fmzv ipjo gaib srif'
+DEFAULT_FROM_EMAIL = 'MultiTienda <noreply@multitienda.cl>'
 
 LOGIN_URL = '/login/'
 

@@ -34,7 +34,17 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="small text-muted">Email</label>
-                            <p class="fw-medium">{{ profile.user.email }}</p>
+                            <p class="fw-medium">
+                                {{ profile.user.email }}
+                                {% if profile.is_verified %}
+                                    <span class="badge bg-success ms-2">Verificado</span>
+                                {% else %}
+                                    <span class="badge bg-secondary ms-2">No Verificado</span>
+                                    <a href="{% url 'resend_verification_email' %}" class="btn btn-sm btn-link p-0 ms-2" style="font-size: 0.8rem;">
+                                        Reenviar correo
+                                    </a>
+                                {% endif %}
+                            </p>
                         </div>
                         <div class="col-md-6">
                             <label class="small text-muted">Teléfono</label>

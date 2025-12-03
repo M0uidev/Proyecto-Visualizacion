@@ -1,0 +1,172 @@
+/* Componentes de Botones - Sistema Unificado */
+
+/* Botón Base */
+.btn-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-main);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  border-radius: var(--border-radius-sm);
+  white-space: nowrap;
+}
+
+.btn-base:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.btn-base:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Tamaños de Botones */
+.btn-sm {
+  height: var(--btn-height-sm);
+  padding: var(--btn-padding-sm);
+  font-size: 0.875rem;
+}
+
+.btn-md {
+  height: var(--btn-height-md);
+  padding: var(--btn-padding-md);
+  font-size: 1rem;
+}
+
+.btn-lg {
+  height: var(--btn-height-lg);
+  padding: var(--btn-padding-lg);
+  font-size: 1.125rem;
+}
+
+/* Botón Pastel (Primario) */
+.btn-pastel {
+  background-color: var(--color-primary);
+  color: var(--text-white);
+  border: none;
+}
+
+.btn-pastel:hover:not(:disabled) {
+  background-color: var(--color-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-white);
+}
+
+.btn-pastel:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Botón Pastel Secundario */
+.btn-pastel-secondary {
+  background-color: #E0E0E0;
+  color: var(--text-main);
+  border: none;
+}
+
+.btn-pastel-secondary:hover:not(:disabled) {
+  background-color: #D0D0D0;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Botón Pastel Peligro */
+.btn-pastel-danger {
+  background-color: var(--color-danger);
+  color: var(--text-white);
+  border: none;
+}
+
+.btn-pastel-danger:hover:not(:disabled) {
+  background-color: var(--color-danger-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Botón Primary (Bootstrap compatible) */
+.btn-primary {
+  background-color: var(--color-primary-dark);
+  color: var(--text-white);
+  border: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--color-primary);
+  color: var(--text-white);
+}
+
+/* Botón Secondary (Bootstrap compatible) */
+.btn-secondary {
+  background-color: var(--text-muted);
+  color: var(--text-white);
+  border: none;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--text-light);
+  color: var(--text-white);
+}
+
+/* Botón Outline */
+.btn-outline-primary {
+  background-color: transparent;
+  color: var(--color-primary-dark);
+  border: 2px solid var(--color-primary-dark);
+}
+
+.btn-outline-primary:hover:not(:disabled) {
+  background-color: var(--color-primary-dark);
+  color: var(--text-white);
+}
+
+.btn-outline-secondary {
+  background-color: transparent;
+  color: var(--text-muted);
+  border: 2px solid var(--text-muted);
+}
+
+.btn-outline-secondary:hover:not(:disabled) {
+  background-color: var(--text-muted);
+  color: var(--text-white);
+}
+
+/* Botón Link */
+.btn-link {
+  background-color: transparent;
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+  padding: 0;
+}
+
+.btn-link:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+/* Botón con Bordes Redondeados (Pill) */
+.btn-rounded-pill {
+  border-radius: var(--border-radius-pill);
+}
+
+/* Botón Full Width */
+.btn-full-width {
+  width: 100%;
+}
+
+/* Botón con Icono */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.btn-icon i {
+  font-size: 1.1em;
+}
+

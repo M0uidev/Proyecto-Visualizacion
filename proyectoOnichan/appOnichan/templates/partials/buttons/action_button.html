@@ -1,0 +1,33 @@
+{% comment %}
+Botón de acción genérico reutilizable
+Parámetros:
+  - text: texto del botón
+  - url: URL de destino (opcional si es submit)
+  - type: tipo de botón ('link', 'button', 'submit') - default: 'link'
+  - variant: variante de estilo ('pastel', 'pastel-secondary', 'primary', 'secondary', 'outline-primary', 'outline-secondary') - default: 'pastel'
+  - size: tamaño ('sm', 'md', 'lg') - default: 'md'
+  - icon: clase de icono Bootstrap Icons (opcional)
+  - icon_position: posición del icono ('left', 'right') - default: 'left'
+  - disabled: si está deshabilitado (default: False)
+  - btn_class: clases adicionales
+  - full_width: si ocupa todo el ancho (default: False)
+{% endcomment %}
+{% if type == 'submit' or type == 'button' %}
+  <button type="{{ type|default:'button' }}" 
+          class="btn btn-base btn-{{ variant|default:'pastel' }} btn-{{ size|default:'md' }} {% if full_width %}btn-full-width{% endif %} {% if icon %}btn-icon{% endif %} {{ btn_class|default:'' }}"
+          {% if disabled %}disabled{% endif %}
+          {% if url and type == 'button' %}onclick="window.location.href='{{ url }}'"{% endif %}>
+    {% if icon and icon_position != 'right' %}<i class="{{ icon }}"></i>{% endif %}
+    {{ text }}
+    {% if icon and icon_position == 'right' %}<i class="{{ icon }}"></i>{% endif %}
+  </button>
+{% else %}
+  <a href="{{ url|default:'#' }}" 
+     class="btn btn-base btn-{{ variant|default:'pastel' }} btn-{{ size|default:'md' }} {% if full_width %}btn-full-width{% endif %} {% if icon %}btn-icon{% endif %} {{ btn_class|default:'' }}"
+     {% if disabled %}aria-disabled="true" tabindex="-1" style="pointer-events: none; opacity: 0.5;"{% endif %}>
+    {% if icon and icon_position != 'right' %}<i class="{{ icon }}"></i>{% endif %}
+    {{ text }}
+    {% if icon and icon_position == 'right' %}<i class="{{ icon }}"></i>{% endif %}
+  </a>
+{% endif %}
+

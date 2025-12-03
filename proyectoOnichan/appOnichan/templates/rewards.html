@@ -50,31 +50,67 @@
                 {% endif %}
                 
                 {% if reward.reward_type == 'PRODUCT' and reward.product.has_sizes %}
-                    <form action="{% url 'redeem_reward' reward.id %}" method="POST">
-                        {% csrf_token %}
-                        <div class="mb-3">
-                            <select name="size" class="form-select form-select-sm" required>
-                                <option value="" selected disabled>Selecciona Talla</option>
-                                {% for size in reward.product.sizes.all %}
-                                    <option value="{{ size.label }}">{{ size.label }}</option>
-                                {% endfor %}
-                            </select>
+                    {% if user_points >= reward.points_cost %}
+                        <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#rewardModal-{{ reward.id }}">
+                            Canjear
+                        </button>
+
+                        <!-- Modal de Tallas -->
+                        <div class="modal fade" id="rewardModal-{{ reward.id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header border-0 pb-0 justify-content-center position-relative">
+                                        <h5 class="modal-title fw-bold">Elige tu talla</h5>
+                                        <button type="button" class="btn-close position-absolute end-0 me-3" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <form action="{% url 'redeem_reward' reward.id %}" method="POST">
+                                        {% csrf_token %}
+                                        <div class="modal-body py-4">
+                                            <div class="d-flex flex-wrap gap-2 justify-content-center">
+                                                {% for size in reward.product.sizes.all %}
+                                                    <input type="radio" class="btn-check" name="size" id="r-size-{{ reward.id }}-{{ size.id }}" value="{{ size.label }}" required>
+                                                    <label class="btn btn-outline-primary px-4 py-2" for="r-size-{{ reward.id }}-{{ size.id }}">{{ size.label }}</label>
+                                                {% empty %}
+                                                    <p class="text-muted">No hay tallas disponibles.</p>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer border-0 pt-0 justify-content-center pb-4">
+                                            <button type="submit" class="btn btn-primary px-5 rounded-pill">Confirmar Canje</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
-                        {% if user_points >= reward.points_cost %}
-                            <button type="submit" class="btn btn-primary w-100" onclick="return confirm('¿Estás seguro de canjear {{ reward.points_cost }} puntos por {{ reward.name }}?')">
-                                Canjear
-                            </button>
-                        {% else %}
-                            <button type="button" class="btn btn-secondary w-100" disabled>
-                                Puntos insuficientes
-                            </button>
-                        {% endif %}
-                    </form>
+                    {% else %}
+                        <button type="button" class="btn btn-secondary w-100" disabled>
+                            Puntos insuficientes
+                        </button>
+                    {% endif %}
                 {% else %}
                     {% if user_points >= reward.points_cost %}
-                        <a href="{% url 'redeem_reward' reward.id %}" class="btn btn-primary w-100" onclick="return confirm('¿Estás seguro de canjear {{ reward.points_cost }} puntos por {{ reward.name }}?')">
+                        <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#confirmModal-{{ reward.id }}">
                             Canjear
-                        </a>
+                        </button>
+
+                        <!-- Modal de Confirmación -->
+                        <div class="modal fade" id="confirmModal-{{ reward.id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header border-0 pb-0 justify-content-center position-relative">
+                                        <h5 class="modal-title fw-bold">Confirmar Canje</h5>
+                                        <button type="button" class="btn-close position-absolute end-0 me-3" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body py-4">
+                                        <p class="text-center mb-0 fs-5">¿Estás seguro de canjear <br><strong>{{ reward.points_cost }}</strong> puntos por <strong>{{ reward.name }}</strong>?</p>
+                                    </div>
+                                    <div class="modal-footer border-0 pt-0 justify-content-center pb-4 gap-2">
+                                        <button type="button" class="btn btn-outline-secondary px-4 rounded-pill" data-bs-dismiss="modal">Cancelar</button>
+                                        <a href="{% url 'redeem_reward' reward.id %}" class="btn btn-primary px-4 rounded-pill">Confirmar</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     {% else %}
                         <button class="btn btn-secondary w-100" disabled>
                             Puntos insuficientes

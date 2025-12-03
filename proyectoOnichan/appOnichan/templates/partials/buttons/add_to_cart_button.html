@@ -1,0 +1,57 @@
+{% comment %}
+Botón "Añadir al carrito" reutilizable
+Parámetros:
+  - product: objeto Product
+  - size: talla seleccionada (opcional)
+  - size_required: si el producto requiere talla (default: auto-detecta)
+  - size_modal_id: ID del modal de tallas (default: auto-generado)
+  - btn_size: tamaño del botón ('sm', 'md', 'lg') - default: 'sm'
+  - btn_class: clases adicionales para el botón
+{% endcomment %}
+{% load static %}
+
+{% if product.stock == 0 %}
+  <button class="btn btn-base btn-secondary btn-{{ btn_size|default:'sm' }} {{ btn_class|default:'' }}" disabled>
+    Sin Stock
+  </button>
+{% elif product.sizes.all or size_required %}
+  {% with modal_id=size_modal_id|default:"sizeModal" %}
+    <button type="button" class="btn btn-base btn-pastel btn-{{ btn_size|default:'sm' }} {{ btn_class|default:'' }}" data-bs-toggle="modal" data-bs-target="#{{ modal_id }}-{{ product.id }}">
+      Agregar al carrito
+    </button>
+    
+    <!-- Modal de Tallas -->
+    <div class="modal fade" id="{{ modal_id }}-{{ product.id }}" tabindex="-1" aria-labelledby="{{ modal_id }}-{{ product.id }}Label" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="{{ modal_id }}-{{ product.id }}Label">Elige tu talla</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <form action="{% url 'add_to_cart' product.id %}" method="GET">
+            <div class="modal-body">
+              <div class="d-flex flex-wrap gap-2 justify-content-center">
+                {% for size in product.sizes.all %}
+                  <input type="radio" class="btn-check" name="size" id="size-{{ product.id }}-{{ size.id }}" value="{{ size.label }}" required>
+                  <label class="btn btn-outline-primary" for="size-{{ product.id }}-{{ size.id }}">{{ size.label }}</label>
+                {% empty %}
+                  <p class="text-muted">No hay tallas disponibles.</p>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="submit" class="btn btn-base btn-pastel btn-full-width">Agregar al carrito</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  {% endwith %}
+{% else %}
+  <a href="{% url 'add_to_cart' product.id %}{% if size %}?size={{ size }}{% endif %}" 
+     class="btn btn-base btn-pastel btn-{{ btn_size|default:'sm' }} add-to-cart-btn {{ btn_class|default:'' }}"
+     data-product-id="{{ product.id }}">
+    Agregar al carrito
+  </a>
+{% endif %}
+

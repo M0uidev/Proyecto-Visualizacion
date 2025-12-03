@@ -1,0 +1,15 @@
+{% extends 'appOnichan/emails/base_email.html' %}
+
+{% block content %}
+    <h3>Hola {{ user.first_name|default:user.username }},</h3>
+    <p>Gracias por registrarte en MultiTienda. Para completar tu registro y verificar tu cuenta, por favor haz clic en el siguiente botón:</p>
+    
+    <p style="text-align: center;">
+        <a href="{{ verification_url }}" class="btn">Verificar mi cuenta</a>
+    </p>
+    
+    <p>Si el botón no funciona, copia y pega el siguiente enlace en tu navegador:</p>
+    <p><a href="{{ verification_url }}">{{ verification_url }}</a></p>
+    
+    <p>Si no creaste esta cuenta, puedes ignorar este correo.</p>
+{% endblock %}

@@ -97,6 +97,18 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     initRegionSelector("{% static 'chile-regiones-2025.json' %}");
+
+    // Prevent double submission
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const btn = form.querySelector('button[type="submit"]');
+        if (btn.disabled) {
+            e.preventDefault();
+            return;
+        }
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Registrando...';
+    });
 });
 </script>
 {% endblock %}

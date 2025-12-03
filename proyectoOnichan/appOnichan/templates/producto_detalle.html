@@ -62,7 +62,7 @@
               {% if d.descuento_pct > 0 %}
                 <span class="display-6 fw-bold text-danger">${{ d.discounted_price }}</span>
                 <span class="text-decoration-line-through text-muted fs-5">${{ p.price }}</span>
-                <span class="badge bg-danger rounded-pill px-3">-{{ d.descuento_pct }}%</span>
+                {% include 'partials/badges/discount_badge.html' with discount_percentage=d.descuento_pct size='lg' %}
               {% else %}
                 <span class="display-6 fw-bold text-primary">${{ p.price }}</span>
               {% endif %}
@@ -86,15 +86,7 @@
           {% endif %}
 
           <div class="d-grid gap-3 d-md-flex mb-5">
-            {% if p.stock > 0 %}
-            <a href="{% url 'add_to_cart' p.id %}" class="btn btn-pastel btn-lg px-5 rounded-pill flex-grow-1 add-to-cart-btn" data-product-id="{{ p.id }}">
-              Agregar al Carrito
-            </a>
-            {% else %}
-            <button class="btn btn-secondary btn-lg px-5 rounded-pill flex-grow-1" disabled>
-              Sin Stock
-            </button>
-            {% endif %}
+            {% include 'partials/buttons/add_to_cart_button.html' with product=p btn_size='lg' btn_class='rounded-pill flex-grow-1' %}
           </div>
 
           <div class="bg-soft rounded-3 p-4">

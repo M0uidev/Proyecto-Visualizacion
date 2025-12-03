@@ -1,0 +1,46 @@
+{% extends 'appOnichan/emails/base_email.html' %}
+
+{% block content %}
+    <h3>¡Gracias por tu compra!</h3>
+    <p>Hola {{ order.recipient_name }},</p>
+    <p>Tu pedido <strong>#{{ order.code }}</strong> ha sido confirmado exitosamente.</p>
+    
+    <h4>Detalle del Pedido</h4>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Cant.</th>
+                <th>Precio</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>
+                    {{ item.product.name }}
+                    {% if item.size %} ({{ item.size }}){% endif %}
+                </td>
+                <td>{{ item.cantidad }}</td>
+                <td>${{ item.price }}</td>
+                <td>${{ item.subtotal }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="3" style="text-align: right;"><strong>Total:</strong></td>
+                <td><strong>${{ order.total }}</strong></td>
+            </tr>
+        </tfoot>
+    </table>
+    
+    <h4>Datos de Envío</h4>
+    <p>
+        <strong>Dirección:</strong> {{ order.shipping_address }}, {{ order.shipping_commune }}, {{ order.shipping_region }}<br>
+        <strong>Método:</strong> {{ order.delivery_method }}
+    </p>
+    
+    <p>Te avisaremos cuando tu pedido sea despachado.</p>
+{% endblock %}

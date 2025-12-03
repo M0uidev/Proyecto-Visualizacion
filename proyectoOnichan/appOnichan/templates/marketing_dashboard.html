@@ -7,35 +7,6 @@
 <div class="container mt-4">
     <h1 class="mb-4">Panel de Marketing y Ofertas</h1>
 
-    {% if messages %}
-    <div class="toast-container position-fixed bottom-0 start-0 p-3" style="z-index: 1100;">
-        {% for message in messages %}
-            <div class="toast message-toast align-items-center text-bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body">
-                        {% if message.tags == 'success' %}
-                            <i class="bi bi-check-circle-fill text-success me-2"></i>
-                        {% elif message.tags == 'error' %}
-                            <i class="bi bi-exclamation-circle-fill text-danger me-2"></i>
-                        {% endif %}
-                        {{ message }}
-                    </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-            </div>
-        {% endfor %}
-    </div>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var toastElList = [].slice.call(document.querySelectorAll('.message-toast'))
-            var toastList = toastElList.map(function(toastEl) {
-                return new bootstrap.Toast(toastEl)
-            })
-            toastList.forEach(toast => toast.show());
-        });
-    </script>
-    {% endif %}
-
     <ul class="nav nav-tabs mb-4" id="marketingTab" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link {% if active_tab == 'coupons' %}active{% endif %}" id="coupons-tab" data-bs-toggle="tab" data-bs-target="#coupons" type="button" role="tab">Gestión de Cupones</button>
@@ -48,6 +19,12 @@
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link {% if active_tab == 'rewards' %}active{% endif %}" id="rewards-tab" data-bs-toggle="tab" data-bs-target="#rewards" type="button" role="tab">Puntos y Recompensas</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'templates' %}active{% endif %}" id="templates-tab" data-bs-toggle="tab" data-bs-target="#templates" type="button" role="tab">Templates de Email</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'email' %}active{% endif %}" id="email-tab" data-bs-toggle="tab" data-bs-target="#email" type="button" role="tab">Email Marketing</button>
         </li>
     </ul>
 
@@ -370,6 +347,89 @@
                 {% endfor %}
             </div>
         </div>
+
+        <!-- Pestaña Templates de Email -->
+        <div class="tab-pane fade {% if active_tab == 'templates' %}show active{% endif %}" id="templates" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3>Templates de Marketing</h3>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTemplateModal">
+                    <i class="bi bi-plus-lg"></i> Nuevo Template
+                </button>
+            </div>
+
+            <div class="row row-cols-1 row-cols-md-3 g-4">
+                {% for template in marketing_templates %}
+                <div class="col">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ template.name }}</h5>
+                            <p class="card-text text-muted small">
+                                Asunto: {{ template.subject }}<br>
+                                Actualizado: {{ template.updated_at|date:"d/m/Y H:i" }}
+                            </p>
+                        </div>
+                        <div class="card-footer bg-white border-top-0 d-flex justify-content-between">
+                            <a href="{% url 'marketing_editor' template.id %}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-palette"></i> Diseñar (Editor Visual)
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-success" onclick="openCampaignModal('{{ template.id }}', '{{ template.name|escapejs }}', '{{ template.subject|escapejs }}')">
+                                <i class="bi bi-send"></i> Crear Campaña
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-info text-center p-5">
+                        <i class="bi bi-envelope-paper display-4 mb-3 d-block text-muted"></i>
+                        No hay templates creados. ¡Crea el primero para empezar tus campañas!
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Pestaña Email Marketing -->
+        <div class="tab-pane fade {% if active_tab == 'email' %}show active{% endif %}" id="email" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3>Envío de Correos Masivos</h3>
+                <div class="text-muted small">
+                    Usa placeholders como <code>{% templatetag openvariable %} nombre {% templatetag closevariable %}</code> o <code>{% templatetag openvariable %} codigo_cupon {% templatetag closevariable %}</code> si tu plantilla los soporta.
+                </div>
+            </div>
+            <div class="card p-4 shadow-sm border-0">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="send_email" value="1">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Destinatarios</label>
+                        <select name="recipient_type" class="form-select">
+                            <option value="all">Todos los usuarios registrados</option>
+                            <option value="verified">Solo usuarios verificados</option>
+                        </select>
+                        <div class="form-text">Se enviará a todos los usuarios que cumplan el criterio y tengan email válido.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Asunto</label>
+                        <input type="text" name="subject" class="form-control" required placeholder="Ej: ¡Ofertas de Verano!">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Cuerpo del Correo (HTML)</label>
+                        <textarea name="body" class="form-control" rows="10" required placeholder="<p>Hola,</p><p>Tenemos nuevas ofertas...</p>"></textarea>
+                        <div class="form-text">Puedes pegar el HTML generado por el editor visual o escribir contenido personalizado.</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary" onclick="return confirm('¿Estás seguro de enviar este correo masivo?');">
+                            <i class="bi bi-send-fill me-2"></i> Enviar Correos
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -515,6 +575,114 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 
+
+<!-- Modal Crear Template -->
+<div class="modal fade" id="createTemplateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuevo Template de Email</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="create_template" value="1">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre del Template</label>
+                        <input type="text" class="form-control" name="name" required placeholder="Ej: Newsletter Mensual">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Asunto del Correo (Default)</label>
+                        <input type="text" class="form-control" name="subject" required placeholder="Ej: ¡Novedades de la semana!">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear Template</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear Campaña -->
+<div class="modal fade" id="createCampaignModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nueva Campaña de Marketing</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{% url 'create_campaign' %}" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="template_id" id="campaignTemplateId">
+                
+                <div class="modal-body">
+                    <div class="alert alert-info py-2">
+                        <small>Basado en template: <strong id="campaignTemplateName"></strong></small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Nombre de la Campaña</label>
+                        <input type="text" class="form-control" name="name" required placeholder="Ej: Campaña Verano 2025">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Asunto del Correo</label>
+                        <input type="text" class="form-control" name="subject" id="campaignSubject" required>
+                        <div class="form-text">Puedes modificar el asunto original del template.</div>
+                    </div>
+
+                    <hr>
+                    <h6 class="text-primary">Configuración de Cupón (Opcional)</h6>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="includeCouponCheck" name="include_coupon">
+                        <label class="form-check-label" for="includeCouponCheck">Incluir cupón de descuento único</label>
+                    </div>
+
+                    <div id="couponSettings" style="display: none;">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small">% Descuento</label>
+                                <input type="number" class="form-control" name="coupon_discount" min="1" max="100" value="10">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">Días de Validez</label>
+                                <input type="number" class="form-control" name="coupon_days" min="1" value="7">
+                            </div>
+                        </div>
+                        <div class="form-text mt-2">
+                            Se generará un código único para cada destinatario si usas el placeholder <code>{% templatetag openvariable %} codigo_cupon {% templatetag closevariable %}</code>.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Crear Campaña</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openCampaignModal(templateId, templateName, templateSubject) {
+    document.getElementById('campaignTemplateId').value = templateId;
+    document.getElementById('campaignTemplateName').textContent = templateName;
+    document.getElementById('campaignSubject').value = templateSubject;
+    
+    // Reset coupon section
+    document.getElementById('includeCouponCheck').checked = false;
+    document.getElementById('couponSettings').style.display = 'none';
+    
+    new bootstrap.Modal(document.getElementById('createCampaignModal')).show();
+}
+
+document.getElementById('includeCouponCheck').addEventListener('change', function() {
+    document.getElementById('couponSettings').style.display = this.checked ? 'block' : 'none';
+});
+</script>
 
 <!-- Modal para Ver/Copiar Cupones -->
 <div class="modal fade" id="couponBatchModal" tabindex="-1" aria-hidden="true">
@@ -732,6 +900,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     updateCount();
     renderGrid(); // Re-render to show initial selection
+
+    // Tab Synchronization
+    const triggerTabList = [].slice.call(document.querySelectorAll('#marketingTab button'))
+    triggerTabList.forEach(function (triggerEl) {
+        triggerEl.addEventListener('shown.bs.tab', function (event) {
+            const tabId = event.target.getAttribute('data-bs-target').replace('#', '');
+            const url = new URL(window.location);
+            url.searchParams.set('tab', tabId);
+            window.history.pushState({}, '', url);
+        })
+    })
 });
 </script>
 {% endblock %}

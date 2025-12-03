@@ -1,6 +1,10 @@
 import json
 import re
+import os
+from django.conf import settings
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models # Ensure models is imported for Q objects
+from django.db import transaction
 import random
 import string
 from django.core.paginator import Paginator
@@ -11,6 +15,7 @@ from transbank.common.integration_commerce_codes import IntegrationCommerceCodes
 from transbank.common.integration_api_keys import IntegrationApiKeys
 from transbank.error.transbank_error import TransbankError
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 
 from django.shortcuts import render, redirect, get_object_or_404 # Added get_object_or_404
 from django.http import Http404, HttpResponseForbidden, JsonResponse, HttpResponse
@@ -38,11 +43,19 @@ from .models import (
     ProductSize,
     PointReward,
     RedemptionHistory,
-    UserCoupon
+    UserCoupon,
+    MarketingTemplate,
+    MarketingCampaign,
+    CampaignLog
 )
 from .forms import CouponForm, BulkDiscountForm, CouponGenerationForm # Added Forms
 from django.contrib import messages # Added messages
-from .services import get_regional_stats, RewardService, StockService
+from .services import get_regional_stats, RewardService, StockService, CartService, ProductService, CouponService
+from .services.emails import EmailService
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.urls import reverse
 from django.core.exceptions import ValidationError
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -52,99 +65,57 @@ from reportlab.graphics import renderPDF
 from reportlab.lib.utils import simpleSplit
 
 def index(request):
+    """Redirige a la página principal de productos"""
     return pagina1(request)
 
 def pagina1(request):
-    # Obtener parámetros de filtro y orden
-    category_slug = request.GET.get("category", "")
-    sort_by = request.GET.get("sort", "")
-    query = request.GET.get("q", "").strip()
-    try:
-        items_per_page = int(request.GET.get("items", 8))
-    except ValueError:
-        items_per_page = 8
-
-    # Base query
-    productos = Product.objects.select_related('category', 'detail').prefetch_related('bulk_offers', 'sizes').all()
-
-    # Filtrar por búsqueda
-    if query:
-        productos = productos.filter(name__icontains=query)
-
-    # Filtrar por categoría
-    if category_slug and category_slug != 'all':
-        productos = productos.filter(category__slug=category_slug)
-
-    # Ordenar
-    if sort_by == "price_asc":
-        productos = productos.order_by("price")
-    elif sort_by == "price_desc":
-        productos = productos.order_by("-price")
-    elif sort_by == "newest":
-        productos = productos.order_by("-id") # Asumiendo ID más alto es más nuevo
-    else:
-        productos = productos.order_by("id")
-
-    categories = Category.objects.all()
-
-    # Ofertas imperdibles (productos con descuento activo)
-    ofertas_imperdibles = Product.objects.filter(bulk_offers__active=True).distinct().select_related('category', 'detail').prefetch_related('bulk_offers', 'sizes')
-
+    """Página principal con listado de productos, filtros y paginación"""
+    # Usar servicio para filtrar y ordenar productos
+    query_params = {
+        "category": request.GET.get("category", ""),
+        "sort": request.GET.get("sort", ""),
+        "q": request.GET.get("q", "").strip(),
+        "items": request.GET.get("items", 8)
+    }
+    
+    productos, categories, context = ProductService.filter_and_sort_products(query_params)
+    
+    # Ofertas imperdibles
+    ofertas_imperdibles = ProductService.get_offers_imperdibles()
+    
     # Paginación
-    paginator = Paginator(productos, items_per_page)
+    paginator = Paginator(productos, context["items_per_page"])
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-
-    context = {
+    
+    context.update({
         "productos": page_obj,
         "ofertas_imperdibles": ofertas_imperdibles,
-        "categories": categories,
-        "current_category": category_slug,
-        "current_sort": sort_by,
-        "items_per_page": items_per_page
-    }
-
+        "categories": categories
+    })
+    
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return render(request, "partials/product_list.html", context)
-
+    
     return render(request, "pagina1.html", context)
 
 def buscar_productos(request):
-    # Obtener parámetros de filtro y orden
-    category_slug = request.GET.get("category", "")
-    sort_by = request.GET.get("sort", "")
-    query = request.GET.get("q", "").strip()
-
-    # Base query
-    productos = Product.objects.select_related('category', 'detail').prefetch_related('bulk_offers').all()
-
-    # Filtrar por búsqueda
-    if query:
-        productos = productos.filter(name__icontains=query)
-
-    # Filtrar por categoría
-    if category_slug:
-        productos = productos.filter(category__slug=category_slug)
-
-    # Ordenar
-    if sort_by == "price_asc":
-        productos = productos.order_by("price")
-    elif sort_by == "price_desc":
-        productos = productos.order_by("-price")
-    elif sort_by == "newest":
-        productos = productos.order_by("-id") # Asumiendo ID más alto es más nuevo
-    else:
-        productos = productos.order_by("id")
-
-    categories = Category.objects.all()
-
-    context = {
-        "productos": productos,
-        "categories": categories,
-        "current_category": category_slug,
-        "current_sort": sort_by,
-        "query": query
+    """Búsqueda de productos con filtros por categoría y ordenamiento"""
+    # Usar servicio para filtrar y ordenar productos
+    query_params = {
+        "category": request.GET.get("category", ""),
+        "sort": request.GET.get("sort", ""),
+        "q": request.GET.get("q", "").strip(),
+        "items": 100  # Sin límite para búsqueda
     }
+    
+    productos, categories, context = ProductService.filter_and_sort_products(query_params)
+    
+    context.update({
+        "productos": productos,
+        "categories": categories
+    })
+    
     return render(request, "buscar_productos.html", context)
 
 def login_view(request):
@@ -181,8 +152,15 @@ def register(request):
         commune = request.POST.get("commune", "").strip()
         region = request.POST.get("region", "").strip()
 
-        if User.objects.filter(username=username).exists():
-            return render(request, "register.html", {"error": "El nombre de usuario ya existe."})
+        existing_user = User.objects.filter(username=username).first()
+        if existing_user:
+            # Check if user has a profile or is staff/superuser
+            has_profile = UserProfile.objects.filter(user=existing_user).exists()
+            if not has_profile and not existing_user.is_staff and not existing_user.is_superuser:
+                # Zombie user found (no profile), delete it to allow re-registration
+                existing_user.delete()
+            else:
+                return render(request, "register.html", {"error": f"El nombre de usuario '{username}' ya existe."})
         
         user = User.objects.create_user(username=username, email=email, password=password)
         user.first_name = first_name
@@ -198,10 +176,59 @@ def register(request):
             region=region
         )
 
+        # Log in the user FIRST (this updates last_login, which affects the token)
         login(request, user)
+
+        # Send verification email
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        verification_url = request.build_absolute_uri(
+            reverse('verify_email', kwargs={'uidb64': uid, 'token': token})
+        )
+        EmailService.send_verification_email(user, token, verification_url)
+        
+        messages.success(request, "Cuenta creada. Hemos enviado un correo de verificación a tu email.")
+
         return redirect("pagina1")
 
     return render(request, "register.html")
+
+def verify_email(request, uidb64, token):
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user is not None and default_token_generator.check_token(user, token):
+        profile, created = UserProfile.objects.get_or_create(user=user)
+        profile.is_verified = True
+        profile.save()
+        messages.success(request, "¡Tu cuenta ha sido verificada exitosamente!")
+        return redirect('login')
+    else:
+        messages.error(request, "El enlace de verificación es inválido o ha expirado.")
+        return redirect('index')
+
+@login_required
+def resend_verification_email(request):
+    user = request.user
+    if hasattr(user, 'profile') and user.profile.is_verified:
+        messages.info(request, "Tu cuenta ya está verificada.")
+        return redirect('profile')
+    
+    token = default_token_generator.make_token(user)
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    verification_url = request.build_absolute_uri(
+        reverse('verify_email', kwargs={'uidb64': uid, 'token': token})
+    )
+    
+    if EmailService.send_verification_email(user, token, verification_url):
+        messages.success(request, "Se ha reenviado el correo de verificación.")
+    else:
+        messages.error(request, "Hubo un error al enviar el correo. Inténtalo más tarde.")
+        
+    return redirect('profile')
 
 
 def logout_view(request):
@@ -212,12 +239,7 @@ def logout_view(request):
 def stock(request):
     return render(request, "stock.html")
 
-@login_required
-def dashboardadmin(request):
-    # Solo administradores
-    user = request.user
-    if not (user.is_superuser or user.is_staff or user.groups.filter(name__iexact="admin").exists()):
-        return HttpResponseForbidden("No autorizado")
+def get_dashboard_context(request):
     # Selección de periodo: semana (default), mes o año
     today = timezone.localdate()
     period = (request.GET.get("period", "week") or "week").lower()
@@ -237,7 +259,13 @@ def dashboardadmin(request):
         prev_ref_date = start_date - timedelta(days=1)
         next_ref_date = end_date + timedelta(days=1)
         prev_url = f"?period=week&week={prev_ref_date.isoformat()}"
-        next_url = f"?period=week&week={next_ref_date.isoformat()}"
+        
+        # Disable next if future
+        if next_ref_date > today:
+            next_url = ""
+        else:
+            next_url = f"?period=week&week={next_ref_date.isoformat()}"
+            
         ref_value = ref_date.isoformat()
         title_text = f"Pedidos por día ({start_date.isoformat()} al {end_date.isoformat()})"
         # Labels por día de la semana
@@ -283,7 +311,13 @@ def dashboardadmin(request):
             prev_month = dt_date(ref_date.year, ref_date.month - 1, 1)
         next_month = next_month_start
         prev_url = f"?period=month&month={prev_month.strftime('%Y-%m')}"
-        next_url = f"?period=month&month={next_month.strftime('%Y-%m')}"
+        
+        # Disable next if future
+        if next_month > today:
+            next_url = ""
+        else:
+            next_url = f"?period=month&month={next_month.strftime('%Y-%m')}"
+            
         ref_value = ref_date.strftime('%Y-%m')
         title_text = f"Pedidos por día ({ref_date.strftime('%B %Y')})"
         # Labels por día del mes
@@ -312,7 +346,13 @@ def dashboardadmin(request):
         start_date = dt_date(year_i, 1, 1)
         end_date = dt_date(year_i, 12, 31)
         prev_url = f"?period=year&year={year_i - 1}"
-        next_url = f"?period=year&year={year_i + 1}"
+        
+        # Disable next if future
+        if (year_i + 1) > today.year:
+            next_url = ""
+        else:
+            next_url = f"?period=year&year={year_i + 1}"
+            
         ref_value = str(year_i)
         title_text = f"Pedidos por mes ({year_i})"
         month_labels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
@@ -455,17 +495,43 @@ def dashboardadmin(request):
             "productCategoryMap": product_category_map,
         },
     }
-
+    
     context = {
-        "data_json": json.dumps(dashboard_data),
-        "title_text": title_text,
         "period": period,
         "period_title": period_title,
         "ref_value": ref_value,
         "prev_url": prev_url,
         "next_url": next_url,
+        "title_text": title_text,
     }
+    return context, dashboard_data
+
+def dashboardadmin(request):
+    # Solo administradores
+    user = request.user
+    if not (user.is_superuser or user.is_staff or user.groups.filter(name__iexact="admin").exists()):
+        return HttpResponseForbidden("No autorizado")
+    
+    context, dashboard_data = get_dashboard_context(request)
+    context["data_json"] = json.dumps(dashboard_data, cls=DjangoJSONEncoder)
     return render(request, "dashboardadmin.html", context)
+
+def api_dashboard_data(request):
+    # Solo administradores
+    user = request.user
+    if not (user.is_superuser or user.is_staff or user.groups.filter(name__iexact="admin").exists()):
+        return HttpResponseForbidden("No autorizado")
+    
+    ctx, dashboard_data = get_dashboard_context(request)
+    # Merge context navigation data into dashboard_data response
+    dashboard_data.update({
+        "prev_url": ctx["prev_url"],
+        "next_url": ctx["next_url"],
+        "period": ctx["period"],
+        "ref_value": ctx["ref_value"],
+        "title_text": ctx["title_text"]
+    })
+    return JsonResponse(dashboard_data)
 
 
 @login_required
@@ -606,7 +672,11 @@ def stock(request):
                 return HttpResponseForbidden("No autorizado")
             name = request.POST.get("name", "").strip()
             price = int(request.POST.get("price", "0") or 0)
-            image_url = request.POST.get("image_url", "").strip()
+            
+            # Image handling
+            image_file = request.FILES.get("image_file")
+            image_url = ""
+            
             category_name = request.POST.get("category", "").strip()
             description = request.POST.get("description", "").strip()
             initial_stock = int(request.POST.get("initial_stock", "0") or 0)
@@ -614,8 +684,26 @@ def stock(request):
             size_scale = request.POST.get("size_scale")
             custom_sizes = request.POST.get("custom_sizes", "").strip()
 
-            if not (name and price > 0 and image_url and category_name):
+            if not (name and price > 0 and image_file and category_name):
                 return render(request, "stock.html", {"error": "Datos inválidos", "data": json.dumps(_products_payload())})
+
+            # Save image
+            if image_file:
+                ext = os.path.splitext(image_file.name)[1].lower()
+                if ext not in ['.jpg', '.jpeg', '.png']:
+                     return render(request, "stock.html", {"error": "Formato de imagen no válido (solo jpg/png)", "data": json.dumps(_products_payload())})
+                
+                filename = f"{slugify(name)}{ext}"
+                save_path = os.path.join(settings.BASE_DIR, 'appOnichan', 'static', 'images', 'productos', filename)
+                
+                # Ensure directory exists
+                os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                
+                with open(save_path, 'wb+') as destination:
+                    for chunk in image_file.chunks():
+                        destination.write(chunk)
+                
+                image_url = f"/static/images/productos/{filename}"
 
             cat, _ = Category.objects.get_or_create(name=category_name, defaults={"slug": slugify(category_name)})
             # Generar nuevo id
@@ -905,191 +993,37 @@ def pos_view(request):
     )
 
 def add_to_cart(request, pid):
-    product = get_object_or_404(Product, id=pid)
-    
-    # Check if product is out of stock
-    if product.stock <= 0:
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == '1':
-            return JsonResponse({'status': 'error', 'message': 'Producto sin stock'}, status=400)
-        messages.error(request, "Este producto no tiene stock.")
-        return redirect(request.META.get('HTTP_REFERER', 'pagina1'))
-
+    """Añade un producto al carrito. Maneja validación de stock y tallas."""
     size = request.GET.get('size') or request.POST.get('size')
-    
-    # Validate size selection if product has sizes
-    if product.sizes.exists() and not size:
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == '1':
-             return JsonResponse({'status': 'error', 'message': 'Debe seleccionar una talla'}, status=400)
-        messages.error(request, "Debe seleccionar una talla para este producto.")
-        return redirect(request.META.get('HTTP_REFERER', 'pagina1'))
-
-    key = str(pid)
-    if size:
-        key = f"{pid}_{size}"
-
-    cart = request.session.get("cart", {})
-    
-    # Calculate total quantity of this product currently in cart (across all sizes)
-    total_in_cart = 0
-    for k, v in cart.items():
-        if k == str(pid) or k.startswith(f"{pid}_"):
-            total_in_cart += v
-            
-    if total_in_cart + 1 > product.stock:
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == '1':
-            return JsonResponse({'status': 'error', 'message': 'No hay suficiente stock disponible'}, status=400)
-        messages.error(request, f"No puedes agregar más unidades de {product.name}. Stock máximo alcanzado.")
-        return redirect(request.META.get('HTTP_REFERER', 'pagina1'))
-
-    cart[key] = cart.get(key, 0) + 1
-    request.session["cart"] = cart
-    
-    # Check for AJAX request
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == '1':
-        total_items = sum(cart.values())
-        return JsonResponse({'status': 'ok', 'cart_count': total_items})
-        
-    return redirect(request.META.get('HTTP_REFERER', 'pagina1'))
+    success, response = CartService.add_to_cart(request, pid, size)
+    return response
 
 def remove_from_cart(request, key):
-    cart = request.session.get("cart", {})
-    if key in cart:
-        del cart[key]
-        request.session["cart"] = cart
-        return redirect("cart_view")
-
-    rewards_cart = request.session.get("rewards_cart", {})
-    if key in rewards_cart:
-        # Refund logic
-        try:
-            pid = int(key.split('_')[0])
-            qty = rewards_cart[key]
-            
-            # Find the reward
-            reward = PointReward.objects.filter(product_id=pid, reward_type='PRODUCT').first()
-            
-            if reward and request.user.is_authenticated:
-                RewardService.restore_reward(request.user, reward.id, qty)
-                messages.success(request, f"Producto eliminado. Se han reembolsado los puntos.")
-        except Exception as e:
-            pass
-            
-        del rewards_cart[key]
-        request.session["rewards_cart"] = rewards_cart
-        
-    return redirect("cart_view")
+    """Elimina un item del carrito (normal o recompensa)"""
+    return CartService.remove_from_cart(request, key)
 
 def cart_view(request):
-    cart = request.session.get("cart", {})
-    items = []
-    total = 0
+    """Vista del carrito con items, totales y aplicación de cupones"""
+    items = CartService.get_cart_items(request)
+    coupon = CouponService.get_active_coupon(request)
+    total, discount_amount, final_total = CartService.calculate_totals(items, coupon)
     
-    # Extract product IDs from keys (which might be "ID" or "ID_SIZE")
-    pids = set()
-    for key in cart.keys():
-        try:
-            pids.add(int(key.split('_')[0]))
-        except ValueError:
-            continue
-            
-    products = Product.objects.filter(id__in=pids)
-    product_map = {str(p.id): p for p in products}
-    
-    for key, qty in cart.items():
-        try:
-            parts = key.split('_')
-            pid = parts[0]
-            size = parts[1] if len(parts) > 1 else None
-        except ValueError:
-            continue
-
-        product = product_map.get(pid)
-        if product:
-            # Calculate price with product discount if any
-            price = product.price
-            try:
-                price = product.detail.discounted_price
-            except ProductDetail.DoesNotExist:
-                pass
-                
-            subtotal = price * qty
-            total += subtotal
-            items.append({
-                "product": product,
-                "qty": qty,
-                "subtotal": subtotal,
-                "price_used": price,
-                "size": size,
-                "key": key
-            })
-
-    # Rewards Logic
-    rewards_cart = request.session.get("rewards_cart", {})
-    reward_pids = set()
-    for key in rewards_cart.keys():
-        try:
-            reward_pids.add(int(key.split('_')[0]))
-        except ValueError:
-            continue
-            
-    if reward_pids:
-        reward_products = Product.objects.filter(id__in=reward_pids)
-        reward_product_map = {str(p.id): p for p in reward_products}
-        
-        for key, qty in rewards_cart.items():
-            try:
-                parts = key.split('_')
-                pid = parts[0]
-                size = parts[1] if len(parts) > 1 else None
-            except ValueError:
-                continue
-
-            product = reward_product_map.get(pid)
-            if product:
-                items.append({
-                    "product": product,
-                    "qty": qty,
-                    "subtotal": 0,
-                    "price_used": 0,
-                    "size": size,
-                    "key": key,
-                    "is_reward": True
-                })
-            
-    # Coupon Logic
-    coupon_id = request.session.get('coupon_id')
-    discount_amount = 0
-    coupon = None
-    
-    if coupon_id:
-        try:
-            coupon = Coupon.objects.get(id=coupon_id)
-            if coupon.is_valid():
-                discount_amount = int(total * (coupon.discount_percentage / 100))
-            else:
-                # Remove invalid coupon
-                del request.session['coupon_id']
-                coupon = None
-        except Coupon.DoesNotExist:
-            del request.session['coupon_id']
-            
-    final_total = total - discount_amount
-
+    # Perfil de usuario
     user_profile = None
     if request.user.is_authenticated:
         try:
             user_profile = request.user.profile
         except UserProfile.DoesNotExist:
             pass
-
-    # Fetch wallet coupons
+    
+    # Cupones de la chequera
     wallet_coupons = []
     if request.user.is_authenticated:
         wallet_coupons = UserCoupon.objects.filter(user=request.user, is_used=False).select_related('coupon')
-
+    
     return render(request, "cart.html", {
-        "items": items, 
-        "total": total, 
+        "items": items,
+        "total": total,
         "discount_amount": discount_amount,
         "final_total": final_total,
         "coupon": coupon,
@@ -1330,6 +1264,9 @@ def webpay_commit(request):
             order.estado = 'Pendiente'
             order.save()
             
+            # Send confirmation email
+            EmailService.send_order_confirmation(order)
+            
             if request.user.is_authenticated:
                 try:
                     profile = request.user.profile
@@ -1380,35 +1317,8 @@ def download_receipt(request, order_code):
     return response
 
 def update_cart_quantity(request, key, action):
-    cart = request.session.get("cart", {})
-    
-    if key in cart:
-        if action == "increment":
-            # Validate stock before incrementing
-            try:
-                pid = key.split('_')[0]
-                product = Product.objects.get(id=pid)
-                
-                # Calculate total quantity of this product currently in cart (across all sizes)
-                total_in_cart = 0
-                for k, v in cart.items():
-                    if k == str(pid) or k.startswith(f"{pid}_"):
-                        total_in_cart += v
-                
-                if total_in_cart < product.stock:
-                    cart[key] += 1
-                else:
-                    messages.error(request, f"No puedes agregar más unidades de {product.name}. Stock máximo alcanzado.")
-            except Product.DoesNotExist:
-                pass
-        elif action == "decrement":
-            cart[key] -= 1
-            if cart[key] <= 0:
-                del cart[key]
-        
-        request.session["cart"] = cart
-        
-    return redirect("cart_view")
+    """Actualiza la cantidad de un item en el carrito (incrementar/decrementar)"""
+    return CartService.update_quantity(request, key, action)
 
 @login_required
 def regional_analysis_api(request):
@@ -1536,6 +1446,8 @@ def marketing_dashboard(request):
     if not (request.user.is_superuser or request.user.is_staff or request.user.groups.filter(name__iexact="admin").exists()):
         return redirect("pagina1")
 
+    active_tab = request.GET.get('tab', 'coupons')
+
     # Group coupons by batch
     coupon_batches = Coupon.objects.exclude(batch_name__isnull=True).exclude(batch_name="").values('batch_name').annotate(
         total_count=Count('id'),
@@ -1545,6 +1457,9 @@ def marketing_dashboard(request):
     
     # Get Bulk Offers History
     bulk_offers = BulkOffer.objects.all().order_by('-created_at')
+    
+    # Get Marketing Templates
+    marketing_templates = MarketingTemplate.objects.all().order_by('-updated_at')
     
     # Prepare products data for the grid selector
     products_qs = Product.objects.select_related('category').prefetch_related(
@@ -1571,6 +1486,7 @@ def marketing_dashboard(request):
 
     if request.method == "POST":
         if "bulk_discount" in request.POST:
+            active_tab = 'bulk'
             bulk_form = BulkDiscountForm(request.POST)
             if bulk_form.is_valid():
                 products = bulk_form.cleaned_data['products']
@@ -1607,9 +1523,10 @@ def marketing_dashboard(request):
                         count += 1
                     messages.success(request, f"Descuentos removidos de {count} productos.")
                 
-                return redirect("marketing_dashboard")
+                return redirect(f"{reverse('marketing_dashboard')}?tab=bulk")
         
         elif "generate_coupons" in request.POST:
+            active_tab = 'generator'
             gen_form = CouponGenerationForm(request.POST)
             if gen_form.is_valid():
                 # Pass batch name logic inside form or handle here?
@@ -1647,12 +1564,54 @@ def marketing_dashboard(request):
                     created_count += 1
 
                 messages.success(request, f"Se han generado {created_count} cupones en el lote '{batch_name}'.")
-                return redirect("marketing_dashboard")
+                return redirect(f"{reverse('marketing_dashboard')}?tab=generator")
+
+        elif "send_email" in request.POST:
+            active_tab = 'email'
+            subject = request.POST.get("subject", "").strip()
+            body = request.POST.get("body", "").strip()
+            recipient_type = request.POST.get("recipient_type", "all")
+            
+            if subject and body:
+                recipients = []
+                if recipient_type == "all":
+                    recipients = list(User.objects.filter(email__isnull=False).exclude(email="").values_list('email', flat=True))
+                elif recipient_type == "verified":
+                    recipients = list(User.objects.filter(profile__is_verified=True, email__isnull=False).exclude(email="").values_list('email', flat=True))
+                
+                # Remove duplicates
+                recipients = list(set(recipients))
+                
+                if recipients:
+                    count = EmailService.send_marketing_email(subject, body, recipients)
+                    messages.success(request, f"Correo enviado a {count} destinatarios.")
+                    return redirect(f"{reverse('marketing_dashboard')}?tab=email")
+                else:
+                    messages.warning(request, "No hay destinatarios válidos para el criterio seleccionado.")
+            else:
+                messages.error(request, "Asunto y cuerpo son obligatorios.")
+            
+            # Si hubo error, permanecemos en la misma vista mostrando mensajes
+
+        elif "create_template" in request.POST:
+            active_tab = 'templates'
+            name = request.POST.get("name", "").strip()
+            subject = request.POST.get("subject", "").strip()
+            
+            if name and subject:
+                MarketingTemplate.objects.create(name=name, subject=subject)
+                messages.success(request, "Template creado exitosamente.")
+                return redirect(f"{reverse('marketing_dashboard')}?tab=templates")
+            else:
+                messages.error(request, "Nombre y Asunto son obligatorios.")
 
     # Rewards Data
     rewards = PointReward.objects.all().order_by('-active', 'points_cost')
     all_products = Product.objects.filter(stock__gt=0)
     all_coupons = Coupon.objects.filter(active=True)
+    
+    # Marketing Templates
+    marketing_templates = MarketingTemplate.objects.all().order_by('-updated_at')
 
     context = {
         "coupon_batches": coupon_batches,
@@ -1661,10 +1620,11 @@ def marketing_dashboard(request):
         "gen_form": gen_form,
         "products_json": json.dumps(products_data),
         "categories": categories,
+        "marketing_templates": marketing_templates,
         "rewards": rewards,
         "all_products": all_products,
         "all_coupons": all_coupons,
-        "active_tab": request.GET.get('tab', 'coupons')
+        "active_tab": active_tab
     }
     return render(request, "marketing_dashboard.html", context)
 
@@ -1873,61 +1833,17 @@ def coupon_delete(request, cid):
     return redirect("marketing_dashboard")
 
 def apply_coupon(request):
+    """Aplica un cupón de descuento al carrito"""
     if request.method == "POST":
         code = request.POST.get("code", "").strip()
-        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
-        
-        try:
-            coupon = Coupon.objects.get(code=code)
-            if coupon.is_valid():
-                request.session['coupon_id'] = coupon.id
-                
-                # Calculate totals for AJAX response
-                if is_ajax:
-                    cart = request.session.get("cart", {})
-                    total = 0
-                    products = Product.objects.filter(id__in=cart.keys())
-                    product_map = {str(p.id): p for p in products}
-                    
-                    for pid, qty in cart.items():
-                        p = product_map.get(pid)
-                        if p:
-                            price = p.price
-                            try:
-                                price = p.detail.discounted_price
-                            except ProductDetail.DoesNotExist:
-                                pass
-                            total += price * qty
-                    
-                    discount_amount = int(total * (coupon.discount_percentage / 100))
-                    final_total = total - discount_amount
-                    
-                    return JsonResponse({
-                        'success': True,
-                        'message': f"Cupón aplicado: {coupon.discount_percentage}% de descuento",
-                        'discount_percentage': coupon.discount_percentage,
-                        'discount_amount': discount_amount,
-                        'new_total': final_total,
-                        'code': coupon.code
-                    })
-
-                messages.success(request, f"Cupón {code} aplicado: {coupon.discount_percentage}% de descuento.")
-            else:
-                if is_ajax:
-                    return JsonResponse({'success': False, 'message': "Cupón no válido o expirado"})
-                messages.error(request, "El cupón no es válido o ha expirado.")
-        except Coupon.DoesNotExist:
-            if is_ajax:
-                return JsonResponse({'success': False, 'message': "Cupón no válido"})
-            messages.error(request, "El cupón no existe.")
-            
+        success, response = CouponService.validate_and_apply(request, code)
+        if response:
+            return response
     return redirect("cart_view")
 
 def remove_coupon(request):
-    if 'coupon_id' in request.session:
-        del request.session['coupon_id']
-        messages.info(request, "Cupón removido.")
-    return redirect("cart_view")
+    # Usar servicio de cupones
+    return CouponService.remove_coupon(request)
 
 @login_required
 def bulk_offer_detail(request, oid):
@@ -2291,3 +2207,157 @@ def print_shipping_label(request, order_id):
 def order_detail_partial(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     return render(request, 'partials/order_detail_modal_content.html', {'order': order})
+
+
+# --- VISTAS DE MARKETING (EDITOR VISUAL) ---
+
+from django.contrib.admin.views.decorators import staff_member_required
+
+@staff_member_required
+def marketing_editor(request, template_id):
+    template = get_object_or_404(MarketingTemplate, pk=template_id)
+    
+    context = {
+        'template': template,
+        # Pasamos el JSON existente si lo hay, o un objeto vacío
+        'design_json': json.dumps(template.design_json) if template.design_json else '{}',
+    }
+    return render(request, 'appOnichan/marketing/editor.html', context)
+
+@staff_member_required
+@require_POST
+def save_marketing_template(request, template_id):
+    template = get_object_or_404(MarketingTemplate, pk=template_id)
+    try:
+        data = json.loads(request.body or '{}')
+
+        template.content_html = data.get('html', '')
+        template.design_json = data.get('components', {})
+        template.save()
+
+        return JsonResponse({'status': 'ok'})
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'JSON inválido'}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+@login_required
+def create_campaign(request):
+    # Check permissions (admin or staff)
+    if not (request.user.is_superuser or request.user.is_staff or request.user.groups.filter(name__iexact="admin").exists()):
+        return redirect("pagina1")
+        
+    if request.method == "POST":
+        template_id = request.POST.get("template_id")
+        name = request.POST.get("name")
+        subject = request.POST.get("subject")
+        
+        include_coupon = request.POST.get("include_coupon") == "on"
+        coupon_discount = int(request.POST.get("coupon_discount", 0))
+        coupon_days = int(request.POST.get("coupon_days", 0))
+        
+        template = get_object_or_404(MarketingTemplate, id=template_id)
+        
+        campaign = MarketingCampaign.objects.create(
+            name=name,
+            template=template,
+            subject=subject,
+            include_coupon=include_coupon,
+            coupon_discount_percent=coupon_discount if include_coupon else 0,
+            coupon_valid_days=coupon_days if include_coupon else 7,
+            status='draft'
+        )
+
+        # --- SEND EMAILS LOGIC ---
+        # 1. Get Recipients (Verified Users)
+        recipients = User.objects.filter(profile__is_verified=True, email__isnull=False).exclude(email="")
+        
+        if recipients.exists():
+            from django.core.mail import get_connection, EmailMultiAlternatives
+            from django.utils.html import strip_tags
+            from django.conf import settings
+            
+            connection = get_connection()
+            messages_to_send = []
+            
+            # Batch name for coupons
+            batch_name = f"CAMPAIGN-{campaign.id}-{timezone.now().strftime('%Y%m%d')}"
+            
+            count = 0
+            for user in recipients:
+                # A. Generate Coupon if needed
+                coupon_code = ""
+                expiry_date_str = ""
+                
+                if campaign.include_coupon:
+                    # Generate unique code: CAMP{ID}-{USERID}-{RAND}
+                    random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+                    coupon_code = f"CMP{campaign.id}-{user.id}-{random_suffix}"
+                    
+                    valid_to = timezone.now() + timedelta(days=campaign.coupon_valid_days)
+                    
+                    # Create Coupon
+                    new_coupon = Coupon.objects.create(
+                        code=coupon_code,
+                        discount_percentage=campaign.coupon_discount_percent,
+                        valid_from=timezone.now(),
+                        valid_to=valid_to,
+                        usage_limit=1,
+                        active=True,
+                        batch_name=batch_name
+                    )
+                    
+                    # Assign to user wallet
+                    UserCoupon.objects.create(user=user, coupon=new_coupon)
+                    
+                    expiry_date_str = valid_to.strftime("%d/%m/%Y")
+                
+                # B. Replace Placeholders
+                # We use simple replacement to avoid template syntax errors with inline CSS
+                user_name = user.first_name or user.username
+                
+                content = campaign.template.content_html
+                final_html = content.replace("{{ nombre }}", user_name)\
+                                    .replace("{{nombre}}", user_name)\
+                                    .replace("{{ codigo_cupon }}", coupon_code)\
+                                    .replace("{{codigo_cupon}}", coupon_code)\
+                                    .replace("{{ fecha_expiracion }}", expiry_date_str)\
+                                    .replace("{{fecha_expiracion}}", expiry_date_str)
+                
+                # C. Create Email Message
+                email_subject = campaign.subject or campaign.template.subject
+                text_content = strip_tags(final_html)
+                
+                msg = EmailMultiAlternatives(
+                    email_subject, 
+                    text_content, 
+                    settings.DEFAULT_FROM_EMAIL, 
+                    [user.email], 
+                    connection=connection
+                )
+                msg.attach_alternative(final_html, "text/html")
+                messages_to_send.append(msg)
+                
+                # D. Log
+                CampaignLog.objects.create(
+                    campaign=campaign,
+                    user=user,
+                    coupon_code=coupon_code if campaign.include_coupon else None
+                )
+                count += 1
+            
+            # Send all messages
+            connection.send_messages(messages_to_send)
+            
+            # Update Campaign Status
+            campaign.status = 'sent'
+            campaign.sent_at = timezone.now()
+            campaign.save()
+            
+            messages.success(request, f"Campaña '{name}' creada y enviada a {count} usuarios verificados.")
+        else:
+            messages.warning(request, f"Campaña '{name}' creada, pero no hay usuarios verificados para enviar.")
+            
+        return redirect(f"{reverse('marketing_dashboard')}?tab=templates")
+    
+    return redirect("marketing_dashboard")

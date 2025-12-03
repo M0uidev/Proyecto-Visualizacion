@@ -10,7 +10,7 @@
 {% endblock %}
 
 {% block content %}
-  <div class="modal" id="chartModal" tabindex="-1">
+  <div class="modal fade" id="chartModal" tabindex="-1">
     <div class="modal-dialog modal-xl stock-modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
@@ -28,14 +28,14 @@
 
   {% if user.is_staff or user.is_superuser or user|has_group:"admin" %}
   <!-- Modal Agregar Producto (solo admin) -->
-  <div class="modal" id="addProductModal" tabindex="-1">
+  <div class="modal fade" id="addProductModal" tabindex="-1">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Nuevo Producto</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <form method="post" action="{% url 'stock' %}">
+        <form method="post" action="{% url 'stock' %}" enctype="multipart/form-data">
           {% csrf_token %}
           <input type="hidden" name="action" value="add_product">
           <div class="modal-body">
@@ -48,8 +48,8 @@
               <input type="number" class="form-control" name="price" min="1" required />
             </div>
             <div class="mb-3">
-              <label class="form-label">URL de imagen</label>
-              <input type="text" class="form-control" name="image_url" required />
+              <label class="form-label">Imagen del producto</label>
+              <input type="file" class="form-control" name="image_file" accept=".png, .jpg, .jpeg" required />
             </div>
             <div class="mb-3">
               <label class="form-label">Categoría</label>
@@ -89,7 +89,7 @@
     </div>
   </div>
   <!-- Modal Editar Producto (solo admin) -->
-  <div class="modal" id="editProductModal" tabindex="-1">
+  <div class="modal fade" id="editProductModal" tabindex="-1">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
@@ -142,7 +142,7 @@
   {% endif %}
 
   <!-- Modal Ajustar Stock (Trabajador) -->
-  <div class="modal" id="adjustStockModal" tabindex="-1">
+  <div class="modal fade" id="adjustStockModal" tabindex="-1">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">

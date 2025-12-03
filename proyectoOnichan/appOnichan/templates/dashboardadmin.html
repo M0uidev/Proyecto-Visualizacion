@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Dashboard Trabajador{% endblock %}
+{% block title %}Dashboard Admin{% endblock %}
 
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'css/dashboardtrabajador.css' %}">
@@ -10,25 +10,25 @@
 
 {% block content %}
   <main class="container-fluid py-4">
-    <div class="dashboard-wrapper card-pastel p-4">
+    <div class="dashboard-wrapper dash-card p-4">
       <!-- KPIs Section (Always Visible) -->
       <section class="row g-4 mb-4">
         <div class="col-12 col-md-4">
-          <article class="card-pastel metric-card" aria-labelledby="metricPedidosHoy">
+          <article class="dash-card metric-card" aria-labelledby="metricPedidosHoy">
             <span class="metric-label" id="metricPedidosHoy">Ventas hoy</span>
             <span class="metric-value" data-kpi="pedidos_hoy">--</span>
             <span class="metric-trend" data-kpi-trend="pedidos_hoy">&nbsp;</span>
           </article>
         </div>
         <div class="col-12 col-md-4">
-          <article class="card-pastel metric-card" aria-labelledby="metricPendientes">
+          <article class="dash-card metric-card" aria-labelledby="metricPendientes">
             <span class="metric-label" id="metricPendientes">Pedidos Pendientes</span>
             <span class="metric-value" data-kpi="pendientes">--</span>
             <span class="metric-trend" data-kpi-trend="pendientes">&nbsp;</span>
           </article>
         </div>
         <div class="col-12 col-md-4">
-          <article class="card-pastel metric-card" aria-labelledby="metricIngresos">
+          <article class="dash-card metric-card" aria-labelledby="metricIngresos">
             <span class="metric-label" id="metricIngresos">Ingresos ({{ period_title }})</span>
             <span class="metric-value" data-kpi="ingresos_7d">--</span>
             <span class="metric-trend" data-kpi-trend="ingresos_7d">&nbsp;</span>
@@ -37,36 +37,50 @@
       </section>
 
       <div class="mb-4 d-flex flex-wrap gap-2 align-items-center justify-content-end">
-        <form method="get" class="d-flex align-items-center gap-2">
-          <a class="btn btn-pastel-secondary" href="{{ prev_url }}" title="Anterior">⟵</a>
-          <div class="input-group">
-            <span class="input-group-text">Periodo</span>
-            <select name="period" class="form-select">
-              <option value="week" {% if period == 'week' %}selected{% endif %}>Semana</option>
-              <option value="month" {% if period == 'month' %}selected{% endif %}>Mes</option>
-              <option value="year" {% if period == 'year' %}selected{% endif %}>Año</option>
-            </select>
+        <form id="dashboardFilterForm" method="get" class="d-flex align-items-center gap-2">
+          <a id="btnPrevPeriod" class="btn btn-pastel-secondary {% if not prev_url %}disabled{% endif %}" {% if prev_url %}href="{{ prev_url }}"{% endif %} title="Anterior">⟵</a>
+          <div class="btn-group" role="group" aria-label="Selector de Periodo">
+            <input type="radio" class="btn-check" name="period" id="periodWeek" value="week" autocomplete="off" {% if period == 'week' %}checked{% endif %}>
+            <label class="btn btn-outline-secondary" for="periodWeek">Semana</label>
+
+            <input type="radio" class="btn-check" name="period" id="periodMonth" value="month" autocomplete="off" {% if period == 'month' %}checked{% endif %}>
+            <label class="btn btn-outline-secondary" for="periodMonth">Mes</label>
+
+            <input type="radio" class="btn-check" name="period" id="periodYear" value="year" autocomplete="off" {% if period == 'year' %}checked{% endif %}>
+            <label class="btn btn-outline-secondary" for="periodYear">Año</label>
           </div>
-          {% if period == 'week' %}
-            <div class="input-group">
-              <span class="input-group-text">Semana</span>
-              <input type="date" class="form-control" name="week" value="{{ ref_value|default:'' }}" />
-            </div>
-          {% elif period == 'month' %}
-            <div class="input-group">
-              <span class="input-group-text">Mes</span>
-              <input type="month" class="form-control" name="month" value="{{ ref_value|default:'' }}" />
-            </div>
-          {% else %}
-            <div class="input-group">
-              <span class="input-group-text">Año</span>
-              <input type="number" class="form-control" name="year" value="{{ ref_value|default:'' }}" />
-            </div>
-          {% endif %}
-          <button class="btn btn-pastel" type="submit">Ver</button>
-          <a class="btn btn-pastel-secondary" href="{{ next_url }}" title="Siguiente">⟶</a>
+          
+          <div class="input-group period-input" id="input-week" {% if period != 'week' %}style="display:none;"{% endif %}>
+            <span class="input-group-text">Semana</span>
+            <input type="date" class="form-control" name="week" value="{% if period == 'week' %}{{ ref_value|default:'' }}{% endif %}" />
+          </div>
+          
+          <div class="input-group period-input" id="input-month" {% if period != 'month' %}style="display:none;"{% endif %}>
+            <span class="input-group-text">Mes</span>
+            <input type="month" class="form-control" name="month" value="{% if period == 'month' %}{{ ref_value|default:'' }}{% endif %}" />
+          </div>
+          
+          <div class="input-group period-input" id="input-year" {% if period != 'year' %}style="display:none;"{% endif %}>
+            <span class="input-group-text">Año</span>
+            <input type="number" class="form-control" name="year" value="{% if period == 'year' %}{{ ref_value|default:'' }}{% endif %}" />
+          </div>
+          <a id="btnNextPeriod" class="btn btn-pastel-secondary {% if not next_url %}disabled{% endif %}" {% if next_url %}href="{{ next_url }}"{% endif %} title="Siguiente">⟶</a>
         </form>
       </div>
+
+      <style>
+        /* Force consistent width for period inputs */
+        .period-input {
+            min-width: 240px; /* Adjust based on preference, matches typical month input width */
+            max-width: 240px;
+        }
+        /* Ensure disabled link looks disabled */
+        a.disabled {
+            pointer-events: none;
+            opacity: 0.5;
+            cursor: default;
+        }
+      </style>
 
       <!-- Tabs Navigation -->
       <ul class="nav nav-tabs mb-4" id="dashboardTabs" role="tablist">
@@ -86,12 +100,12 @@
           <!-- Grafico de lineas y pastel -->
           <section class="row g-4">
             <div class="col-12 col-lg-7">
-              <article class="card-pastel chart-card" aria-labelledby="chartLineTitle">
+              <article class="dash-card chart-card" aria-labelledby="chartLineTitle">
                 <header>
                   <h3 id="chartLineTitle">{{ title_text }}</h3>
                 </header>
                 <div class="chart-wrapper" style="height: 400px;">
-                  <canvas id="ordersLineChart" aria-describedby="chartLineTitle"></canvas>
+                  <div id="ordersLineChart" aria-describedby="chartLineTitle" style="width:100%; height:100%;"></div>
                 </div>
               </article>
             </div>
@@ -101,36 +115,32 @@
                   <h3 id="chartPieTitle">Top productos</h3>
                 </header>
                 <div class="chart-wrapper" style="height: 400px;">
-                  <canvas id="topProductsPieChart" aria-describedby="chartPieTitle"></canvas>
+                  <div id="topProductsPieChart" aria-describedby="chartPieTitle" style="width:100%; height:100%;"></div>
                 </div>
                 <div class="chart-legend" id="topProductsLegend" aria-hidden="true"></div>
               </article>
             </div>
           </section>
 
-          <!-- Grafico de barras -->
+          <!-- Grafico de barras y Multi Series Pie -->
           <section class="row g-4 mt-2">
-            <div class="col-12">
+            <div class="col-12 col-lg-6">
               <article class="dash-card chart-card" aria-labelledby="chartBarTitle">
                 <header>
                   <h3 id="chartBarTitle">Ingresos por categoría</h3>
                 </header>
                 <div class="chart-wrapper" style="height: 400px;">
-                  <canvas id="categoryRevenueBarChart" aria-describedby="chartBarTitle"></canvas>
+                  <div id="categoryRevenueBarChart" aria-describedby="chartBarTitle" style="width:100%; height:100%;"></div>
                 </div>
               </article>
             </div>
-          </section>
-
-          <!-- Multi Series Pie: Categorías (anillo interno) / Productos (anillo externo) -->
-          <section class="row g-4 mt-2">
-            <div class="col-12">
+            <div class="col-12 col-lg-6">
               <article class="dash-card chart-card" aria-labelledby="multiSeriesPieTitle">
                 <header>
                   <h3 id="multiSeriesPieTitle">Distribución de ventas: Categorías y Productos</h3>
                 </header>
                 <div class="chart-wrapper" style="height: 400px;">
-                  <canvas id="multiSeriesPieChart" aria-describedby="multiSeriesPieTitle"></canvas>
+                  <div id="multiSeriesPieChart" aria-describedby="multiSeriesPieTitle" style="width:100%; height:100%;"></div>
                 </div>
                 <div class="chart-legend" id="multiSeriesPieLegend" aria-hidden="true"></div>
               </article>
@@ -181,14 +191,16 @@
     </div>
 
     <!-- Modal -->
-    <div id="dashModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
-      <div class="modal-card">
-        <div class="modal-head">
-          <strong id="dashModalTitle">Detalle</strong>
-          <span id="dashModalClose" class="modal-close" role="button" aria-label="Cerrar modal">&times;</span>
-        </div>
-        <div class="modal-body">
-          <canvas id="dashModalChart"></canvas>
+    <div id="dashModal" class="modal fade" tabindex="-1" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content modal-card">
+          <div class="modal-header modal-head">
+            <h5 class="modal-title" id="dashModalTitle">Detalle</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="dashModalChart"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -233,16 +245,25 @@
 {% endblock %}
 
 {% block scripts %}
-  <script type="application/json" id="dashboard-data">{{ data_json|default:"{}"|safe }}</script>
-  <script src="{% static 'chart.js' %}"></script>
-  <script src="{% static 'js/dashboardadmin.js' %}"></script>
+  <script type="application/json" id="dashboard-data" data-period="{{ period }}" data-ref-value="{{ ref_value }}">{{ data_json|default:"{}"|safe }}</script>
+  <script src="https://code.highcharts.com/highcharts.js"></script>
+  <script src="https://code.highcharts.com/modules/exporting.js"></script>
+  <script src="https://code.highcharts.com/modules/export-data.js"></script>
+  <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+  <script>const apiDashboardUrl = "{% url 'api_dashboard_data' %}";</script>
+  <script src="{% static 'js/dashboardadmin.js' %}?v=2.5"></script>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       const dashboardDataEl = document.getElementById('dashboard-data');
       if (!dashboardDataEl) return;
-      const dashboardData = JSON.parse(dashboardDataEl.textContent);
+      let dashboardData = {};
+      try {
+          dashboardData = JSON.parse(dashboardDataEl.textContent);
+      } catch(e) {
+          console.error("Error parsing dashboard data for map", e);
+      }
       const mapData = dashboardData.mapData || {};
 
       // Initialize map centered on Chile
@@ -264,13 +285,13 @@
       }
 
       function getColor(d) {
-          // Escala de Verde (menos compras) a Rojo (más compras)
-          return d > 20 ? '#d73027' : // Rojo intenso
-                 d > 15 ? '#fc8d59' : // Naranja
-                 d > 10 ? '#fee08b' : // Amarillo
-                 d > 5  ? '#d9ef8b' : // Verde claro
-                 d > 0  ? '#91cf60' : // Verde
-                          '#1a9850';  // Verde oscuro (0)
+          // Escala de Azul (menos compras) a Azul Oscuro (más compras)
+          return d > 20 ? '#08519c' : // Azul muy oscuro
+                 d > 15 ? '#3182bd' : // Azul oscuro
+                 d > 10 ? '#6baed6' : // Azul medio
+                 d > 5  ? '#9ecae1' : // Azul claro
+                 d > 0  ? '#c6dbef' : // Azul muy claro
+                          '#eff3ff';  // Casi blanco (0)
       }
 
       let regionLookup = {}; 

@@ -1,0 +1,12 @@
+{% comment %}
+Badge de descuento reutilizable
+Parámetros:
+  - discount_percentage: porcentaje de descuento (número)
+  - size: tamaño del badge ('sm', 'md', 'lg') - default: 'md'
+{% endcomment %}
+{% if discount_percentage and discount_percentage > 0 %}
+  <span class="badge badge-base badge-discount{% if size == 'sm' %} badge-sm{% elif size == 'lg' %} badge-lg{% endif %}">
+    -{{ discount_percentage }}%
+  </span>
+{% endif %}
+

@@ -13,6 +13,9 @@ from .models import (
     PointReward,
     RedemptionHistory,
     UserCoupon,
+    MarketingTemplate,
+    MarketingCampaign,
+    CampaignLog
 )
 
 
@@ -97,4 +100,39 @@ class UserCouponAdmin(admin.ModelAdmin):
     list_display = ('user', 'coupon', 'acquired_at', 'is_used')
     list_filter = ('is_used', 'acquired_at')
     search_fields = ('user__username', 'coupon__code')
+
+
+# --- MARKETING ADMIN ---
+
+from django.utils.html import format_html
+from django.urls import reverse
+
+@admin.register(MarketingTemplate)
+class MarketingTemplateAdmin(admin.ModelAdmin):
+    list_display = ('name', 'updated_at', 'open_editor_link')
+    readonly_fields = ('content_html', 'design_json') # No queremos que editen esto a mano en el admin normal
+
+    def open_editor_link(self, obj):
+        url = reverse('marketing_editor', args=[obj.id])
+        return format_html('<a class="button" href="{}" target="_blank" style="background-color: #417690; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none;">Abrir Editor Visual</a>', url)
+    
+    open_editor_link.short_description = "Diseñar"
+
+@admin.register(MarketingCampaign)
+class MarketingCampaignAdmin(admin.ModelAdmin):
+    list_display = ('name', 'template', 'status', 'sent_at')
+    actions = ['send_campaign_action']
+
+    def send_campaign_action(self, request, queryset):
+        for campaign in queryset:
+            if campaign.status == 'draft':
+                # Aquí llamaremos a la lógica de envío (Paso siguiente)
+                # send_campaign_logic(campaign)
+                self.message_user(request, f"Campaña '{campaign.name}' procesada (Simulación).")
+            else:
+                self.message_user(request, f"La campaña '{campaign.name}' ya no está en borrador.", level='error')
+    
+    send_campaign_action.short_description = "Enviar Campañas Seleccionadas"
+
+admin.site.register(CampaignLog)
 

@@ -9,10 +9,13 @@ urlpatterns = [
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     path('register/', views.register, name='register'),
+    path('verify-email/<str:uidb64>/<str:token>/', views.verify_email, name='verify_email'),
+    path('resend-verification/', views.resend_verification_email, name='resend_verification_email'),
     path('profile/', views.profile, name='profile'),
     path('profile/edit/', views.edit_profile, name='edit_profile'),
     # Dashboards
     path('dashboardadmin/', views.dashboardadmin, name='dashboardadmin'),
+    path('api/dashboard-data/', views.api_dashboard_data, name='api_dashboard_data'),
     path('dashboardtrabajador/', views.dashboardtrabajador, name='dashboardtrabajador'),
     path('api/check_orders/', views.check_new_orders, name='check_new_orders'),
     # Fulfillment Game
@@ -58,4 +61,9 @@ urlpatterns = [
     path('marketing/reward/create/', views.create_reward, name='create_reward'),
     path('marketing/reward/toggle/<int:rid>/', views.toggle_reward_status, name='toggle_reward_status'),
     path('marketing/reward/delete/<int:rid>/', views.delete_reward, name='delete_reward'),
+    
+    # Marketing Editor
+    path('marketing/editor/<int:template_id>/', views.marketing_editor, name='marketing_editor'),
+    path('marketing/save/<int:template_id>/', views.save_marketing_template, name='save_marketing_template'),
+    path('marketing/campaign/create/', views.create_campaign, name='create_campaign'),
 ]

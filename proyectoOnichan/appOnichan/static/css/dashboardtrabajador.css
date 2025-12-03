@@ -106,34 +106,11 @@ body {
   display: inline-block;
 }
 
-/* Modal styles */
-.modal {
-  position: fixed;
-  inset: 0;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: rgba(15, 23, 42, 0.55);
-  padding: 1.5rem;
-  z-index: 1100;
-}
-
-.modal.show {
-  display: flex;
-  animation: fadeIn 180ms ease;
-}
-
+/* Modal styles - Enhanced styling for Bootstrap modals */
 .modal-card {
   background: #fff;
   border-radius: 22px;
   box-shadow: 0 30px 70px rgba(15, 23, 42, 0.26);
-  width: min(800px, 95vw);
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  transform: translateY(12px);
-  animation: slideUp 240ms ease forwards;
 }
 
 .modal-head {
@@ -144,51 +121,19 @@ body {
   border-bottom: 1px solid rgba(148, 163, 184, 0.25);
 }
 
-.modal-head strong {
+.modal-head .modal-title {
   font-size: 1.5rem;
   font-weight: 600;
 }
 
-.modal-close {
-  cursor: pointer;
-  font-size: 1.5rem;
-  color: var(--dash-muted);
-  transition: color 120ms ease;
-}
-
-.modal-close:hover,
-.modal-close:focus {
-  color: var(--dash-primary);
-}
-
-.modal-body {
+.modal-card .modal-body {
   padding: 1.5rem;
   background: linear-gradient(180deg, rgba(79, 70, 229, 0.04), transparent);
 }
 
-.modal-body canvas {
+.modal-card .modal-body canvas {
   width: 100%;
   height: 400px;
-}
-
-body.modal-open {
-  overflow: hidden;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 @media (max-width: 992px) {

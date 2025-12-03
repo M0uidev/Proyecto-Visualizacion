@@ -1,0 +1,12 @@
+{% comment %}
+Badge de stock reutilizable
+Parámetros:
+  - stock: número de unidades disponibles
+  - show_warning: mostrar advertencia si stock <= 5 (default: True)
+{% endcomment %}
+{% if stock <= 0 %}
+  <span class="badge badge-base badge-stock-out">Agotado</span>
+{% elif stock <= 5 and show_warning|default:True %}
+  <span class="badge badge-base badge-stock-warning">¡Últimas unidades!</span>
+{% endif %}
+

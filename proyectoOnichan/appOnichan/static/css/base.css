@@ -1,30 +1,4 @@
-/* Modern Pastel Theme - Refactored */
-:root {
-  /* Palette */
-  --bg-body: #F8F9FA; /* Soft Gray/White */
-  --bg-surface: #FFFFFF;
-  
-  /* Pastel Colors */
-  --color-primary: #A0C4FF; /* Pastel Blue */
-  --color-primary-dark: #729BE0;
-  --color-secondary: #CAFFBF; /* Pastel Green/Mint */
-  --color-accent: #FFD6A5; /* Pastel Orange/Cream */
-  --color-danger: #FFADAD; /* Pastel Red */
-  --color-info: #9BF6FF; /* Cyan */
-  
-  /* Text */
-  --text-main: #2D3436;
-  --text-muted: #636E72;
-  --text-light: #B2BEC3;
-
-  /* UI */
-  --border-radius: 16px;
-  --border-radius-sm: 8px;
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.05);
-  --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
-  --nav-height: 70px;
-  --font-main: 'Inter', sans-serif;
-}
+/* Base Styles - Usa variables de variables.css */
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -146,57 +120,7 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-muted);
 }
 
-/* Buttons */
-.btn-pastel {
-  background-color: var(--color-primary);
-  color: #fff;
-  border: none;
-  padding: 0.6rem 1.5rem;
-  border-radius: var(--border-radius-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.1s ease, box-shadow 0.2s ease;
-}
-
-.btn-pastel:hover {
-  background-color: var(--color-primary-dark);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
-}
-
-.btn-pastel-secondary {
-  background-color: #E0E0E0;
-  color: var(--text-main);
-  border: none;
-  padding: 0.6rem 1.5rem;
-  border-radius: var(--border-radius-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.1s ease, box-shadow 0.2s ease;
-}
-
-.btn-pastel-secondary:hover {
-  background-color: #D0D0D0;
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
-}
-
-.btn-pastel-danger {
-  background-color: var(--color-danger);
-  color: #fff;
-  border: none;
-  padding: 0.6rem 1.5rem;
-  border-radius: var(--border-radius-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.1s ease, box-shadow 0.2s ease;
-}
-
-.btn-pastel-danger:hover {
-  background-color: #ff9999;
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
-}
+/* Botones movidos a components/buttons.css */
 
 /* Cards */
 .card-pastel {
@@ -324,4 +248,16 @@ h1, h2, h3, h4, h5, h6 {
 body {
   zoom: 0.75;
   width: 100%;
+}
+
+/* Ajustar backdrop para compensar el zoom del body */
+.modal-backdrop {
+  width: 133.33vw !important;
+  height: 133.33vh !important;
+}
+
+/* Permitir scroll cuando el modal está abierto */
+body.modal-open {
+  overflow: auto !important;
+  padding-right: 0 !important;
 }

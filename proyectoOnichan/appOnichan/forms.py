@@ -1,3 +1,6 @@
+"""
+Formularios de la aplicación
+"""
 from django import forms
 from .models import Coupon, Product
 from django.utils import timezone
@@ -5,6 +8,7 @@ import random
 import string
 
 class CouponForm(forms.ModelForm):
+    """Formulario para crear/editar cupones"""
     class Meta:
         model = Coupon
         fields = ['code', 'discount_percentage', 'valid_from', 'valid_to', 'active', 'usage_limit']
@@ -18,6 +22,7 @@ class CouponForm(forms.ModelForm):
         }
 
 class BulkDiscountForm(forms.Form):
+    """Formulario para aplicar o quitar descuentos masivos a productos"""
     name = forms.CharField(
         max_length=100, 
         label="Nombre de la Oferta", 
@@ -41,6 +46,7 @@ class BulkDiscountForm(forms.Form):
     )
 
 class CouponGenerationForm(forms.Form):
+    """Formulario para generar múltiples cupones en lote"""
     quantity = forms.IntegerField(min_value=1, max_value=100, label="Cantidad de Cupones", widget=forms.NumberInput(attrs={'class': 'form-control'}))
     discount_percentage = forms.IntegerField(min_value=1, max_value=100, label="Porcentaje de Descuento", widget=forms.NumberInput(attrs={'class': 'form-control'}))
     valid_days = forms.IntegerField(min_value=1, label="Días de Validez", widget=forms.NumberInput(attrs={'class': 'form-control'}))
@@ -49,6 +55,10 @@ class CouponGenerationForm(forms.Form):
     batch_name = forms.CharField(max_length=100, required=False, label="Nombre del Lote", widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Cupones Navidad'}))
 
     def generate_coupons(self):
+        """
+        Genera múltiples cupones según los parámetros del formulario.
+        Retorna lista de cupones creados.
+        """
         quantity = self.cleaned_data['quantity']
         discount = self.cleaned_data['discount_percentage']
         days = self.cleaned_data['valid_days']
@@ -60,11 +70,11 @@ class CouponGenerationForm(forms.Form):
         valid_to = now + timezone.timedelta(days=days)
         
         for _ in range(quantity):
-            # Generate random code
+            # Generar código aleatorio único
             random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
             code = f"{prefix}-{random_str}"
             
-            # Ensure uniqueness (simple check)
+            # Asegurar unicidad del código
             while Coupon.objects.filter(code=code).exists():
                 random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
                 code = f"{prefix}-{random_str}"
