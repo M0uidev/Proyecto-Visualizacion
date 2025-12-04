@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% block content %}
-  <!-- Hero Section -->
+  <!-- Sección hero con gradiente -->
   <section class="container-fluid px-0 mb-5">
     <div class="rounded-3 p-5 text-center" style="background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-primary) 100%);">
       <h1 class="display-4 fw-bold mb-3" style="color: var(--text-white);">Nuevas Colecciones</h1>
@@ -18,18 +18,18 @@
     </div>
   </section>
 
-  <!-- 1) Sección Ofertas Imperdibles (Carrusel) -->
+  <!-- Carrusel de ofertas imperdibles -->
   {% if ofertas_imperdibles|length >= 5 %}
   <section class="container mb-5 position-relative" id="ofertas">
     <h2 class="h3 fw-bold mb-4">Ofertas Imperdibles</h2>
     
-    <div class="position-relative px-4"> <!-- Added padding for arrows -->
+    <div class="position-relative px-4">
       <button class="btn btn-light rounded-circle shadow position-absolute top-50 start-0 translate-middle-y z-2 d-none d-md-flex align-items-center justify-content-center" id="prevOffer" style="width: 40px; height: 40px; left: 0;">
         <i class="bi bi-chevron-left"></i>
       </button>
       
       <div class="scrolling-wrapper-flexbox py-2 d-flex flex-nowrap" id="offersCarousel">
-        {% for producto in ofertas_imperdibles|slice:":12" %} <!-- Increased slice to show more items -->
+        {% for producto in ofertas_imperdibles|slice:":12" %}
           <div class="card-product-carousel">
             {% include 'partials/product_card.html' with product=producto %}
           </div>
@@ -43,7 +43,7 @@
   </section>
   {% endif %}
 
-  <!-- 3) Sección Productos filtrables por chips -->
+  <!-- Productos filtrables por categoría -->
   <section class="container mb-5" id="imperdibles">
     <div class="d-flex flex-column align-items-center mb-4">
       <h2 class="h3 fw-bold mb-3">Productos para ti</h2>
@@ -59,7 +59,7 @@
       {% include 'partials/product_list.html' %}
     </div>
 
-    <!-- Items per page selector -->
+    <!-- Selector de items por página -->
     <div class="text-center mt-3">
         <form method="get" class="d-inline-block" id="itemsPerPageForm">
             <input type="hidden" name="category" value="{{ current_category|default:'' }}">
@@ -75,7 +75,7 @@
     </div>
   </section>
 
-  <!-- 4 items: Help, Orders, Returns, Stores -->
+  <!-- Tarjetas de información: Ayuda, Pedidos, Devoluciones, Tiendas -->
   <section class="container mb-5">
     <div class="row g-4">
       <!-- Item 1: Ayuda -->
@@ -133,7 +133,7 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      // Carousel Logic
+      // Lógica del carrusel de ofertas
       const scrollContainer = document.getElementById('offersCarousel');
       const prevBtn = document.getElementById('prevOffer');
       const nextBtn = document.getElementById('nextOffer');
@@ -145,9 +145,8 @@
             const gap = 16;
             const scrollAmount = card.offsetWidth + gap;
             
-            // Check if we are near the end
+            // Vuelve al inicio si se llega al final
             if (scrollContainer.scrollLeft + scrollContainer.clientWidth >= scrollContainer.scrollWidth - 10) {
-              // Loop back to start
               scrollContainer.scrollTo({ left: 0, behavior: 'smooth' });
             } else {
               scrollContainer.scrollBy({ left: scrollAmount, behavior: 'smooth' });
@@ -161,9 +160,8 @@
             const gap = 16;
             const scrollAmount = card.offsetWidth + gap;
             
-            // Check if we are at the start
+            // Vuelve al final si se llega al inicio
             if (scrollContainer.scrollLeft <= 10) {
-              // Loop to end
               scrollContainer.scrollTo({ left: scrollContainer.scrollWidth, behavior: 'smooth' });
             } else {
               scrollContainer.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
@@ -172,11 +170,27 @@
         });
       }
 
-      // AJAX Filtering and Pagination
+      // Filtrado AJAX y paginación
       const productContainer = document.getElementById('product-list-container');
       const filterChips = document.querySelectorAll('.filter-chip');
       const itemsSelect = document.getElementById('items');
       const itemsForm = document.getElementById('itemsPerPageForm');
+
+      // Resuelve conflictos de z-index en modales en dispositivos móviles
+      function moveModalsToBody(container) {
+        if (!container) return;
+        const modals = container.querySelectorAll('.modal');
+        modals.forEach(modal => {
+          document.body.appendChild(modal);
+          if (container.id === 'product-list-container') {
+            modal.classList.add('list-modal');
+          }
+        });
+      }
+
+      // Mueve modales del contenido estático
+      moveModalsToBody(document.getElementById('offersCarousel'));
+      moveModalsToBody(productContainer);
 
       function updateFormInputs(url) {
           const urlObj = new URL(url, window.location.origin);
@@ -207,9 +221,15 @@
         })
         .then(response => response.text())
         .then(html => {
+            // Elimina modales antiguos
+            document.querySelectorAll('.modal.list-modal').forEach(el => el.remove());
+
             productContainer.innerHTML = html;
             productContainer.style.opacity = '1';
             
+            // Mueve modales nuevos
+            moveModalsToBody(productContainer);
+
             history.pushState(null, '', url);
             updateFormInputs(url);
             attachPaginationListeners();
@@ -242,7 +262,7 @@
             this.classList.add('active', 'btn-primary');
             this.classList.remove('btn-outline-primary');
 
-            // Construct URL dynamically to preserve current state
+            // Construye URL preservando el estado actual
             const category = this.getAttribute('data-category');
             const items = document.getElementById('items').value;
             const sortInput = document.querySelector('input[name="sort"]');
@@ -250,7 +270,7 @@
 
             const params = new URLSearchParams();
             if (category && category !== 'all') params.set('category', category);
-            else params.set('category', 'all'); // Explicitly set 'all' if that's the selection
+            else params.set('category', 'all');
             
             if (items) params.set('items', items);
             if (sort) params.set('sort', sort);

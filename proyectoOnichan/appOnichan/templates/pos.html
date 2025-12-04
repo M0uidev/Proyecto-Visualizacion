@@ -5,18 +5,35 @@
 
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'css/dashboardtrabajador.css' %}">
+  <style>
+    .product-grid {
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    .cart-sticky {
+      position: sticky;
+      top: 20px;
+    }
+    /* Oculta notificaciones duplicadas de base.html (abajo-derecha) */
+    .toast-container.end-0 .message-toast {
+      display: none !important;
+    }
+  </style>
 {% endblock %}
 
 {% block content %}
-  <main class="container py-4">
+  <main class="container-fluid px-4 py-4">
     <header class="d-flex justify-content-between align-items-center mb-4">
-      <h1 class="h4 mb-0">Caja - Venta presencial</h1>
-      <a href="{% url 'dashboardtrabajador' %}" class="btn btn-pastel-secondary"><i class="bi bi-arrow-left me-2"></i>Volver</a>
+      <div>
+        <h1 class="h3 mb-0 fw-bold" style="color: var(--color-primary-dark);">Caja - Venta Presencial</h1>
+        <p class="text-muted mb-0">Gestiona ventas rápidas en tienda</p>
+      </div>
+      <a href="{% url 'dashboardtrabajador' %}" class="btn btn-pastel-secondary"><i class="bi bi-arrow-left me-2"></i>Volver al Dashboard</a>
     </header>
 
     {% if pos_errors %}
       <div class="alert alert-danger" role="alert">
-        <strong>No hay stock suficiente</strong>
+        <strong><i class="bi bi-exclamation-triangle-fill me-2"></i>No hay stock suficiente</strong>
         <ul class="mb-0 mt-2">
           {% for e in pos_errors %}
             <li>{{ e.name }}: solicitado {{ e.requested }}, disponible {{ e.available }}</li>
@@ -26,89 +43,205 @@
     {% endif %}
 
     <div class="row g-4">
-      <section class="col-12 col-lg-7">
-        <article class="card-pastel">
-          <header><h3 class="h5 mb-0">Productos</h3></header>
-          <div class="p-3">
-            <div class="row row-cols-2 row-cols-md-3 g-3">
+      <!-- Sección de Productos -->
+      <section class="col-12 col-lg-8">
+        <article class="card-pastel h-100">
+          <header class="d-flex justify-content-between align-items-center p-3 border-bottom">
+            <h3 class="h5 mb-0 fw-bold">Catálogo de Productos</h3>
+            <div class="input-group w-50">
+              <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+              <input type="text" id="productSearch" class="form-control border-start-0 ps-0" placeholder="Buscar por nombre o ID...">
+            </div>
+          </header>
+          
+          <div class="p-3 product-grid">
+            <div class="row row-cols-2 row-cols-md-3 row-cols-xl-4 g-3" id="productsContainer">
               {% for p in productos %}
-                <div class="col">
-                  <div class="card h-100 border-0 shadow-sm">
-                    <div class="ratio ratio-1x1"><img src="{{ p.image_url }}" alt="{{ p.name }}" class="img-fluid object-fit-cover rounded-top"></div>
-                    <div class="card-body">
-                      <div class="small text-muted">#{{ p.id }}</div>
-                      <div class="fw-semibold">{{ p.name }}</div>
-                      <div class="text-primary fw-bold">${{ p.price }}</div>
+                <div class="col product-item" data-name="{{ p.name|lower }}" data-id="{{ p.id }}">
+                  <div class="card h-100 border-0 shadow-sm product-card-hover">
+                    <div class="position-relative">
+                      <div class="ratio ratio-1x1">
+                        <img src="{{ p.image_url }}" alt="{{ p.name }}" class="img-fluid object-fit-cover rounded-top">
+                      </div>
+                      <div class="position-absolute top-0 end-0 p-2">
+                        <span class="badge bg-white text-dark shadow-sm">#{{ p.id }}</span>
+                      </div>
                     </div>
-                    <div class="card-footer bg-white border-0">
-                      {% if p.stock > 0 %}
-                      <form method="post" class="d-flex gap-2 align-items-center">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="add">
-                        <input type="hidden" name="product_id" value="{{ p.id }}">
-                        <input type="number" name="qty" value="1" min="1" max="{{ p.stock }}" class="form-control form-control-sm" style="width:90px;">
-                        <button class="btn btn-sm btn-pastel"><i class="bi bi-plus-lg me-1"></i>Agregar</button>
-                      </form>
-                      {% else %}
-                      <div class="text-center text-danger fw-bold">Sin Stock</div>
-                      {% endif %}
+                    
+                    <div class="card-body p-2 d-flex flex-column">
+                      <h6 class="card-title text-truncate mb-1 fw-semibold" title="{{ p.name }}">{{ p.name }}</h6>
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-primary fw-bold">${{ p.price }}</span>
+                        <small class="text-muted">Stock: {{ p.stock }}</small>
+                      </div>
+                      
+                      <div class="mt-auto">
+                        {% if p.stock > 0 %}
+                        <form method="post" class="d-flex flex-column gap-2">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="add">
+                          <input type="hidden" name="product_id" value="{{ p.id }}">
+                          
+                          {% if p.has_sizes %}
+                            <select name="size" class="form-select form-select-sm" required>
+                              <option value="" selected disabled>Talla</option>
+                              {% for s in p.sizes.all %}
+                                <option value="{{ s.label }}">{{ s.label }}</option>
+                              {% endfor %}
+                            </select>
+                          {% endif %}
+
+                          <div class="d-flex gap-1 align-items-center">
+                            <input type="number" name="qty" value="1" min="1" max="{{ p.stock }}" class="form-control form-control-sm text-center px-1" style="width: 50px;">
+                            <button class="btn btn-sm btn-pastel flex-grow-1 py-1"><i class="bi bi-plus-lg"></i></button>
+                          </div>
+                        </form>
+                        {% else %}
+                        <button class="btn btn-sm btn-secondary w-100" disabled>Sin Stock</button>
+                        {% endif %}
+                      </div>
                     </div>
                   </div>
                 </div>
               {% endfor %}
             </div>
+            <div id="noResults" class="text-center py-5 d-none">
+              <i class="bi bi-search display-4 text-muted mb-3"></i>
+              <p class="text-muted">No se encontraron productos.</p>
+            </div>
           </div>
         </article>
       </section>
 
-      <section class="col-12 col-lg-5">
-        <article class="card-pastel">
-          <header class="d-flex justify-content-between align-items-center">
-            <h3 class="h5 mb-0">Carrito</h3>
-            <form method="post">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="clear">
-              <button class="btn btn-sm btn-pastel-danger"><i class="bi bi-trash me-1"></i>Vaciar</button>
-            </form>
-          </header>
-          <div class="p-3">
-            {% if cart_items %}
-              <div class="mb-3">
-                <label class="form-label">Fecha del pedido</label>
-                <input type="date" class="form-control" name="order_date_display" value="{{ today|default:'' }}" oninput="document.getElementById('order_date').value=this.value">
-              </div>
-              <ul class="list-group list-group-flush">
-                {% for it in cart_items %}
-                  <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <div>
-                      <div class="fw-semibold">{{ it.name }}</div>
-                      <small class="text-muted">x{{ it.qty }} · ${{ it.price }} = ${{ it.subtotal }}</small>
-                    </div>
-                    <form method="post">
-                      {% csrf_token %}
-                      <input type="hidden" name="action" value="remove">
-                      <input type="hidden" name="product_id" value="{{ it.id }}">
-                      <button class="btn btn-sm btn-pastel-secondary"><i class="bi bi-x"></i></button>
-                    </form>
-                  </li>
-                {% endfor %}
-              </ul>
-              <div class="d-flex justify-content-between align-items-center mt-3">
-                <div class="fs-5">Total</div>
-                <div class="fs-4 fw-bold text-primary">${{ cart_total }}</div>
-              </div>
-              <form method="post" class="mt-3">
+      <!-- Sección de Carrito -->
+      <section class="col-12 col-lg-4">
+        <div class="cart-sticky">
+          <article class="card-pastel shadow-sm">
+            <header class="d-flex justify-content-between align-items-center p-3 bg-soft border-bottom">
+              <h3 class="h5 mb-0 fw-bold"><i class="bi bi-cart3 me-2"></i>Carrito Actual</h3>
+              <form method="post" onsubmit="return confirm('¿Vaciar carrito?');">
                 {% csrf_token %}
-                <input type="hidden" name="action" value="finalize">
-                <input type="hidden" id="order_date" name="order_date" value="{{ today|default:'' }}">
-                <button class="btn btn-pastel w-100"><i class="bi bi-check2-circle me-2"></i>Finalizar venta</button>
+                <input type="hidden" name="action" value="clear">
+                <button class="btn btn-sm btn-outline-danger border-0"><i class="bi bi-trash me-1"></i>Vaciar</button>
               </form>
-            {% else %}
-              <p class="text-muted">Agrega productos para iniciar una venta.</p>
-            {% endif %}
-          </div>
-        </article>
+            </header>
+            
+            <div class="p-3">
+              {% if cart_items %}
+                <div class="mb-3">
+                  <label class="form-label small text-muted">Fecha de Venta</label>
+                  <input type="date" class="form-control form-control-sm" name="order_date_display" value="{{ today|default:'' }}" oninput="document.getElementById('order_date').value=this.value">
+                </div>
+
+                <div class="list-group list-group-flush mb-3 overflow-auto" style="max-height: 400px;">
+                  {% for it in cart_items %}
+                    <div class="list-group-item px-0 py-2 bg-transparent border-bottom d-flex justify-content-between align-items-center">
+                      <div class="me-2 overflow-hidden">
+                        <div class="fw-semibold text-truncate">{{ it.name }}</div>
+                        <div class="small text-muted d-flex align-items-center gap-2">
+                          {% if it.size %}
+                            <span class="badge bg-secondary">{{ it.size }}</span>
+                          {% endif %}
+                          <span>${{ it.price }}</span>
+                          <span class="badge bg-light text-dark border">x{{ it.qty }}</span>
+                        </div>
+                      </div>
+                      <div class="d-flex align-items-center gap-3">
+                        <span class="fw-bold">${{ it.subtotal }}</span>
+                        <form method="post">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="remove">
+                          <input type="hidden" name="key" value="{{ it.key }}">
+                          <button class="btn btn-sm btn-link text-danger p-0"><i class="bi bi-x-circle-fill fs-5"></i></button>
+                        </form>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+
+                <div class="card bg-white border-0 p-3 mb-3 rounded-3">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted">Total a Pagar</span>
+                    <span class="fs-3 fw-bold text-primary">${{ cart_total }}</span>
+                  </div>
+                </div>
+
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="finalize">
+                  <input type="hidden" id="order_date" name="order_date" value="{{ today|default:'' }}">
+                  <button class="btn btn-pastel btn-lg w-100 shadow-sm">
+                    <i class="bi bi-check2-circle me-2"></i>Finalizar Venta
+                  </button>
+                </form>
+              {% else %}
+                <div class="text-center py-5">
+                  <div class="mb-3 text-muted opacity-50">
+                    <i class="bi bi-basket3 display-1"></i>
+                  </div>
+                  <h5 class="text-muted">Carrito Vacío</h5>
+                  <p class="small text-muted">Agrega productos del catálogo para comenzar una venta.</p>
+                </div>
+              {% endif %}
+            </div>
+          </article>
+        </div>
       </section>
     </div>
   </main>
+
+  <!-- Contenedor de Toast para Notificaciones -->
+  <div class="toast-container position-fixed bottom-0 start-0 p-3" style="z-index: 11">
+    {% if messages %}
+      {% for message in messages %}
+        <div class="toast message-toast align-items-center text-white bg-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+          <div class="d-flex">
+            <div class="toast-body">
+              <i class="bi bi-check-circle-fill me-2"></i>{{ message }}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Inicializa Toasts (solo toasts de mensajes)
+      var toastElList = [].slice.call(document.querySelectorAll('.message-toast'))
+      var toastList = toastElList.map(function (toastEl) {
+        return new bootstrap.Toast(toastEl, { delay: 5000 });
+      })
+      toastList.forEach(toast => toast.show());
+
+      const searchInput = document.getElementById('productSearch');
+      const productsContainer = document.getElementById('productsContainer');
+      const items = document.querySelectorAll('.product-item');
+      const noResults = document.getElementById('noResults');
+
+      searchInput.addEventListener('keyup', function(e) {
+        const term = e.target.value.toLowerCase().trim();
+        let visibleCount = 0;
+
+        items.forEach(item => {
+          const name = item.dataset.name;
+          const id = item.dataset.id;
+          
+          if (name.includes(term) || id.includes(term)) {
+            item.classList.remove('d-none');
+            visibleCount++;
+          } else {
+            item.classList.add('d-none');
+          }
+        });
+
+        if (visibleCount === 0) {
+          noResults.classList.remove('d-none');
+        } else {
+          noResults.classList.add('d-none');
+        }
+      });
+    });
+  </script>
 {% endblock %}

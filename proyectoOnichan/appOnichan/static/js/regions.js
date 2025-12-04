@@ -1,8 +1,8 @@
 /**
- * Initializes the region and commune selectors.
- * @param {string} jsonUrl - The URL to fetch the regions JSON from.
- * @param {string} userRegion - The user's saved region (optional).
- * @param {string} userCommune - The user's saved commune (optional).
+ * Inicializa selectores de región y comuna.
+ * @param {string} jsonUrl - URL para obtener el JSON de regiones.
+ * @param {string} userRegion - Región guardada del usuario (opcional).
+ * @param {string} userCommune - Comuna guardada del usuario (opcional).
  */
 function initRegionSelector(jsonUrl, userRegion, userCommune) {
     const regionSelect = document.getElementById('regionSelect');
@@ -13,7 +13,7 @@ function initRegionSelector(jsonUrl, userRegion, userCommune) {
     let regionsData = [];
     let initialLoad = true;
 
-    // Fetch regions JSON
+    // Obtiene JSON de regiones
     fetch(jsonUrl)
         .then(response => response.json())
         .then(data => {
@@ -29,15 +29,15 @@ function initRegionSelector(jsonUrl, userRegion, userCommune) {
                 regionSelect.appendChild(option);
             });
             
-            // Trigger change if we have a pre-selected region
+            // Dispara cambio si hay región preseleccionada
             if (userRegion) {
                 regionSelect.dispatchEvent(new Event('change'));
             }
             initialLoad = false;
         })
-        .catch(error => console.error('Error loading regions:', error));
+        .catch(error => console.error('Error al cargar regiones:', error));
 
-    // Handle region change
+    // Maneja cambio de región
     regionSelect.addEventListener('change', function() {
         const selectedRegionName = this.value;
         communeSelect.innerHTML = '<option value="">Seleccione Comuna...</option>';
@@ -55,14 +55,14 @@ function initRegionSelector(jsonUrl, userRegion, userCommune) {
                     }
                 });
                 
-                // Sort alphabetically
+                // Ordena alfabéticamente
                 comunas.sort();
 
                 comunas.forEach(comunaName => {
                     const option = document.createElement('option');
                     option.value = comunaName;
                     option.textContent = comunaName;
-                    // Pre-select commune only on initial load
+                    // Preselecciona comuna solo en carga inicial
                     if (initialLoad && userCommune && comunaName === userCommune) {
                         option.selected = true;
                     }

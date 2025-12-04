@@ -27,7 +27,7 @@
   </div>
 
   {% if user.is_staff or user.is_superuser or user|has_group:"admin" %}
-  <!-- Modal Agregar Producto (solo admin) -->
+  <!-- Modal para agregar nuevo producto (solo administrador) -->
   <div class="modal fade" id="addProductModal" tabindex="-1">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -88,7 +88,7 @@
       </div>
     </div>
   </div>
-  <!-- Modal Editar Producto (solo admin) -->
+  <!-- Modal para editar producto (solo administrador) -->
   <div class="modal fade" id="editProductModal" tabindex="-1">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -141,7 +141,7 @@
   </div>
   {% endif %}
 
-  <!-- Modal Ajustar Stock (Trabajador) -->
+  <!-- Modal para ajustar stock (para trabajadores) -->
   <div class="modal fade" id="adjustStockModal" tabindex="-1">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -207,7 +207,7 @@
             </header>
 
             <div class="p-4">
-              <!-- Search and Filter -->
+              <!-- Búsqueda y filtros -->
               <div class="row g-2 mb-4">
                   <div class="col-md-6">
                       <input type="text" id="productSearch" class="form-control" placeholder="Buscar producto por nombre o ID...">
@@ -227,12 +227,12 @@
                   </div>
               </div>
 
-              <!-- Grid Container -->
+              <!-- Contenedor de cuadrícula de productos -->
               <div id="productsGrid" class="d-flex flex-wrap gap-3 justify-content-start">
-                  <!-- JS will populate this -->
+                  <!-- JS poblará esto -->
               </div>
               
-              <!-- Fallback/Empty State -->
+              <!-- Estado vacío -->
               <div id="emptyState" class="text-center text-muted mt-5" style="display: none;">
                   <i class="bi bi-search display-4"></i>
                   <p class="mt-2">No se encontraron productos.</p>

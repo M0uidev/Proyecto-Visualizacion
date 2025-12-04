@@ -17,6 +17,7 @@ urlpatterns = [
     path('dashboardadmin/', views.dashboardadmin, name='dashboardadmin'),
     path('api/dashboard-data/', views.api_dashboard_data, name='api_dashboard_data'),
     path('dashboardtrabajador/', views.dashboardtrabajador, name='dashboardtrabajador'),
+    path('api/worker-dashboard-data/', views.api_worker_dashboard_data, name='api_worker_dashboard_data'),
     path('api/check_orders/', views.check_new_orders, name='check_new_orders'),
     # Fulfillment Game
     path('orders/', views.order_list, name='order_list'),

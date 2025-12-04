@@ -5,89 +5,185 @@
 
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'css/dashboardtrabajador.css' %}">
+  <style>
+    .loading {
+        margin-top: 10em;
+        text-align: center;
+        color: gray;
+    }
+    
+    .modal.show .modal-dialog {
+        transform: scale(1.25) !important;
+        transform-origin: top center;
+        margin-top: 5%; 
+    }
+  </style>
 {% endblock %}
 
 {% block content %}
-  <main class="container py-4">
-    <header class="d-flex justify-content-between align-items-center mb-4">
-      <h1 class="h4 mb-0">Dashboard Trabajador</h1>
-      <form method="get" class="d-flex align-items-center gap-2">
-        <a class="btn btn-pastel-secondary" href="{{ prev_url }}" title="Anterior">⟵</a>
-        <div class="input-group">
-          <span class="input-group-text">Periodo</span>
-          <select name="period" class="form-select">
-            <option value="day" {% if period == 'day' %}selected{% endif %}>Día</option>
-            <option value="week" {% if period == 'week' %}selected{% endif %}>Semana</option>
-            <option value="month" {% if period == 'month' %}selected{% endif %}>Mes</option>
-            <option value="year" {% if period == 'year' %}selected{% endif %}>Año</option>
-          </select>
+  <main class="container-fluid py-4">
+    <div class="dashboard-wrapper dash-card p-4">
+      <!-- KPIs Section (Always Visible) -->
+      <section class="row g-4 mb-4">
+        <div class="col-12 col-md-4">
+          <article class="dash-card metric-card" aria-labelledby="metricPedidosHoy">
+            <span class="metric-label" id="metricPedidosHoy">Ventas hoy</span>
+            <span class="metric-value" data-kpi="pedidos_hoy">--</span>
+            <span class="metric-trend" data-kpi-trend="pedidos_hoy">&nbsp;</span>
+          </article>
         </div>
-        {% if period == 'day' %}
-          <div class="input-group">
-            <span class="input-group-text">Fecha</span>
-            <input type="date" class="form-control" name="date" value="{{ ref_value|default:'' }}" />
-          </div>
-        {% elif period == 'week' %}
-          <div class="input-group">
-            <span class="input-group-text">Semana</span>
-            <input type="date" class="form-control" name="week" value="{{ ref_value|default:'' }}" />
-          </div>
-        {% elif period == 'month' %}
-          <div class="input-group">
-            <span class="input-group-text">Mes</span>
-            <input type="month" class="form-control" name="month" value="{{ ref_value|default:'' }}" />
-          </div>
-        {% else %}
-          <div class="input-group">
-            <span class="input-group-text">Año</span>
-            <input type="number" class="form-control" name="year" value="{{ ref_value|default:'' }}" />
-          </div>
-        {% endif %}
-        <button class="btn btn-pastel" type="submit">Ver</button>
-        <a class="btn btn-pastel-secondary" href="{{ next_url }}" title="Siguiente">⟶</a>
-      </form>
-    </header>
+        <div class="col-12 col-md-4">
+          <article class="dash-card metric-card" aria-labelledby="metricPendientes">
+            <span class="metric-label" id="metricPendientes">Pedidos Pendientes</span>
+            <span class="metric-value" data-kpi="pendientes">--</span>
+            <span class="metric-trend" data-kpi-trend="pendientes">&nbsp;</span>
+          </article>
+        </div>
+        <div class="col-12 col-md-4">
+          <article class="dash-card metric-card" aria-labelledby="metricIngresos">
+            <span class="metric-label" id="metricIngresos">Ingresos ({{ period_title }})</span>
+            <span class="metric-value" data-kpi="ingresos_7d">--</span>
+            <span class="metric-trend" data-kpi-trend="ingresos_7d">&nbsp;</span>
+          </article>
+        </div>
+      </section>
 
-    <section class="card-pastel">
-      <header>
-        <h3 class="h5">{{ title_text }}</h3>
-      </header>
-      <div class="chart-wrapper" style="height: 380px;">
-        <canvas id="pieToday"></canvas>
+      <div class="mb-4 d-flex flex-wrap gap-2 align-items-center justify-content-end">
+        <form id="dashboardFilterForm" method="get" class="d-flex align-items-center gap-2">
+          <a id="btnPrevPeriod" class="btn btn-pastel-secondary {% if not prev_url %}disabled{% endif %}" {% if prev_url %}href="{{ prev_url }}"{% endif %} title="Anterior">⟵</a>
+          <div class="btn-group" role="group" aria-label="Selector de Periodo">
+            <input type="radio" class="btn-check" name="period" id="periodWeek" value="week" autocomplete="off" {% if period == 'week' %}checked{% endif %}>
+            <label class="btn btn-outline-secondary" for="periodWeek">Semana</label>
+
+            <input type="radio" class="btn-check" name="period" id="periodMonth" value="month" autocomplete="off" {% if period == 'month' %}checked{% endif %}>
+            <label class="btn btn-outline-secondary" for="periodMonth">Mes</label>
+
+            <input type="radio" class="btn-check" name="period" id="periodYear" value="year" autocomplete="off" {% if period == 'year' %}checked{% endif %}>
+            <label class="btn btn-outline-secondary" for="periodYear">Año</label>
+          </div>
+          
+          <div class="input-group period-input" id="input-week" {% if period != 'week' %}style="display:none;"{% endif %}>
+            <span class="input-group-text">Semana</span>
+            <input type="date" class="form-control" name="week" value="{% if period == 'week' %}{{ ref_value|default:'' }}{% endif %}" />
+          </div>
+          
+          <div class="input-group period-input" id="input-month" {% if period != 'month' %}style="display:none;"{% endif %}>
+            <span class="input-group-text">Mes</span>
+            <input type="month" class="form-control" name="month" value="{% if period == 'month' %}{{ ref_value|default:'' }}{% endif %}" />
+          </div>
+          
+          <div class="input-group period-input" id="input-year" {% if period != 'year' %}style="display:none;"{% endif %}>
+            <span class="input-group-text">Año</span>
+            <input type="number" class="form-control" name="year" value="{% if period == 'year' %}{{ ref_value|default:'' }}{% endif %}" />
+          </div>
+          <a id="btnNextPeriod" class="btn btn-pastel-secondary" href="{{ next_url }}" title="Siguiente">⟶</a>
+        </form>
       </div>
-    </section>
+
+      <style>
+        /* Fuerza ancho consistente para inputs de período */
+        .period-input {
+            min-width: 240px; /* Ajusta según preferencia, coincide con ancho típico de input month */
+            max-width: 240px;
+        }
+        /* Asegura que el enlace deshabilitado se vea deshabilitado */
+        a.disabled {
+            pointer-events: none;
+            opacity: 0.5;
+            cursor: default;
+        }
+      </style>
+
+      <!-- Navegación de pestañas -->
+      <ul class="nav nav-tabs mb-4" id="dashboardTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="ventas-tab" data-bs-toggle="tab" data-bs-target="#ventas" type="button" role="tab" aria-controls="ventas" aria-selected="true">Ventas</button>
+        </li>
+      </ul>
+
+      <!-- Contenido de pestañas -->
+      <div class="tab-content" id="dashboardTabsContent">
+        
+        <!-- Pestaña Ventas -->
+        <div class="tab-pane fade show active" id="ventas" role="tabpanel" aria-labelledby="ventas-tab">
+          <!-- Gráfico de líneas y pastel -->
+          <section class="row g-4">
+            <div class="col-12 col-lg-7">
+              <article class="dash-card chart-card" aria-labelledby="chartLineTitle">
+                <header>
+                  <h3 id="chartLineTitle">{{ title_text }}</h3>
+                </header>
+                <div class="chart-wrapper" style="height: 400px;">
+                  <div id="ordersLineChart" aria-describedby="chartLineTitle" style="width:100%; height:100%;"></div>
+                </div>
+              </article>
+            </div>
+            <div class="col-12 col-lg-5">
+              <article class="dash-card chart-card" aria-labelledby="chartPieTitle">
+                <header class="d-flex justify-content-between align-items-center">
+                  <h3 id="chartPieTitle" class="mb-0">Top productos</h3>
+                </header>
+                <div class="chart-wrapper" style="height: 400px;">
+                  <div id="topProductsPieChart" aria-describedby="chartPieTitle" style="width:100%; height:100%;"></div>
+                </div>
+                <div class="chart-legend" id="topProductsLegend" aria-hidden="true"></div>
+              </article>
+            </div>
+          </section>
+
+          <!-- Gráfico de barras y Multi Series Pie -->
+          <section class="row g-4 mt-2">
+            <div class="col-12 col-lg-6">
+              <article class="dash-card chart-card" aria-labelledby="chartBarTitle">
+                <header>
+                  <h3 id="chartBarTitle">Productos vendidos por categoría</h3>
+                </header>
+                <div class="chart-wrapper" style="height: 400px;">
+                  <div id="categoryRevenueBarChart" aria-describedby="chartBarTitle" style="width:100%; height:100%;"></div>
+                </div>
+              </article>
+            </div>
+            <div class="col-12 col-lg-6">
+              <article class="dash-card chart-card" aria-labelledby="treemapTitle">
+                <header>
+                  <h3 id="treemapTitle">Distribución de Ventas</h3>
+                </header>
+                <div class="chart-wrapper" style="height: 400px;">
+                  <div id="salesTreemapChart" aria-describedby="treemapTitle" style="width:100%; height:100%;"></div>
+                </div>
+              </article>
+            </div>
+          </section>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="dashModal" class="modal fade" tabindex="-1" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content modal-card">
+          <div class="modal-header modal-head">
+            <h5 class="modal-title" id="dashModalTitle">Detalle</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="dashModalChart"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 {% endblock %}
 
 {% block scripts %}
-  <script type="application/json" id="worker-data">{{ data_json|default:'{}'|safe }}</script>
-  <script src="{% static 'chart.js' %}"></script>
-  <script>
-    (function(){
-      const el = document.getElementById('worker-data');
-      let data = {labels: [], values: []};
-      try { data = JSON.parse(el.textContent || '{}'); } catch(e){}
-      const ctx = document.getElementById('pieToday').getContext('2d');
-      const palette = ['#4f46e5','#22c55e','#f97316','#0ea5e9','#ec4899','#f59e0b','#8b5cf6','#06b6d4'];
-      new Chart(ctx, {
-        type: 'pie',
-        data: {
-          labels: data.labels,
-          datasets: [{
-            data: data.values,
-            backgroundColor: data.labels.map((_,i)=>palette[i%palette.length]),
-            borderWidth: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'right' },
-            tooltip: { callbacks: { label: (ctx)=> `${ctx.label}: ${ctx.formattedValue} u.` } }
-          }
-        }
-      });
-    })();
-  </script>
+  <script type="application/json" id="dashboard-data" data-period="{{ period }}" data-ref-value="{{ ref_value }}">{{ data_json|default:"{}"|safe }}</script>
+  <script src="https://code.highcharts.com/highcharts.js"></script>
+  <script src="https://code.highcharts.com/modules/variable-pie.js"></script>
+  <script src="https://code.highcharts.com/modules/treemap.js"></script>
+  <script src="https://code.highcharts.com/modules/exporting.js"></script>
+  <script src="https://code.highcharts.com/modules/export-data.js"></script>
+  <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+  <script>const apiDashboardUrl = "{% url 'api_worker_dashboard_data' %}";</script>
+  <script src="{% static 'js/dashboardadmin.js' %}?v=4.25"></script>
 {% endblock %}

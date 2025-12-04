@@ -34,8 +34,7 @@ body {
   border: 1px solid var(--dash-card-border);
 }
 
-
-
+/* Estructura de métricas */
 .metric-card {
   display: flex;
   flex-direction: column;
@@ -60,6 +59,7 @@ body {
   color: var(--dash-muted);
 }
 
+/* Estilos para gráficos */
 .chart-card {
   height: 100%;
   display: flex;
@@ -106,7 +106,7 @@ body {
   display: inline-block;
 }
 
-/* Modal styles - Enhanced styling for Bootstrap modals */
+/* Estilos mejorados para modales Bootstrap */
 .modal-card {
   background: #fff;
   border-radius: 22px;

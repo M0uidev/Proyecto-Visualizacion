@@ -13,6 +13,7 @@
   color: var(--dash-text);
 }
 
+/* Contenedor para gráficos */
 .chart-wrapper {
   padding: 1.5rem;
   height: 100%;
@@ -46,6 +47,7 @@
   vertical-align: middle;
 }
 
+/* Chips de filtro reutilizables */
 .chip {
   display: inline-flex;
   align-items: center;
@@ -71,6 +73,7 @@
   color: #fff;
 }
 
+/* Diálogos modales personalizados */
 .stock-modal-dialog {
   max-width: 95vw;
 }

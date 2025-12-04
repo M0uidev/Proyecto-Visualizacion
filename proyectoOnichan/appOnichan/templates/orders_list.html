@@ -19,7 +19,7 @@
         <div class="card-body">
             <h2 class="card-title mb-4">Pedidos Online</h2>
 
-            <!-- Search Form -->
+            <!-- Formulario de búsqueda -->
             <form method="get" class="row g-3 mb-4">
                 <div class="col-md-4">
                     <input type="text" name="q" class="form-control" placeholder="Buscar por cliente, producto, código pedido o código de barras (P#-S#)" value="{{ search_query }}">
@@ -46,7 +46,7 @@
 <div class="modal fade" id="orderDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content" id="order-detail-content">
-            <!-- Content loaded via AJAX -->
+            <!-- Contenido cargado vía AJAX -->
             <div class="modal-body text-center py-5">
                 <div class="spinner-border text-primary" role="status">
                     <span class="visually-hidden">Cargando...</span>
@@ -77,13 +77,13 @@
                 modalContent.innerHTML = html;
             })
             .catch(err => {
-                console.error('Error loading order details:', err);
+                console.error('Error al cargar detalles del pedido:', err);
                 modalContent.innerHTML = '<div class="modal-body text-danger">Error al cargar los detalles.</div>';
             });
     }
 
     window.addEventListener('newOrderDetected', function() {
-        // Fetch updated table rows via AJAX
+        // Obtiene filas actualizadas de la tabla vía AJAX
         fetch(window.location.href, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
@@ -93,10 +93,10 @@
         .then(html => {
             document.getElementById('orders-wrapper').innerHTML = html;
         })
-        .catch(err => console.error('Error updating orders table:', err));
+        .catch(err => console.error('Error al actualizar tabla de pedidos:', err));
     });
 
-    // Handle AJAX pagination
+    // Maneja paginación AJAX
     document.addEventListener('click', function(e) {
         if (e.target.closest('.ajax-link')) {
             e.preventDefault();
@@ -110,10 +110,10 @@
             .then(response => response.text())
             .then(html => {
                 document.getElementById('orders-wrapper').innerHTML = html;
-                // Update URL without reload
+                // Actualiza URL sin recargar
                 history.pushState(null, '', url);
             })
-            .catch(err => console.error('Error loading page:', err));
+            .catch(err => console.error('Error al cargar página:', err));
         }
     });
 </script>

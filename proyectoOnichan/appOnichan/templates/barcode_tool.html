@@ -13,7 +13,7 @@
         background-color: #f3f4f6;
     }
     
-    /* Card Styling */
+    /* Estilos de tarjeta */
     .product-card {
         border: none;
         border-radius: 12px;
@@ -56,7 +56,7 @@
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
-    /* Sidebar Styling */
+    /* Estilos de barra lateral */
     .queue-sidebar {
         background: white;
         border-radius: 16px;
@@ -85,7 +85,7 @@
         border-bottom-right-radius: 16px;
     }
     
-    /* Queue Item */
+    /* Elemento de cola */
     .queue-item {
         background: #fff;
         border: 1px solid #e5e7eb;
@@ -99,7 +99,7 @@
         box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
     
-    /* Custom Scrollbar */
+    /* Barra de desplazamiento personalizada */
     .queue-body::-webkit-scrollbar {
         width: 6px;
     }
@@ -111,7 +111,7 @@
         border-radius: 3px;
     }
     
-    /* Form Elements */
+    /* Elementos de formulario */
     .form-control, .form-select {
         border-radius: 8px;
         border-color: #e5e7eb;
@@ -140,7 +140,7 @@
 {% block content %}
 <div class="container-fluid py-4 px-4">
     <div class="row g-4">
-        <!-- Left Column: Product Selection -->
+        <!-- Columna izquierda: selección de productos -->
         <div class="col-lg-8 col-xl-9">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
@@ -149,7 +149,7 @@
                 </div>
             </div>
             
-            <!-- Search/Filter -->
+            <!-- Búsqueda/Filtrado -->
             <div class="card mb-4 border-0 shadow-sm">
                 <div class="card-body p-4">
                     <form method="get" class="row g-3">
@@ -176,7 +176,7 @@
                 </div>
             </div>
 
-            <!-- Product Grid -->
+            <!-- Grilla de productos -->
             <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-4 row-cols-xl-6 g-3">
                 {% for product in products %}
                 <div class="col">
@@ -228,7 +228,7 @@
             </div>
         </div>
 
-        <!-- Right Column: Print Queue (Sidebar) -->
+        <!-- Columna derecha: Cola de impresión (barra lateral) -->
         <div class="col-lg-4 col-xl-3">
             <div class="queue-sidebar">
                 <div class="queue-header">
@@ -245,7 +245,7 @@
                         <small>Agrega productos para comenzar</small>
                     </div>
                     <div id="queue-items" class="d-none">
-                        <!-- Items will be injected here -->
+                        <!-- Los elementos serán inyectados aquí -->
                     </div>
                 </div>
 
@@ -270,10 +270,10 @@
 </div>
 
 <script>
-    // State management
-    let queue = {}; // Key: "p_ID" or "s_ID", Value: {name, type, id, qty, price}
+    // Gestión de estado
+    let queue = {}; // Clave: "p_ID" o "s_ID", Valor: {name, type, id, qty, price}
 
-    // Load queue from local storage on startup
+    // Carga cola desde almacenamiento local al inicio
     document.addEventListener('DOMContentLoaded', () => {
         const saved = localStorage.getItem('barcodeQueue');
         if (saved) {
@@ -316,7 +316,7 @@
         } else {
             queue[key] = {
                 name: name,
-                type: type, // 'product' or 'size'
+                type: type, // 'producto' o 'talla'
                 id: id,
                 qty: 1,
                 price: price
@@ -391,7 +391,7 @@
         keys.forEach(key => {
             const item = queue[key];
             
-            // UI Item
+            // Item de la UI
             const div = document.createElement('div');
             div.className = 'queue-item';
             div.innerHTML = `
@@ -412,7 +412,7 @@
             `;
             container.appendChild(div);
 
-            // Hidden Input for Form Submission
+            // Input oculto para envío de formulario
             const inputName = item.type === 'product' ? `qty_product_${item.id}` : `qty_size_${item.id}`;
             const hiddenInput = document.createElement('input');
             hiddenInput.type = 'hidden';

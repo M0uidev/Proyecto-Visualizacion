@@ -109,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Render Functions
     function createRetentionChart(data) {
         if (!data) return;
+        if (!document.getElementById('retentionChart')) return;
         
         // Map data to include details
         const newData = data.new.map((val, i) => ({
@@ -196,6 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function createFrequencyChart(data) {
         if (!data) return;
+        if (!document.getElementById('frequencyChart')) return;
         frequencyChart = Highcharts.chart('frequencyChart', {
             chart: { type: 'column' },
             title: { text: null },
@@ -218,6 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function createTicketChart(data) {
         if (!data) return;
+        if (!document.getElementById('ticketChart')) return;
         const seriesData = data.labels.map((l, i) => ({ 
             name: l, 
             y: data.values[i],
@@ -283,6 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function createTopCustomersChart(data) {
         if (!data) return;
+        if (!document.getElementById('topCustomersChart')) return;
         topCustomersChart = Highcharts.chart('topCustomersChart', {
             chart: { type: 'bar' },
             title: { text: null },
@@ -306,6 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function createDayOfWeekChart(data) {
         if (!data) return;
+        if (!document.getElementById('dayOfWeekChart')) return;
         dayOfWeekChart = Highcharts.chart('dayOfWeekChart', {
             chart: { type: 'column' },
             title: { text: null },
@@ -328,6 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function createOrdersChart(lineData) {
         if (!lineData) return;
+        if (!document.getElementById('ordersLineChart')) return;
         console.log('Creating Orders Chart');
         ordersChart = Highcharts.chart('ordersLineChart', {
             chart: { type: 'area' },
@@ -392,6 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function createTopProductsChart(pieData) {
         if (!pieData) return;
+        if (!document.getElementById('topProductsPieChart')) return;
         console.log('Creating Top Products Chart');
         currentTopProductsData = pieData;
         
@@ -515,6 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function createRevenueChart(barData) {
         if (!barData) return;
+        if (!document.getElementById('categoryRevenueBarChart')) return;
         console.log('Creating Revenue Chart');
         
         // Map data to include names explicitly
@@ -596,6 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function createSalesTreemap(data) {
         if (!data) return;
+        if (!document.getElementById('salesTreemapChart')) return;
         console.log('Creating Sales Treemap');
         
         // Separate categories (roots) and products (children)

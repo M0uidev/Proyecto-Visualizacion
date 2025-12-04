@@ -222,6 +222,7 @@ class Order(models.Model):
         verbose_name="Cliente"
     )
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Usuario Registrado")
+    worker = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="processed_orders", verbose_name="Atendido por")
     total = models.PositiveIntegerField(default=0, verbose_name="Total")
     discount_amount = models.PositiveIntegerField(default=0, verbose_name="Descuento Aplicado")
     estado = models.CharField(max_length=20, choices=STATUS_CHOICES, verbose_name="Estado")

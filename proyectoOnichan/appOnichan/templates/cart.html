@@ -9,7 +9,7 @@
     
     {% if items %}
     <div class="row g-5">
-        <!-- Lista de Productos -->
+        <!-- Listado de productos en carrito -->
         <div class="col-lg-8">
             <div class="card-pastel mb-4 p-0 overflow-hidden">
                 <div class="card-body p-0">
@@ -97,7 +97,7 @@
             </div>
         </div>
 
-        <!-- Formulario de Pago -->
+        <!-- Resumen y formulario de pago -->
         <div class="col-lg-4">
             <div class="card-pastel bg-soft">
                 <div class="card-body p-4">
@@ -109,7 +109,12 @@
                     </div>
                     
                     <div id="couponSummaryRow" class="d-flex justify-content-between mb-2 text-success" {% if not coupon %}style="display:none;"{% endif %}>
-                        <span id="couponLabel">Cupón ({{ coupon.code|default:'' }})</span>
+                        <span id="couponLabel">
+                            Cupón ({{ coupon.code|default:'' }})
+                            {% if coupon.discount_percentage %}
+                                <span class="badge bg-success ms-1">-{{ coupon.discount_percentage }}%</span>
+                            {% endif %}
+                        </span>
                         <span id="couponAmount">-${{ discount_amount|default:0 }}</span>
                     </div>
                     <div id="removeCouponRow" class="mb-3 text-end" {% if not coupon %}style="display:none;"{% endif %}>
@@ -124,7 +129,7 @@
                         <div class="d-flex justify-content-between mb-4">
                     </div>
 
-                    <!-- Coupon Form -->
+                    <!-- Formulario de cupón -->
                     <div id="couponSection" {% if coupon %}style="display:none;"{% endif %}>
                         <form action="{% url 'apply_coupon' %}" method="post" class="mb-2" id="couponForm">
                             {% csrf_token %}
@@ -135,7 +140,7 @@
                         </form>
                         <div id="couponError" class="text-danger small mb-4" style="display:none;"></div>
                         
-                        <!-- New Button -->
+                        <!-- Botón para abrir chequera -->
                         {% if user.is_authenticated %}
                         <div class="text-center mb-4">
                             <button type="button" class="btn btn-sm btn-outline-info w-100" data-bs-toggle="modal" data-bs-target="#walletModal">
@@ -198,6 +203,11 @@
                             <span class="fw-bold fs-5" id="finalTotalDisplay">${{ final_total|default:total }}</span>
                         </div>
 
+                        <div class="alert alert-info small mb-3">
+                            <strong>Tarjeta de Prueba:</strong> 4051 8856 0044 6623<br>
+                            <strong>CVV:</strong> 123
+                        </div>
+
                         <button type="submit" class="btn btn-pastel w-100 py-2">
                             <i class="bi bi-credit-card-2-front me-2"></i>Pagar con Webpay
                         </button>
@@ -215,7 +225,7 @@
     {% endif %}
 </div>
 
-<!-- Add the Modal at the end of the file -->
+<!-- Modal de chequera con cupones disponibles -->
 <div class="modal fade" id="walletModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">

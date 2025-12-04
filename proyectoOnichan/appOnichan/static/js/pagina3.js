@@ -4,11 +4,12 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
+  // Parsea datos de stock JSON
   let dataset;
   try {
     dataset = JSON.parse(dataElement.textContent || '{}');
   } catch (error) {
-    console.error('No se pudo parsear la información de stock.', error);
+    console.error('Error al parsear información de stock.', error);
     dataset = {};
   }
 
@@ -20,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
   const peso = (value) => value.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' });
 
+  // Normaliza estructura de productos
   const PRODUCTS = productsPayload.map(p => {
     const prod = {
       code: String(p.code),
@@ -43,10 +45,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentSort = 'name_asc';
   let searchQuery = '';
 
-  // Populate Category Filter
+  // Puebla filtro de categorías
   const categorySelect = document.getElementById('categoryFilter');
   if (categorySelect) {
-      // Clear existing options except "all"
+      // Limpia opciones excepto "all"
       categorySelect.innerHTML = '<option value="all">Todas las Categorías</option>';
       CATEGORIES.forEach(cat => {
           const option = document.createElement('option');
@@ -79,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let modalChartInstance = null;
 
+  // Retorna clase CSS según estado de stock
   function getStatusClass(status) {
     return {
       Disponible: 'success',
@@ -87,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }[status] || 'secondary';
   }
 
+  // Actualiza estado de stock del producto
   function updateStockStatus(product) {
     if (product.stock <= 0) {
       return 'Sin Stock';
@@ -97,14 +101,15 @@ document.addEventListener('DOMContentLoaded', () => {
     return 'Disponible';
   }
 
+  // Filtra productos por categoría y búsqueda
   function filterProducts(products) {
     return products.filter((product) => {
-      // Category Filter
+      // Filtro por categoría
       if (currentCategory !== 'all') {
           if (product.category !== currentCategory) return false;
       }
 
-      // Search Filter
+      // Filtro por búsqueda
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return (
@@ -118,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Actualiza gráfico de stock por categoría
   function updateChart() {
     const chartCanvas = $('#stockByCategory');
     if (!chartCanvas) {
@@ -131,6 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
       totalStock: PRODUCTS.filter((product) => product.category === category).reduce((sum, product) => sum + product.stock, 0),
     }));
 
+    // Destruye gráfico anterior si existe
     if (window.stockChart) {
       window.stockChart.destroy();
     }
@@ -195,8 +202,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const category = productsByCategory[index].category;
           const productsInCategory = PRODUCTS.filter((product) => product.category === category).sort((a, b) => b.stock - a.stock);
 
-          const sales = {}; // opcional: sin dataset de ventas aquí
+          const sales = {}; // Opcional: sin dataset de ventas aquí
 
+          // Destruye gráfico modal anterior
           if (modalChartInstance) {
             modalChartInstance.destroy();
           }
@@ -335,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (emptyState) emptyState.style.display = 'none';
 
-    // Sort logic
+    // Lógica de ordenamiento
     const sorted = [...filtered].sort((a, b) => {
         switch(currentSort) {
             case 'stock_desc':
@@ -359,7 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
         card.style.width = '220px';
         card.style.transition = 'transform 0.2s';
         
-        // Hover effect
+        // Efecto hover
         card.onmouseenter = () => card.style.transform = 'translateY(-5px)';
         card.onmouseleave = () => card.style.transform = 'none';
 
@@ -400,6 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateChart();
   }
 
+  // Limpia gráfico modal al cerrar
   document.getElementById('chartModal')?.addEventListener('hidden.bs.modal', () => {
     if (modalChartInstance) {
       modalChartInstance.destroy();
@@ -408,8 +417,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#btnRefresh')?.addEventListener('click', () => window.location.reload());
-  // btnAdd abre modal via data-bs-toggle (no JS extra)
+  // btnAdd abre modal vía data-bs-toggle (sin JS extra)
 
+  // Maneja clics en acciones de productos
   $('#productsGrid')?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-action]');
     if (!button) {
@@ -424,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!product) return;
       
       if (window.IS_ADMIN) {
-          // Populate Modal
+          // Puebla modal de edición
           document.getElementById('editProductId').value = product.code;
           document.getElementById('editName').value = product.name;
           document.getElementById('editPrice').value = product.price;
@@ -434,11 +444,11 @@ document.addEventListener('DOMContentLoaded', () => {
           document.getElementById('editStock').value = product.stock;
           document.getElementById('editSizes').value = product.sizes.join(', ');
           
-          // Show Modal
+          // Muestra modal
           const editModal = new bootstrap.Modal(document.getElementById('editProductModal'));
           editModal.show();
       } else {
-          // Populate Worker Modal (Adjust Stock)
+          // Puebla modal de trabajador (ajustar stock)
           document.getElementById('adjustStockId').value = product.code;
           document.getElementById('adjustStockName').textContent = product.name;
           document.getElementById('displayCurrentStock').textContent = product.stock;
@@ -459,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Handle Edit Form Submission
+  // Maneja envío del formulario de edición
   const editForm = document.getElementById('editProductForm');
   if (editForm) {
       editForm.addEventListener('submit', (e) => {
@@ -477,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
           .then(r => r.json())
           .then(data => {
               if (data.ok) {
-                  // Update local data
+                  // Actualiza datos locales
                   const pid = formData.get('product_id');
                   const product = PRODUCTS.find(p => p.code === pid);
                   if (product) {
@@ -493,7 +503,7 @@ document.addEventListener('DOMContentLoaded', () => {
                       product.status = updateStockStatus(product);
                       renderGrid();
                   }
-                  // Close modal
+                  // Cierra modal
                   const modalEl = document.getElementById('editProductModal');
                   const modal = bootstrap.Modal.getInstance(modalEl);
                   modal.hide();
@@ -509,7 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
   }
 
-  // Add Product Modal Logic
+  // Lógica del modal para agregar producto
   const addHasSizes = document.getElementById('addHasSizes');
   const sizeScaleContainer = document.getElementById('sizeScaleContainer');
   const sizeScaleSelect = document.querySelector('select[name="size_scale"]');
@@ -527,7 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
   }
 
-  // Adjust Stock Logic (Worker)
+  // Lógica para ajustar stock (Trabajador)
   const adjustForm = document.getElementById('adjustStockForm');
   const btnIncrease = document.getElementById('btnIncrease');
   const btnDecrease = document.getElementById('btnDecrease');
@@ -535,6 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const currentStockValue = document.getElementById('currentStockValue');
   const finalStockPreview = document.getElementById('finalStockPreview');
 
+  // Actualiza vista previa del stock final
   function updateFinalStock() {
       const current = parseInt(currentStockValue.value || 0);
       const adjustment = parseInt(stockAdjustment.value || 0);
@@ -568,6 +579,7 @@ document.addEventListener('DOMContentLoaded', () => {
           
           const csrftoken = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
 
+          // Envía cambio de stock al servidor
           fetch(window.location.href, {
               method: 'POST',
               headers: { 'X-CSRFToken': csrftoken || '' },
@@ -576,6 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
           .then(r => r.json())
           .then(data => {
               if (data.ok) {
+                  // Actualiza producto localmente
                   const pid = formData.get('product_id');
                   const product = PRODUCTS.find(p => p.code === pid);
                   if (product) {
@@ -583,6 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
                       product.status = updateStockStatus(product);
                       renderGrid();
                   }
+                  // Cierra modal
                   const modalEl = document.getElementById('adjustStockModal');
                   const modal = bootstrap.Modal.getInstance(modalEl);
                   modal.hide();

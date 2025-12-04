@@ -8,7 +8,7 @@
   max-width: 420px;
   margin: auto;
   border-radius: 16px;
-  /* use dashboard variables when available, with sensible fallbacks */
+  /* Usa variables del dashboard cuando estén disponibles, con fallbacks sensatos */
   background: var(--dash-card-bg, #fff);
   border: 1px solid var(--dash-card-border, #e5e7eb);
   box-shadow: var(--dash-card-shadow, 0 8px 20px rgba(0,0,0,0.04));

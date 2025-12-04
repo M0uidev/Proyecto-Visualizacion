@@ -86,12 +86,12 @@
       </div>
 
       <style>
-        /* Force consistent width for period inputs */
+        /* Fuerza ancho consistente para inputs de período */
         .period-input {
-            min-width: 240px; /* Adjust based on preference, matches typical month input width */
+            min-width: 240px; /* Ajusta según preferencia, coincide con ancho típico de input month */
             max-width: 240px;
         }
-        /* Ensure disabled link looks disabled */
+        /* Asegura que el enlace deshabilitado se vea deshabilitado */
         a.disabled {
             pointer-events: none;
             opacity: 0.5;
@@ -99,7 +99,7 @@
         }
       </style>
 
-      <!-- Tabs Navigation -->
+      <!-- Navegación de pestañas -->
       <ul class="nav nav-tabs mb-4" id="dashboardTabs" role="tablist">
         <li class="nav-item" role="presentation">
           <button class="nav-link active" id="ventas-tab" data-bs-toggle="tab" data-bs-target="#ventas" type="button" role="tab" aria-controls="ventas" aria-selected="true">Ventas</button>
@@ -112,12 +112,12 @@
         </li>
       </ul>
 
-      <!-- Tab Content -->
+      <!-- Contenido de pestañas -->
       <div class="tab-content" id="dashboardTabsContent">
         
-        <!-- Ventas Tab -->
+        <!-- Pestaña Ventas -->
         <div class="tab-pane fade show active" id="ventas" role="tabpanel" aria-labelledby="ventas-tab">
-          <!-- Grafico de lineas y pastel -->
+          <!-- Gráfico de líneas y pastel -->
           <section class="row g-4">
             <div class="col-12 col-lg-7">
               <article class="dash-card chart-card" aria-labelledby="chartLineTitle">
@@ -167,10 +167,10 @@
           </section>
         </div>
 
-        <!-- Mapa Tab -->
+        <!-- Pestaña Mapa -->
         <div class="tab-pane fade" id="mapa" role="tabpanel" aria-labelledby="mapa-tab">
           <section class="row g-4">
-            <!-- Map Column -->
+            <!-- Columna Mapa -->
             <div class="col-12 col-lg-9">
               <article class="dash-card chart-card" aria-labelledby="chartMapTitle">
                 <header>
@@ -182,7 +182,7 @@
               </article>
             </div>
             
-            <!-- Table Column -->
+            <!-- Columna Tabla -->
             <div class="col-12 col-lg-3">
               <article class="dash-card chart-card" aria-labelledby="tableMapTitle">
                 <header>
@@ -197,7 +197,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      <!-- Populated by JS -->
+                      <!-- Poblado por JS -->
                     </tbody>
                   </table>
                 </div>
@@ -206,9 +206,9 @@
           </section>
         </div>
 
-        <!-- Clientes Tab -->
+        <!-- Pestaña Clientes -->
         <div class="tab-pane fade" id="clientes" role="tabpanel" aria-labelledby="clientes-tab">
-          <!-- Row 1: New vs Returning -->
+          <!-- Fila 1: Nuevos vs Retorno -->
           <section class="row g-4 mb-4">
             <div class="col-12">
               <article class="dash-card chart-card" aria-labelledby="chartRetentionTitle">
@@ -222,7 +222,7 @@
             </div>
           </section>
 
-          <!-- Row 2: Frequency & Ticket -->
+          <!-- Fila 2: Frecuencia y Ticket -->
           <section class="row g-4 mb-4">
             <div class="col-12 col-lg-6">
               <article class="dash-card chart-card" aria-labelledby="chartFrequencyTitle">
@@ -246,7 +246,7 @@
             </div>
           </section>
 
-          <!-- Row 3: Top Customers & Day of Week -->
+          <!-- Fila 3: Top Clientes & Día de la semana -->
           <section class="row g-4">
             <div class="col-12 col-lg-6">
               <article class="dash-card chart-card" aria-labelledby="chartTopCustomersTitle">
@@ -289,7 +289,7 @@
       </div>
     </div>
 
-    <!-- Region Detail Modal -->
+    <!-- Modal de Detalle Regional -->
     <div class="modal fade" id="regionModal" tabindex="-1" aria-labelledby="regionModalLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
@@ -337,7 +337,7 @@
   <script src="https://code.highcharts.com/modules/export-data.js"></script>
   <script src="https://code.highcharts.com/modules/accessibility.js"></script>
   <script>const apiDashboardUrl = "{% url 'api_dashboard_data' %}";</script>
-  <script src="{% static 'js/dashboardadmin.js' %}?v=4.24"></script>
+  <script src="{% static 'js/dashboardadmin.js' %}?v=4.25"></script>
 
   <script src="https://code.highcharts.com/maps/modules/map.js"></script>
   <script>
@@ -346,7 +346,7 @@
 
         (async () => {
             try {
-                // Map standard Chile region IDs to Highcharts hc-keys
+                // Mapea IDs estándar de regiones de Chile a keys de Highcharts
                 const regionKeyMap = {
                     1: 'cl-ta', 2: 'cl-an', 3: 'cl-at', 4: 'cl-co', 5: 'cl-vs',
                     6: 'cl-li', 7: 'cl-ml', 8: 'cl-bi', 9: 'cl-2730', 10: 'cl-ll',
@@ -372,7 +372,7 @@
                         regionData = salesData[regionName.replace("Región del ", "").trim()];
                     }
 
-                    // Use orders for value (color), but keep sales for display
+                    // Usa órdenes para valor (color), pero mantiene ventas para mostrar
                     const orders = regionData ? regionData.pedidos_unicos : 0;
                     const sales = regionData ? regionData.ventas_totales : 0;
                     
@@ -499,7 +499,7 @@
                 const tableBody = document.querySelector('#regionSalesTable tbody');
                 if (tableBody) {
                     tableBody.innerHTML = '';
-                    // Sort by orders now? Or keep sales? Usually sales is more important for the table.
+                    // ¿Ordenar por órdenes? O mantener ventas? Generalmente ventas es más importante para la tabla.
                     // Let's keep sales for the table as it's "Detalle Regional"
                     const sortedData = [...data].sort((a, b) => b.sales - a.sales);
                     

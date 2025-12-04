@@ -42,7 +42,7 @@
     </nav>
   </header>
 
-  <!-- Menu -->
+  <!-- Menú -->
   <div class="collapse menu-panel" id="mainMenu">
     <div class="menu-inner">
       <div class="menu-col">
@@ -87,12 +87,12 @@
     </div>
   </div>
 
-  <!-- Main content -->
+  <!-- Contenido principal -->
   <main class="page-content">
     {% block content %}{% endblock %}
   </main>
 
-  <!-- Footer -->
+  <!-- Pie de página -->
   <footer class="site-footer pt-5 pb-4" style="background-color: var(--bg-surface); border-top: 1px solid rgba(0,0,0,0.05);">
     <div class="container">
       <div class="row g-4 text-start">
@@ -137,9 +137,9 @@
     </div>
   </footer>
 
-  <!-- Toast Container -->
+  <!-- Contenedor de Toasts -->
   <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
-    <!-- Existing Cart Toast -->
+    <!-- Toast del carrito existente -->
     <div id="cartToast" class="toast align-items-center text-bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="d-flex">
         <div class="toast-body">
@@ -149,7 +149,7 @@
       </div>
     </div>
 
-    <!-- Django Messages Toasts -->
+    <!-- Toasts de mensajes de Django -->
     {% if messages %}
       {% for message in messages %}
         <div class="toast align-items-center text-bg-{% if message.tags == 'error' %}danger{% elif message.tags == 'debug' %}secondary{% else %}{{ message.tags }}{% endif %} border-0 message-toast" role="alert" aria-live="assertive" aria-atomic="true">
@@ -168,7 +168,7 @@
     {% endif %}
   </div>
 
-  <!-- Worker Notification Toast -->
+  <!-- Toast de notificación para trabajador -->
   {% if user.is_authenticated %}
   {% if user.is_staff or user.is_superuser or user|has_group:'admin' or user|has_group:'trabajador' %}
   <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
@@ -190,47 +190,32 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-        let lastOrderId = 0;
-        const checkInterval = 5000; // 5 seconds
-
-        function checkOrders() {
-            fetch("{% url 'check_new_orders' %}")
-                .then(response => response.json())
-                .then(data => {
-                    // Update badge
-                    const badge = document.getElementById('worker-orders-badge');
-                    if (badge) {
-                        if (data.count > 0) {
-                            badge.textContent = data.count;
-                            badge.style.display = 'inline-block';
-                        } else {
-                            badge.style.display = 'none';
-                        }
-                    }
-
-                    if (lastOrderId === 0) {
-                        lastOrderId = data.latest_id;
-                    } else if (data.latest_id > lastOrderId) {
-                        lastOrderId = data.latest_id;
-                        const toastEl = document.getElementById('newOrderToast');
-                        if (toastEl) {
-                            const toast = new bootstrap.Toast(toastEl);
-                            toast.show();
-                        }
-                        // Dispatch event for other pages to listen
-                        window.dispatchEvent(new CustomEvent('newOrderDetected'));
-                    }
-                })
-                .catch(err => console.error('Error checking orders:', err));
-        }
-
-        // Initial check to set baseline
+        // Verificación inicial para establecer badge de línea base
         fetch("{% url 'check_new_orders' %}")
             .then(response => response.json())
             .then(data => {
-                lastOrderId = data.latest_id;
-                
-                // Update badge initially too
+                const badge = document.getElementById('worker-orders-badge');
+                if (badge) {
+                    if (data.count > 0) {
+                        badge.textContent = data.count;
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            })
+            .catch(err => console.error('Error en verificación inicial:', err));
+
+        // WebSocket para actualizaciones en tiempo real
+        const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const wsUrl = protocol + window.location.host + '/ws/orders/';
+        
+        const socket = new WebSocket(wsUrl);
+
+        socket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            if (data.type === 'order_new') {
+                // Actualiza badge
                 const badge = document.getElementById('worker-orders-badge');
                 if (badge) {
                     if (data.count > 0) {
@@ -241,10 +226,21 @@
                     }
                 }
 
-                // Start polling only after initial check
-                setInterval(checkOrders, checkInterval);
-            })
-            .catch(err => console.error('Error initial check:', err));
+                // Muestra Toast
+                const toastEl = document.getElementById('newOrderToast');
+                if (toastEl) {
+                    const toast = new bootstrap.Toast(toastEl);
+                    toast.show();
+                }
+                
+                // Dispara evento personalizado para que otras páginas escuchen
+                window.dispatchEvent(new CustomEvent('newOrderDetected'));
+            }
+        };
+
+        socket.onclose = function(e) {
+            console.error('Socket de pedidos cerrado inesperadamente');
+        };
     });
   </script>
   {% endif %}
@@ -252,7 +248,7 @@
 
   {% block modals %}{% endblock %}
 
-  <!-- Bootstrap 5 JS Bundle -->
+  <!-- JS Bundle de Bootstrap 5 -->
   <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
   <script>
     // Fix para modales Bootstrap con zoom - asegurar que backdrop cubra toda la pantalla y eliminar duplicados
@@ -365,7 +361,7 @@
                 e.preventDefault();
                 const url = btn.getAttribute('href');
                 
-                // Add ajax=1 param
+                // Agrega parámetro ajax=1
                 const fetchUrl = url + (url.includes('?') ? '&' : '?') + 'ajax=1';
 
                 fetch(fetchUrl, {
@@ -387,14 +383,14 @@
                     }
                 })
                 .catch(err => {
-                    console.error('Error adding to cart:', err);
-                    // Fallback to normal navigation if fetch fails
+                    console.error('Error al agregar al carrito:', err);
+                    // Respaldo a navegación normal si fetch falla
                     window.location.href = url;
                 });
             }
         });
 
-        // Handle Modal Form Submission (AJAX)
+        // Maneja envío de formulario modal (AJAX)
         document.body.addEventListener('submit', function(e) {
             if (e.target.classList.contains('add-to-cart-form')) {
                 e.preventDefault();

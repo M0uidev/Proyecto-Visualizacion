@@ -98,7 +98,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     initRegionSelector("{% static 'chile-regiones-2025.json' %}");
 
-    // Prevent double submission
+    // Previene doble envío del formulario
     const form = document.querySelector('form');
     form.addEventListener('submit', function(e) {
         const btn = form.querySelector('button[type="submit"]');

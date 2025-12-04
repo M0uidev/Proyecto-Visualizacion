@@ -1,13 +1,13 @@
 /**
- * Applies a coupon code from the wallet modal.
- * @param {string} code - The coupon code to apply.
+ * Aplica un código de cupón desde el modal de chequera.
+ * @param {string} code - Código de cupón a aplicar.
  */
 function applyWalletCoupon(code) {
     const couponCodeInput = document.getElementById('couponCode');
     if (couponCodeInput) {
         couponCodeInput.value = code;
         
-        // Close modal
+        // Cierra el modal
         const modalEl = document.getElementById('walletModal');
         if (modalEl && window.bootstrap) {
             const modal = bootstrap.Modal.getInstance(modalEl);
@@ -16,7 +16,7 @@ function applyWalletCoupon(code) {
             }
         }
         
-        // Submit form
+        // Envía el formulario
         const couponForm = document.getElementById('couponForm');
         if (couponForm) {
             couponForm.dispatchEvent(new Event('submit'));
@@ -25,11 +25,11 @@ function applyWalletCoupon(code) {
 }
 
 /**
- * Toggles the visibility and required state of shipping fields based on delivery method.
+ * Alterna visibilidad y estado requerido de campos de envío según el método de entrega.
  */
 function toggleDeliveryFields() {
     const deliveryDispatch = document.getElementById('deliveryDispatch');
-    // If the element doesn't exist (e.g. on a different page), return safely
+    // Si el elemento no existe, retorna de forma segura
     if (!deliveryDispatch) return;
 
     const isDispatch = deliveryDispatch.checked;
@@ -49,10 +49,10 @@ function toggleDeliveryFields() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize delivery fields state
+    // Inicializa estado de campos de entrega
     toggleDeliveryFields();
 
-    // Coupon AJAX handling
+    // Manejo AJAX del cupón
     const couponForm = document.getElementById('couponForm');
     if (couponForm) {
         couponForm.addEventListener('submit', function(e) {
@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const code = codeInput.value.trim();
             if (!code) return;
 
-            // Clear previous error
+            // Limpia error anterior
             if (errorDiv) {
                 errorDiv.style.display = 'none';
                 errorDiv.textContent = '';
@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Update UI with discount info
+                    // Actualiza UI con información del descuento
                     const couponSection = document.getElementById('couponSection');
                     if (couponSection) couponSection.style.display = 'none';
                     
@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (removeCouponRow) removeCouponRow.style.display = 'block';
                     
                 } else {
-                    // Show error message
+                    // Muestra mensaje de error
                     if (errorDiv) {
                         errorDiv.textContent = data.message;
                         errorDiv.style.display = 'block';
@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => {
                 console.error('Error:', error);
                 if (errorDiv) {
-                    errorDiv.textContent = 'Ocurrió un error al procesar el cupón.';
+                    errorDiv.textContent = 'Error al procesar el cupón.';
                     errorDiv.style.display = 'block';
                 }
             });

@@ -9,13 +9,13 @@
         <div class="col-12">
             <h1 class="display-5 fw-bold mb-3">Buscar Productos</h1>
             <form method="get" action="{% url 'buscar_productos' %}" class="row g-3 align-items-end">
-                <!-- Search Bar -->
+                <!-- Barra de búsqueda -->
                 <div class="col-md-4">
                     <label for="q" class="form-label">Buscar</label>
                     <input type="text" class="form-control" id="q" name="q" value="{{ query }}" placeholder="Nombre del producto...">
                 </div>
                 
-                <!-- Category Filter -->
+                <!-- Filtro de categoría -->
                 <div class="col-md-3">
                     <label for="category" class="form-label">Categoría</label>
                     <select class="form-select" id="category" name="category">
@@ -26,7 +26,7 @@
                     </select>
                 </div>
 
-                <!-- Sort Order -->
+                <!-- Orden de clasificación -->
                 <div class="col-md-3">
                     <label for="sort" class="form-label">Ordenar por</label>
                     <select class="form-select" id="sort" name="sort">
@@ -36,7 +36,7 @@
                     </select>
                 </div>
 
-                <!-- Submit Button -->
+                <!-- Botón de envío -->
                 <div class="col-md-2">
                     {% include 'partials/buttons/action_button.html' with text='Filtrar' type='submit' variant='primary' size='md' full_width=True %}
                 </div>
@@ -44,7 +44,7 @@
         </div>
     </div>
 
-    <!-- Products Grid -->
+    <!-- Grilla de Productos -->
     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
         {% for producto in productos %}
         <div class="col">

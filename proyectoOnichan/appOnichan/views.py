@@ -28,6 +28,8 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import Group, User
 from django.utils.text import slugify
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from datetime import date as dt_date
 
 from .models import (
@@ -239,7 +241,7 @@ def logout_view(request):
 def stock(request):
     return render(request, "stock.html")
 
-def get_dashboard_context(request):
+def get_dashboard_context(request, worker_user=None):
     # Selección de periodo: semana (default), mes o año
     today = timezone.localdate()
     period = (request.GET.get("period", "week") or "week").lower()
@@ -278,6 +280,9 @@ def get_dashboard_context(request):
         state_counts = {label: {s: 0 for s in all_states} for label in weekday_labels}
         
         orders_period = Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date).exclude(estado="IniciandoPago")
+        if worker_user:
+            orders_period = orders_period.filter(worker=worker_user)
+
         for o in orders_period:
             idx = o.fecha.weekday()
             label = weekday_labels[idx]
@@ -339,6 +344,9 @@ def get_dashboard_context(request):
         state_counts = {label: {s: 0 for s in all_states} for label in day_labels}
 
         orders_period = Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date).exclude(estado="IniciandoPago")
+        if worker_user:
+            orders_period = orders_period.filter(worker=worker_user)
+
         for o in orders_period:
             label = str(o.fecha.day)
             day_counts[label] += 1
@@ -378,6 +386,9 @@ def get_dashboard_context(request):
         state_counts = {label: {s: 0 for s in all_states} for label in month_labels}
 
         orders_period = Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date).exclude(estado="IniciandoPago")
+        if worker_user:
+            orders_period = orders_period.filter(worker=worker_user)
+
         for o in orders_period:
             idx = o.fecha.month - 1
             label = month_labels[idx]
@@ -394,20 +405,26 @@ def get_dashboard_context(request):
         line_detalles = state_counts
 
     # KPIs
-    pedidos_hoy = Order.objects.filter(fecha=today).exclude(estado="IniciandoPago").count()
-    pendientes = Order.objects.filter(estado="Pendiente").count()
-    ingresos_7d = (
-        Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date)
-        .exclude(estado="IniciandoPago")
-        .aggregate(total=Sum("total"))
-        .get("total")
-        or 0
-    )
+    qs_today = Order.objects.filter(fecha=today).exclude(estado="IniciandoPago")
+    qs_pendientes = Order.objects.filter(estado="Pendiente")
+    qs_ingresos = Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date).exclude(estado="IniciandoPago")
+
+    if worker_user:
+        qs_today = qs_today.filter(worker=worker_user)
+        qs_pendientes = qs_pendientes.filter(worker=worker_user)
+        qs_ingresos = qs_ingresos.filter(worker=worker_user)
+
+    pedidos_hoy = qs_today.count()
+    pendientes = qs_pendientes.count()
+    ingresos_7d = qs_ingresos.aggregate(total=Sum("total")).get("total") or 0
 
     # Top products y revenue por categoría dentro del periodo seleccionado
+    top_qs = OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date).exclude(order__estado="IniciandoPago")
+    if worker_user:
+        top_qs = top_qs.filter(order__worker=worker_user)
+
     top = (
-        OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date)
-        .exclude(order__estado="IniciandoPago")
+        top_qs
         .values("product__name")
         .annotate(
             units=Sum("cantidad"),
@@ -423,7 +440,12 @@ def get_dashboard_context(request):
         qs = (
             OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date, product__name=label)
             .exclude(order__estado="IniciandoPago")
-            .values("size")
+        )
+        if worker_user:
+            qs = qs.filter(order__worker=worker_user)
+            
+        qs = (
+            qs.values("size")
             .annotate(units=Sum("cantidad"))
             .order_by("-units")
         )
@@ -434,9 +456,12 @@ def get_dashboard_context(request):
     all_cats = list(Category.objects.values_list('name', flat=True))
     
     # 2. Query agrupada por Categoría, Producto y Canal
+    drill_qs = OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date).exclude(order__estado="IniciandoPago")
+    if worker_user:
+        drill_qs = drill_qs.filter(order__worker=worker_user)
+
     drill_rows = (
-        OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date)
-        .exclude(order__estado="IniciandoPago")
+        drill_qs
         .values("product__category__name", "product__name", "order__channel")
         .annotate(units=Sum("cantidad"))
     )
@@ -474,9 +499,12 @@ def get_dashboard_context(request):
     treemap_data = []
     
     # 1. Categories (Parents)
+    treemap_qs = OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date).exclude(order__estado="IniciandoPago")
+    if worker_user:
+        treemap_qs = treemap_qs.filter(order__worker=worker_user)
+
     categories_qs = (
-        OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date)
-        .exclude(order__estado="IniciandoPago")
+        treemap_qs
         .values("product__category__name")
         .annotate(total_revenue=Sum(F("cantidad") * F("price")))
         .order_by("-total_revenue")
@@ -500,8 +528,7 @@ def get_dashboard_context(request):
 
     # 2. Products (Children)
     products_qs = (
-        OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date)
-        .exclude(order__estado="IniciandoPago")
+        treemap_qs
         .values("product__category__name", "product__name")
         .annotate(revenue=Sum(F("cantidad") * F("price")))
         .order_by("-revenue")
@@ -523,10 +550,15 @@ def get_dashboard_context(request):
     # --- Customer Behavior Analysis ---
     
     # 1. New vs Returning (Over Time)
-    period_orders = Order.objects.filter(fecha__gte=start_date, fecha__lte=end_date).exclude(estado="IniciandoPago")
-    period_customer_ids = period_orders.values_list('cliente_id', flat=True).distinct()
+    # period_orders is already filtered by worker_user if applicable
+    period_customer_ids = orders_period.values_list('cliente_id', flat=True).distinct()
     
     # Get first order date for these customers
+    # Note: First order ever might be from another worker, but we are analyzing customers of THIS worker in THIS period.
+    # If we want to know if they are new to the STORE, we check all orders.
+    # If we want to know if they are new to the WORKER, we check worker orders.
+    # Usually "New vs Returning" implies new to the business.
+    # So we should check ALL orders for first_date.
     first_orders = Order.objects.filter(cliente_id__in=period_customer_ids).exclude(estado="IniciandoPago").values('cliente_id').annotate(first_date=Min('fecha'))
     customer_first_date = {item['cliente_id']: item['first_date'] for item in first_orders}
     
@@ -540,7 +572,7 @@ def get_dashboard_context(request):
     
     seen_customer_bucket = set()
 
-    for o in period_orders:
+    for o in orders_period:
         c_id = o.cliente_id
         f_date = customer_first_date.get(c_id)
         
@@ -581,7 +613,7 @@ def get_dashboard_context(request):
                 returning_customers_details[idx].append(c_name)
 
     # 2. Purchase Frequency (Histogram)
-    cust_order_counts = period_orders.values('cliente_id').annotate(cnt=Count('id'))
+    cust_order_counts = orders_period.values('cliente_id').annotate(cnt=Count('id'))
     freq_dist = {'1': 0, '2': 0, '3-5': 0, '6-10': 0, '11+': 0}
     for c in cust_order_counts:
         cnt = c['cnt']
@@ -598,7 +630,7 @@ def get_dashboard_context(request):
     ticket_dist = {'< 20k': 0, '20k - 50k': 0, '50k - 100k': 0, '> 100k': 0}
     ticket_details = {'< 20k': [], '20k - 50k': [], '50k - 100k': [], '> 100k': []}
     
-    for o in period_orders:
+    for o in orders_period:
         t = o.total
         c_name = o.cliente.name if o.cliente else "Cliente Desconocido"
         detail_str = f"{c_name} (${t:,.0f})"
@@ -621,13 +653,13 @@ def get_dashboard_context(request):
     ticket_details_list = list(ticket_details.values())
 
     # 4. Top Customers
-    top_cust_qs = period_orders.values('cliente__name').annotate(total=Sum('total')).order_by('-total')[:10]
+    top_cust_qs = orders_period.values('cliente__name').annotate(total=Sum('total')).order_by('-total')[:10]
     top_cust_labels = [x['cliente__name'] for x in top_cust_qs]
     top_cust_values = [x['total'] for x in top_cust_qs]
 
     # 5. Day of Week Activity
     dow_counts = {i: 0 for i in range(1, 8)}
-    dow_qs = period_orders.values('fecha__week_day').annotate(cnt=Count('id'))
+    dow_qs = orders_period.values('fecha__week_day').annotate(cnt=Count('id'))
     for x in dow_qs:
         dow_counts[x['fecha__week_day']] = x['cnt']
     
@@ -644,6 +676,12 @@ def get_dashboard_context(request):
         .exclude(estado="IniciandoPago")
         .exclude(shipping_region__isnull=True)
         .exclude(shipping_region="")
+    )
+    if worker_user:
+        region_sales_qs = region_sales_qs.filter(worker=worker_user)
+
+    region_sales_qs = (
+        region_sales_qs
         .values("shipping_region")
         .annotate(total=Sum("total"))
     )
@@ -741,6 +779,23 @@ def api_dashboard_data(request):
 
 
 @login_required
+def api_worker_dashboard_data(request):
+    # Solo trabajadores y admins
+    user = request.user
+    if not (user.groups.filter(name__iexact="trabajador").exists() or user.is_staff or user.is_superuser or user.groups.filter(name__iexact="admin").exists()):
+        return HttpResponseForbidden("No autorizado")
+    
+    ctx, dashboard_data = get_dashboard_context(request, worker_user=user)
+    dashboard_data.update({
+        "prev_url": ctx["prev_url"],
+        "next_url": ctx["next_url"],
+        "period": ctx["period"],
+        "ref_value": ctx["ref_value"],
+        "title_text": ctx["title_text"]
+    })
+    return JsonResponse(dashboard_data)
+
+@login_required
 def dashboardtrabajador(request):
     """Dashboard para trabajador: gráfico de pie con ventas del día por producto."""
     user = request.user
@@ -753,110 +808,8 @@ def dashboardtrabajador(request):
     ):
         return HttpResponseForbidden("No autorizado")
 
-    today = timezone.localdate()
-    period = (request.GET.get("period", "day") or "day").lower()
-    period = period if period in ("day", "week", "month", "year") else "day"
-
-    # Calcular rango de fechas según el periodo
-    if period == "day":
-        date_str = request.GET.get("date", "").strip()
-        try:
-            ref_date = dt_date.fromisoformat(date_str) if date_str else today
-        except Exception:
-            ref_date = today
-        start_date = ref_date
-        end_date = ref_date
-        prev_ref = ref_date - timedelta(days=1)
-        next_ref = ref_date + timedelta(days=1)
-        prev_url = f"?period=day&date={prev_ref.isoformat()}"
-        if next_ref > today:
-            next_url = f"?period=day&date={ref_date.isoformat()}"
-        else:
-            next_url = f"?period=day&date={next_ref.isoformat()}"
-        ref_value = ref_date.isoformat()
-        title_text = f"Ventas por producto ({ref_date.isoformat()})"
-        period_title = "día"
-    elif period == "week":
-        week_str = request.GET.get("week", "").strip()
-        try:
-            ref_date = dt_date.fromisoformat(week_str) if week_str else today
-        except Exception:
-            ref_date = today
-        start_date = ref_date - timedelta(days=ref_date.weekday())
-        end_date = start_date + timedelta(days=6)
-        prev_ref = start_date - timedelta(days=1)
-        next_ref = end_date + timedelta(days=1)
-        prev_url = f"?period=week&week={prev_ref.isoformat()}"
-        if next_ref > today:
-            next_url = f"?period=week&week={ref_date.isoformat()}"
-        else:
-            next_url = f"?period=week&week={next_ref.isoformat()}"
-        ref_value = ref_date.isoformat()
-        title_text = f"Ventas por producto (semana {start_date.isoformat()} a {end_date.isoformat()})"
-        period_title = "semana"
-    elif period == "month":
-        month_str = request.GET.get("month", "").strip()
-        try:
-            if month_str:
-                y, m = month_str.split("-")
-                ref_date = dt_date(int(y), int(m), 1)
-            else:
-                ref_date = dt_date(today.year, today.month, 1)
-        except Exception:
-            ref_date = dt_date(today.year, today.month, 1)
-        start_date = ref_date
-        if ref_date.month == 12:
-            next_month_start = dt_date(ref_date.year + 1, 1, 1)
-        else:
-            next_month_start = dt_date(ref_date.year, ref_date.month + 1, 1)
-        end_date = next_month_start - timedelta(days=1)
-        prev_month = dt_date(ref_date.year - 1, 12, 1) if ref_date.month == 1 else dt_date(ref_date.year, ref_date.month - 1, 1)
-        next_month = next_month_start
-        prev_url = f"?period=month&month={prev_month.strftime('%Y-%m')}"
-        if next_month > today:
-            next_url = f"?period=month&month={ref_date.strftime('%Y-%m')}"
-        else:
-            next_url = f"?period=month&month={next_month.strftime('%Y-%m')}"
-        ref_value = ref_date.strftime('%Y-%m')
-        title_text = f"Ventas por producto ({ref_date.strftime('%Y-%m')})"
-        period_title = "mes"
-    else:  # year
-        year_str = request.GET.get("year", "").strip()
-        try:
-            year_i = int(year_str) if year_str else today.year
-        except Exception:
-            year_i = today.year
-        start_date = dt_date(year_i, 1, 1)
-        end_date = dt_date(year_i, 12, 31)
-        prev_url = f"?period=year&year={year_i - 1}"
-        if (year_i + 1) > today.year:
-            next_url = f"?period=year&year={year_i}"
-        else:
-            next_url = f"?period=year&year={year_i + 1}"
-        ref_value = str(year_i)
-        title_text = f"Ventas por producto ({year_i})"
-        period_title = "año"
-
-    rows = (
-        OrderItem.objects.filter(order__fecha__gte=start_date, order__fecha__lte=end_date)
-        .exclude(order__estado="IniciandoPago")
-        .values("product__name")
-        .annotate(units=Sum("cantidad"))
-        .order_by("product__name")
-    )
-    labels = [r["product__name"] for r in rows]
-    values = [r["units"] for r in rows]
-
-    data = {"labels": labels, "values": values}
-    context = {
-        "data_json": json.dumps(data),
-        "period": period,
-        "period_title": period_title,
-        "ref_value": ref_value,
-        "prev_url": prev_url,
-        "next_url": next_url,
-        "title_text": title_text,
-    }
+    context, dashboard_data = get_dashboard_context(request, worker_user=user)
+    context["data_json"] = json.dumps(dashboard_data, cls=DjangoJSONEncoder)
     return render(request, "dashboardtrabajador.html", context)
 
 @login_required
@@ -1009,7 +962,7 @@ def stock(request):
 
 
 def _products_payload():
-    products = Product.objects.select_related("category").prefetch_related("sizes").order_by("id")
+    products = Product.objects.select_related("category").prefetch_related("sizes").order_by("stock")
     out = []
     for p in products:
         out.append({
@@ -1065,7 +1018,7 @@ def pos_view(request):
     ):
         return HttpResponseForbidden("No autorizado")
 
-    # Carrito en sesión: {product_id: cantidad}
+    # Carrito en sesión: {key: cantidad} donde key = "pid_size" o "pid_"
     cart = request.session.get("pos_cart", {})
 
     if request.method == "POST":
@@ -1073,15 +1026,18 @@ def pos_view(request):
         if action == "add":
             pid = request.POST.get("product_id")
             qty = int(request.POST.get("qty", 1) or 1)
+            size = request.POST.get("size", "").strip()
+            
             if pid and Product.objects.filter(pk=pid).exists():
-                cart[str(pid)] = cart.get(str(pid), 0) + max(qty, 1)
+                key = f"{pid}_{size}"
+                cart[key] = cart.get(key, 0) + max(qty, 1)
                 request.session["pos_cart"] = cart
             return redirect("pos")
 
         if action == "remove":
-            pid = request.POST.get("product_id")
-            if pid and str(pid) in cart:
-                cart.pop(str(pid), None)
+            key = request.POST.get("key")
+            if key and key in cart:
+                cart.pop(key, None)
                 request.session["pos_cart"] = cart
             return redirect("pos")
 
@@ -1093,39 +1049,55 @@ def pos_view(request):
             if not cart:
                 return redirect("pos")
 
-            # Validar stock suficiente antes de crear el pedido
-            pids = [int(pid) for pid in cart.keys()]
+            # Agrupar cantidades por producto para validar stock
+            # cart keys: "pid_size"
+            product_totals = {} # pid -> total_qty
+            cart_parsed = {}    # key -> {pid, size, qty}
+
+            for key, qty in cart.items():
+                parts = key.split("_")
+                pid = int(parts[0])
+                size = parts[1] if len(parts) > 1 else ""
+                
+                product_totals[pid] = product_totals.get(pid, 0) + int(qty)
+                cart_parsed[key] = {"pid": pid, "size": size, "qty": int(qty)}
+
+            pids = list(product_totals.keys())
             productos_db = {p.id: p for p in Product.objects.filter(id__in=pids)}
+            
             insuficientes = []
-            for pid, qty in cart.items():
-                qty = int(qty)
-                p = productos_db.get(int(pid))
-                if not p or p.stock < qty:
+            for pid, total_qty in product_totals.items():
+                p = productos_db.get(pid)
+                if not p or p.stock < total_qty:
                     insuficientes.append({
                         "id": pid,
                         "name": p.name if p else f"Producto {pid}",
-                        "requested": qty,
+                        "requested": total_qty,
                         "available": (p.stock if p else 0),
                     })
 
             if insuficientes:
                 # Preparar contexto y mostrar error en la misma página POS
-                productos = Product.objects.all().order_by("id")
+                productos = Product.objects.prefetch_related("sizes").all().order_by("id")
                 cart_items = []
                 cart_total = 0
-                for pid, qty in cart.items():
-                    p = productos_db.get(int(pid))
+                
+                for key, item in cart_parsed.items():
+                    p = productos_db.get(item["pid"])
                     if not p:
                         continue
-                    subtotal = p.price * int(qty)
+                    subtotal = p.price * item["qty"]
                     cart_total += subtotal
                     cart_items.append({
+                        "key": key,
                         "id": p.id,
                         "name": p.name,
+                        "size": item["size"],
                         "price": p.price,
-                        "qty": int(qty),
+                        "qty": item["qty"],
                         "subtotal": subtotal,
                     })
+                    
                 return render(
                     request,
                     "pos.html",
@@ -1134,6 +1106,7 @@ def pos_view(request):
                         "cart_items": cart_items,
                         "cart_total": cart_total,
                         "pos_errors": insuficientes,
+                        "today": timezone.localdate().isoformat()
                     },
                 )
 
@@ -1158,51 +1131,93 @@ def pos_view(request):
                 code=code,
                 fecha=selected_date,
                 cliente=cliente,
+                worker=request.user,
                 total=0,
                 estado="Entregado",
                 channel="Tienda",
             )
 
             total = 0
-            for pid, qty in cart.items():
-                p = productos_db.get(int(pid))
-                qty = int(qty)
-                item = OrderItem.objects.create(
+            # Iterar sobre los items parseados para crear OrderItems con talla
+            for key, item in cart_parsed.items():
+                p = productos_db.get(item["pid"])
+                qty = item["qty"]
+                size = item["size"]
+                
+                order_item = OrderItem.objects.create(
                     order=order,
                     product=p,
                     cantidad=qty,
                     price=p.price,
-                    size="",
+                    size=size,
                 )
-                total += item.subtotal
+                total += order_item.subtotal
+                
+                # Descontar stock (global del producto)
                 p.stock = p.stock - qty
                 p.save(update_fields=["stock"])
 
             order.total = total
             order.save()
 
+            # Notify via WebSocket
+            try:
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(
+                    "orders",
+                    {
+                        "type": "order_new",
+                        "order_id": order.id,
+                        "count": Order.objects.filter(estado='Pendiente').count()
+                    }
+                )
+            except Exception as e:
+                print(f"Error sending websocket notification: {e}")
+
             request.session["pos_cart"] = {}
+            
+            messages.success(request, f"Venta finalizada exitosamente. Pedido {order.code} creado.")
+            return redirect("pos")
 
-            return redirect("dashboardtrabajador")
-
-    # Preparar datos de vista
-    productos = Product.objects.all().order_by("id")
+    # Preparar datos de vista (GET)
+    productos = Product.objects.prefetch_related("sizes").all().order_by("id")
     cart_items = []
     cart_total = 0
-    for pid, qty in cart.items():
+    
+    # Recolectar todos los PIDs necesarios
+    pids_needed = set()
+    for key in cart.keys():
         try:
-            p = Product.objects.get(pk=int(pid))
-        except Product.DoesNotExist:
+            pid = int(key.split("_")[0])
+            pids_needed.add(pid)
+        except (ValueError, IndexError):
             continue
-        subtotal = p.price * int(qty)
-        cart_total += subtotal
-        cart_items.append({
-            "id": p.id,
-            "name": p.name,
-            "price": p.price,
-            "qty": int(qty),
-            "subtotal": subtotal,
-        })
+            
+    productos_db = {p.id: p for p in Product.objects.filter(id__in=pids_needed)}
+    
+    for key, qty in cart.items():
+        try:
+            parts = key.split("_")
+            pid = int(parts[0])
+            size = parts[1] if len(parts) > 1 else ""
+            
+            p = productos_db.get(pid)
+            if not p:
+                continue
+                
+            subtotal = p.price * int(qty)
+            cart_total += subtotal
+            cart_items.append({
+                "key": key,
+                "id": p.id,
+                "name": p.name,
+                "size": size,
+                "price": p.price,
+                "qty": int(qty),
+                "subtotal": subtotal,
+            })
+        except (ValueError, IndexError):
+            continue
 
     return render(
         request,
@@ -1498,6 +1513,20 @@ def webpay_commit(request):
         if status == 'AUTHORIZED':
             order.estado = 'Pendiente'
             order.save()
+            
+            # Notify via WebSocket
+            try:
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(
+                    "orders",
+                    {
+                        "type": "order_new",
+                        "order_id": order.id,
+                        "count": Order.objects.filter(estado='Pendiente').count()
+                    }
+                )
+            except Exception as e:
+                print(f"Error sending websocket notification: {e}")
             
             # Send confirmation email
             EmailService.send_order_confirmation(order)

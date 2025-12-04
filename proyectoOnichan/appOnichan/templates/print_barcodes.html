@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* Standard label size approx 60x40mm */
+            /* Tamaño estándar de etiqueta aprox 60x40mm */
             --label-width: 60mm;
             --label-height: 40mm;
             --label-gap: 4mm;
@@ -53,13 +53,13 @@
         }
         .btn-secondary:hover { background-color: #d1d5db; }
 
-        /* Sheet simulation for screen */
+        /* Simulación de hoja para pantalla */
         #sheet {
             background: white;
-            width: 210mm; /* A4 width */
-            min-height: 297mm; /* A4 height */
+            width: 210mm; /* Ancho A4 */
+            min-height: 297mm; /* Alto A4 */
             margin: 0 auto;
-            padding: 10mm; /* Margins */
+            padding: 10mm; /* Márgenes */
             box-shadow: 0 0 15px rgba(0,0,0,0.1);
             box-sizing: border-box;
             display: flex;
@@ -126,7 +126,7 @@
         svg.barcode {
             width: 100%;
             height: 100%;
-            max-height: 20mm; /* Limit barcode height */
+            max-height: 20mm; /* Limita altura del código de barras */
             display: block;
         }
 
@@ -143,10 +143,10 @@
                 width: 100%;
                 box-shadow: none;
                 margin: 0;
-                padding: 5mm; /* Adjust based on printer margins */
+                padding: 5mm; /* Ajusta según márgenes de impresora */
             }
             .label {
-                border: 1px dashed #ccc; /* Light guide for cutting */
+                border: 1px dashed #ccc; /* Guía ligera para corte */
                 break-inside: avoid;
                 page-break-inside: avoid;
             }

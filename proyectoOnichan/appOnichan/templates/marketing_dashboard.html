@@ -58,7 +58,7 @@
                             <td>{{ batch.used_count|default:0 }}</td>
                             <td>
                                 {% if batch.batch_name %}
-                                <button class="btn btn-sm btn-info text-white me-1" onclick="viewBatchCoupons('{{ batch.batch_name }}')">
+                                <button class="btn btn-sm btn-pastel me-1" onclick="viewBatchCoupons('{{ batch.batch_name }}')">
                                     <i class="bi bi-eye"></i> Ver/Copiar
                                 </button>
                                 <a href="{% url 'delete_coupon_batch' %}?batch_name={{ batch.batch_name }}" class="btn btn-sm btn-danger" onclick="return confirm('¿Estás seguro de eliminar TODOS los cupones de este lote? Esta acción no se puede deshacer.');">
@@ -113,7 +113,7 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <a href="{% url 'bulk_offer_detail' offer.id %}" class="btn btn-sm btn-info text-white me-1">
+                                        <a href="{% url 'bulk_offer_detail' offer.id %}" class="btn btn-sm btn-pastel me-1">
                                             <i class="bi bi-eye"></i> Detalle
                                         </a>
                                         {% if offer.active %}
@@ -178,10 +178,10 @@
 
                             <!-- Grid Container -->
                             <div id="productsGrid" class="d-flex flex-wrap gap-3 p-3 border rounded bg-light" style="max-height: 500px; overflow-y: auto;">
-                                <!-- JS will populate this -->
+                                <!-- JS poblará esto -->
                             </div>
                             
-                            <!-- Hidden original field to maintain Django form logic -->
+                            <!-- Campo original oculto para mantener lógica de formulario Django -->
                             <div class="d-none">
                                 {{ bulk_form.products }}
                             </div>
@@ -523,7 +523,7 @@ function openRewardModal(id, name, image) {
     document.getElementById('productPreviewSection').style.display = 'block';
     document.getElementById('couponSelectSection').style.display = 'none';
     
-    // Enable stock validation
+    // Habilita validación de stock
     const stockInput = document.querySelector('input[name="stock"]');
     if(stockInput) stockInput.required = true;
     
@@ -535,14 +535,14 @@ function openCouponRewardModal() {
     document.getElementById('productPreviewSection').style.display = 'none';
     document.getElementById('couponSelectSection').style.display = 'block';
     
-    // Disable stock validation
+    // Deshabilita validación de stock
     const stockInput = document.querySelector('input[name="stock"]');
     if(stockInput) stockInput.required = false;
     
     new bootstrap.Modal(document.getElementById('addRewardModal')).show();
 }
 
-// Filter Logic for Reward Products
+// Lógica de filtrado para productos de recompensa
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('rewardSearch');
     const categorySelect = document.getElementById('rewardCategoryFilter');
@@ -672,7 +672,7 @@ function openCampaignModal(templateId, templateName, templateSubject) {
     document.getElementById('campaignTemplateName').textContent = templateName;
     document.getElementById('campaignSubject').value = templateSubject;
     
-    // Reset coupon section
+    // Reinicia sección de cupón
     document.getElementById('includeCouponCheck').checked = false;
     document.getElementById('couponSettings').style.display = 'none';
     
@@ -722,7 +722,7 @@ function viewBatchCoupons(batchName) {
     document.getElementById('modalBatchName').innerText = batchName;
     const modal = new bootstrap.Modal(document.getElementById('couponBatchModal'));
     
-    // Show loading state
+    // Muestra estado de cargando
     document.getElementById('couponTextArea').value = "Cargando cupones...";
     modal.show();
 
@@ -755,19 +755,19 @@ function updateCouponFormat() {
     
     switch(format) {
         case 'python':
-            // Python list format: ['CODE1', 'CODE2']
+            // Formato lista Python: ['CODE1', 'CODE2']
             formattedText = "[" + currentCoupons.map(c => `'${c}'`).join(", ") + "]";
             break;
         case 'json':
-            // JSON format: ["CODE1", "CODE2"]
+            // Formato JSON: ["CODE1", "CODE2"]
             formattedText = JSON.stringify(currentCoupons);
             break;
         case 'csv':
-            // CSV format: CODE1,CODE2
+            // Formato CSV: CODE1,CODE2
             formattedText = currentCoupons.join(",");
             break;
         case 'text':
-            // Plain text: One per line
+            // Texto plano: Uno por línea
             formattedText = currentCoupons.join("\n");
             break;
     }
@@ -778,9 +778,9 @@ function updateCouponFormat() {
 function copyToClipboard() {
     const textArea = document.getElementById('couponTextArea');
     textArea.select();
-    document.execCommand('copy'); // Fallback for older browsers
+    document.execCommand('copy'); // Respaldo para navegadores más antiguos
     
-    // Modern API
+    // API moderna
     if (navigator.clipboard) {
         navigator.clipboard.writeText(textArea.value).then(() => {
             alert("¡Cupones copiados al portapapeles!");
@@ -797,7 +797,7 @@ const searchInput = document.getElementById('productSearch');
 const categoryFilter = document.getElementById('categoryFilter');
 const selectedCountSpan = document.getElementById('selectedCount');
     
-// Map to track selected IDs
+// Mapeo para rastrear IDs seleccionados
 let selectedIds = new Set();
 
 function renderGrid() {
@@ -806,27 +806,27 @@ function renderGrid() {
     const selectedCategory = categoryFilter.value;
 
     productsData.forEach(product => {
-        // Filter logic
+        // Lógica de filtrado
         if (searchTerm && !product.name.toLowerCase().includes(searchTerm)) return;
         if (selectedCategory && product.category !== selectedCategory) return;
 
-        // Check if disabled (already has an active offer)
+        // Verifica si está deshabilitado (ya tiene una oferta activa)
         const isDisabled = !!product.active_offer;
 
-        // Create Card
+        // Crea Card
         const card = document.createElement('div');
         card.className = `card product-card ${selectedIds.has(product.id) ? 'border-primary ring-2' : ''} ${isDisabled ? 'opacity-75 bg-light' : ''}`;
         card.style.width = '160px';
         card.style.cursor = isDisabled ? 'not-allowed' : 'pointer';
         card.style.transition = 'all 0.2s';
             
-        // Visual selection style
+        // Estilo visual de selección
         if (selectedIds.has(product.id)) {
             card.style.boxShadow = '0 0 0 3px #0d6efd';
             card.style.transform = 'scale(1.02)';
         }
 
-        // Active Offer Badge
+        // Badge de oferta activa
         let badgeHtml = '';
         if (product.active_offer) {
             badgeHtml = `<span class="position-absolute top-0 end-0 badge rounded-pill bg-warning text-dark m-1" style="font-size: 0.7rem;">${product.active_offer}</span>`;
@@ -844,7 +844,7 @@ function renderGrid() {
             </div>
         `;
 
-        // Click Event
+        // Evento Click
         if (!isDisabled) {
             card.onclick = () => toggleSelection(product.id, card);
         } else {
@@ -856,7 +856,7 @@ function renderGrid() {
 }
 
 function toggleSelection(pid, cardElement) {
-    // Toggle Set
+    // Alterna Set
     if (selectedIds.has(pid)) {
         selectedIds.delete(pid);
         cardElement.style.boxShadow = 'none';
@@ -872,9 +872,9 @@ function toggleSelection(pid, cardElement) {
 }
 
 function updateHiddenInputs() {
-    // Sync with the hidden Django form widget
-    // The widget renders checkboxes with name="products" and value=ID
-    // We need to check/uncheck them based on our Set
+    // Sincroniza con el widget de formulario Django oculto
+    // El widget renderiza checkboxes con name="products" y value=ID
+    // Necesitamos marcar/desmarcar según nuestro Set
     const checkboxes = document.querySelectorAll('input[name="products"]');
     checkboxes.forEach(cb => {
         const val = parseInt(cb.value);
@@ -890,16 +890,16 @@ function updateCount() {
 searchInput.addEventListener('input', renderGrid);
 categoryFilter.addEventListener('change', renderGrid);
 
-// Initial Render
+// Renderizado Inicial
 document.addEventListener('DOMContentLoaded', () => {
     renderGrid();
-    // Initialize selectedIds from form state if page reloaded (optional, but good for UX)
+    // Inicializa selectedIds desde estado del formulario si se recarga (opcional, pero bueno para UX)
     const checkboxes = document.querySelectorAll('input[name="products"]');
     checkboxes.forEach(cb => {
         if (cb.checked) selectedIds.add(parseInt(cb.value));
     });
     updateCount();
-    renderGrid(); // Re-render to show initial selection
+    renderGrid(); // Re-renderiza para mostrar selección inicial
 
     // Tab Synchronization
     const triggerTabList = [].slice.call(document.querySelectorAll('#marketingTab button'))

@@ -4,7 +4,7 @@
         <img src="{{ product.image_url }}" class="card-img-top object-fit-cover" alt="{{ product.name }}" style="aspect-ratio: 1/1; width: 100%;">
       </a>
       
-      <!-- Badges -->
+      <!-- Insignias -->
       <div class="position-absolute top-0 start-0 p-3 d-flex flex-column gap-2">
         {% include 'partials/badges/stock_badge.html' with stock=product.stock %}
         {% include 'partials/badges/discount_badge.html' with discount_percentage=product.detail.discount_percentage %}

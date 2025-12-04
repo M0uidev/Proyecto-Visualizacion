@@ -102,7 +102,7 @@ class RewardService:
                 assigned_ids = UserCoupon.objects.filter(coupon__in=batch_coupons).values_list('coupon_id', flat=True)
                 
                 # Buscar cupón disponible en el lote
-                available_coupon = batch_coupons.exclude(id__in=assigned_ids).select_for_update(skip_locked=True).first()
+                available_coupon = batch_coupons.exclude(id__in=assigned_ids).select_for_update().first()
                 
                 if not available_coupon:
                      raise ValidationError("Lo sentimos, se han agotado los cupones de esta recompensa.")
